@@ -14,6 +14,7 @@ using System.Text;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Collections.Concurrent;
 
 
 namespace BuildingSmart.Serialization
@@ -72,7 +73,65 @@ namespace BuildingSmart.Serialization
 		/// <param name="stream"></param>
 		/// <param name="graph"></param>
 		public abstract void WriteObject(Stream stream, object graph);
+
+		private static ConcurrentDictionary<string, ConstructorInfo> mConstructors = new ConcurrentDictionary<string, ConstructorInfo>();
+		
+		protected static string SerializeBytes(Byte[] vector)
+		{
+			StringBuilder sb = new StringBuilder(vector.Length * 2 + 1);
+			sb.Append("\"");
+			byte b;
+			int start;
+
+			// only 8-byte multiples supported
+			sb.Append("0");
+			start = 0;
+
+			for (int i = start; i < vector.Length; i++)
+			{
+				b = vector[i];
+				sb.Append(HexChars[b / 0x10]);
+				sb.Append(HexChars[b % 0x10]);
+			}
+
+			sb.Append("\"");
+			return sb.ToString();
+		}
+
+		protected static byte[] ParseBinary(string strval)
+		{
+			int len = (strval.Length - 3) / 2; // subtract surrounding quotes and modulus character
+			byte[] vector = new byte[len];
+			int modulo = 0; // not used for IFC -- always byte-aligned
+
+			int offset;
+			if (strval.Length % 2 == 0)
+			{
+				modulo = Convert.ToInt32(strval[1]) + 4;
+				offset = 1;
+
+				char ch = strval[2];
+				vector[0] = (ch >= 'A' ? (byte)(ch - 'A' + 10) : (byte)ch);
+			}
+			else
+			{
+				modulo = Convert.ToInt32((strval[1] - '0')); // [0] is quote; [1] is modulo
+				offset = 0;
+			}
+
+			for (int i = offset; i < len; i++)
+			{
+				char hi = strval[i * 2 + 2 - offset];
+				char lo = strval[i * 2 + 3 - offset];
+
+				byte val = (byte)(
+					((hi >= 'A' ? +(int)(hi - 'A' + 10) : (int)(hi - '0')) << 4) +
+					((lo >= 'A' ? +(int)(lo - 'A' + 10) : (int)(lo - '0'))));
+
+				vector[i] = val;
+			}
+
+			return vector;
+		}
 	}
-
-
 }

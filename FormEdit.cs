@@ -258,7 +258,7 @@ namespace IfcDoc
 
 			List<DocChangeAction> listChange = new List<DocChangeAction>(); //temp
 
-			Dictionary<long, object> instances = null;
+			List<object> instances = new List<object>();
 			string ext = System.IO.Path.GetExtension(this.m_file).ToLower();
 			try
 			{
@@ -267,11 +267,24 @@ namespace IfcDoc
 					case ".ifcdoc":
 						using (FileStream streamDoc = new FileStream(this.m_file, FileMode.Open, FileAccess.Read))
 						{
+							Dictionary<long, object> dictionaryInstances = null;
 							StepSerializer formatDoc = new StepSerializer(typeof(DocProject), SchemaDOC.Types);
-							this.m_project = (DocProject)formatDoc.ReadObject(streamDoc, out instances);
+							this.m_project = (DocProject)formatDoc.ReadObject(streamDoc, out dictionaryInstances);
+							instances.AddRange(dictionaryInstances.Values);
 						}
 						break;
-
+					case ".ifcdocxml":
+						using (FileStream streamDoc = new FileStream(this.m_file, FileMode.Open, FileAccess.Read))
+						{
+							Dictionary<string, object> dictionaryInstances = null;
+							XmlSerializer formatDoc = new XmlSerializer(typeof(DocProject));
+							this.m_project = (DocProject)formatDoc.ReadObject(streamDoc, out dictionaryInstances);
+							instances.AddRange(dictionaryInstances.Values);
+						}
+						break;
+					default:
+						MessageBox.Show("Unsupported file type " + ext, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+						break;
 #if MDB
                     case ".mdb":
                         using (FormatMDB format = new FormatMDB(this.m_file, SchemaDOC.Types, this.m_instances))
@@ -295,7 +308,7 @@ namespace IfcDoc
 			List<SEntity> listDelete = new List<SEntity>();
 			List<DocTemplateDefinition> listTemplate = new List<DocTemplateDefinition>();
 
-			foreach (object o in instances.Values)
+			foreach (object o in instances)
 			{
 				if (o is DocSchema)
 				{
@@ -501,6 +514,13 @@ namespace IfcDoc
                             }
                             break;
 #endif
+						case ".ifcdocxml":
+							using (FileStream streamDoc = new FileStream(this.m_file, FileMode.Create, FileAccess.ReadWrite))
+							{
+								XmlSerializer formatDoc = new XmlSerializer(typeof(DocProject));
+								formatDoc.WriteObject(streamDoc, this.m_project); // ... specify header...IFCDOC_11_8
+							}
+							break;
 					}
 					this.m_modified = false;
 				}
@@ -9832,6 +9852,10 @@ namespace IfcDoc
 				form.SelectedPath = this.folderBrowserDialog.SelectedPath;
 				if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK)
 				{
+					XmlFolderSerializer folderSerializer = new XmlFolderSerializer(typeof(DocProject));
+					folderSerializer.WriteObject(form.SelectedPath, this.m_project);
+
+					return;
 					Dictionary<string, DocObject> mapEntity = new Dictionary<string, DocObject>();
 					Dictionary<string, string> mapSchema = new Dictionary<string, string>();
 					BuildMaps(mapEntity, mapSchema);

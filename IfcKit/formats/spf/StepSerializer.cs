@@ -343,25 +343,7 @@ namespace BuildingSmart.Serialization.Step
 			}
 			else if (t == typeof(byte[]))
 			{
-				byte[] vector = (byte[])o;
-				StringBuilder sb = new StringBuilder(vector.Length * 2 + 1);
-				sb.Append("\"");
-				byte b;
-				int start;
-
-				// only 8-byte multiples supported
-				sb.Append("0");
-				start = 0;
-
-				for (int i = start; i < vector.Length; i++)
-				{
-					b = vector[i];
-					sb.Append(HexChars[b / 0x10]);
-					sb.Append(HexChars[b % 0x10]);
-				}
-
-				sb.Append("\"");
-				return sb.ToString();
+				return SerializeBytes((byte[])o);
 			}
 			else if (t.IsEnum)
 			{
@@ -834,42 +816,6 @@ namespace BuildingSmart.Serialization.Step
 			return dValue;
 		}
 
-		private static byte[] ParseBinary(string strval)
-		{
-			int len = (strval.Length - 3) / 2; // subtract surrounding quotes and modulus character
-			byte[] vector = new byte[len];
-			int modulo = 0; // not used for IFC -- always byte-aligned
-
-			int offset;
-			if (strval.Length % 2 == 0)
-			{
-				modulo = Convert.ToInt32(strval[1]) + 4;
-				offset = 1;
-
-				char ch = strval[2];
-				vector[0] = (ch >= 'A' ? (byte)(ch - 'A' + 10) : (byte)ch);
-			}
-			else
-			{
-				modulo = Convert.ToInt32((strval[1] - '0')); // [0] is quote; [1] is modulo
-				offset = 0;
-			}
-
-			for (int i = offset; i < len; i++)
-			{
-				char hi = strval[i * 2 + 2 - offset];
-				char lo = strval[i * 2 + 3 - offset];
-
-				byte val = (byte)(
-					((hi >= 'A' ? +(int)(hi - 'A' + 10) : (int)(hi - '0')) << 4) +
-					((lo >= 'A' ? +(int)(lo - 'A' + 10) : (int)(lo - '0'))));
-
-				vector[i] = val;
-			}
-
-			return vector;
-		}
-
 		/// <summary>
 		/// Parses primitive if defined, otherwise null if type is not a primitive.
 		/// </summary>
@@ -1115,7 +1061,7 @@ namespace BuildingSmart.Serialization.Step
 			string strType = line.Substring(0, iParam);
 			strType = strType.Trim();
 
-			Type t = this.GetTypeByName(strType);
+			Type t = this.GetNonAbstractTypeByName(strType);
 			if (t == null)
 			{
 				throw new FormatException("Unknown type: " + line);
@@ -1420,7 +1366,7 @@ namespace BuildingSmart.Serialization.Step
 						string strType = strConstructor.Substring(0, iParam);
 						strType = strType.Trim();
 
-						Type t = this.GetTypeByName(strType);
+						Type t = this.GetNonAbstractTypeByName(strType);
 						if (t != null)
 						{
 							object o = FormatterServices.GetUninitializedObject(t); // works if no parameterless constructor is defined

@@ -26,6 +26,8 @@ namespace BuildingSmart.Serialization
 		string _release;
 		string _application;
 		Dictionary<string, Type> _typemap = new Dictionary<string, Type>();
+		Dictionary<string, Type> _abstractTypeMap = new Dictionary<string, Type>();
+
 		Dictionary<Type, IList<PropertyInfo>> _fieldmap = new Dictionary<Type, IList<PropertyInfo>>(); // cached field lists in declaration order
 		Dictionary<Type, IList<PropertyInfo>> _fieldinv = new Dictionary<Type, IList<PropertyInfo>>(); // cached field lists for inverses
 		Dictionary<Type, IList<PropertyInfo>> _fieldall = new Dictionary<Type, IList<PropertyInfo>>(); // combined
@@ -158,12 +160,20 @@ namespace BuildingSmart.Serialization
 					}
 				}
 
-				if (t.IsPublic && !t.IsAbstract)
+				if (t.IsPublic)
 				{
 					string name = t.Name.ToUpper();
-					if (!_typemap.ContainsKey(name))
+					if (t.IsAbstract)
 					{
-						_typemap.Add(name, t);
+						if (!_abstractTypeMap.ContainsKey(name))
+							_abstractTypeMap.Add(name, t);
+					}
+					else
+					{
+						if (!_typemap.ContainsKey(name))
+						{
+							_typemap.Add(name, t);
+						}
 					}
 				}
 			}
@@ -304,14 +314,20 @@ namespace BuildingSmart.Serialization
 		/// </summary>
 		/// <param name="name"></param>
 		/// <returns></returns>
-		protected Type GetTypeByName(string name)
+		protected Type GetNonAbstractTypeByName(string name)
 		{
 			Type type = null;
 			if (this._typemap.TryGetValue(name.ToUpper(), out type))
-			{
 				return type;
-			}
-
+			return null;
+		}
+		protected Type GetTypeByName(string name)
+		{
+			Type type = GetNonAbstractTypeByName(name);
+			if (type != null)
+				return type;
+			if(this._abstractTypeMap.TryGetValue(name.ToUpper(), out type))
+				return type;
 			return null;
 		}
 
