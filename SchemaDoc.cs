@@ -595,19 +595,20 @@ namespace IfcDoc.Schema.DOC
 	/// The single root of the documentation having sections in order of ISO documentation
 	/// </summary>
 	public class DocProject : SEntity
-	{
-		[DataMember(Order = 0)] [XmlElement] public List<DocSection> Sections { get; protected set; }
-		[DataMember(Order = 1)] [XmlElement] public List<DocAnnex> Annexes { get; protected set; } // inserted in 1.2
-		[DataMember(Order = 2)] [XmlElement] public List<DocTemplateDefinition> Templates { get; protected set; }
-		[DataMember(Order = 3)] [XmlElement] public List<DocModelView> ModelViews { get; protected set; } // new in 2.7
-		[DataMember(Order = 4)] [XmlElement] public List<DocChangeSet> ChangeSets { get; protected set; } // new in 2.7
-		[DataMember(Order = 5)] [XmlElement] public List<DocExample> Examples { get; protected set; } // new in 4.2
-		[DataMember(Order = 6)] [XmlElement] public List<DocReference> NormativeReferences { get; protected set; } // new in 4.3
-		[DataMember(Order = 7)] [XmlElement] public List<DocReference> InformativeReferences { get; protected set; }// new in 4.3
-		[DataMember(Order = 8)] [XmlElement] public List<DocTerm> Terms { get; protected set; } // new in 4.3
-		[DataMember(Order = 9)] [XmlElement] public List<DocAbbreviation> Abbreviations { get; protected set; } // new in 4.3
-		[DataMember(Order = 10)] [XmlElement] public List<DocAnnotation> Annotations { get; protected set; } // new in 8.7: Cover | Foreword | Introduction; Deprecated in 9.6
-		[DataMember(Order = 11)] [XmlElement] public List<DocPublication> Publications { get; protected set; } // new in 9.6
+
+		[DataMember(Order = 0)] public List<DocSection> Sections { get; protected set; }
+		[DataMember(Order = 1)] public List<DocAnnex> Annexes { get; protected set; } // inserted in 1.2
+		[DataMember(Order = 2)] public List<DocTemplateDefinition> Templates { get; protected set; }
+		[DataMember(Order = 3)] public List<DocModelView> ModelViews { get; protected set; } // new in 2.7
+		[DataMember(Order = 4)] public List<DocChangeSet> ChangeSets { get; protected set; } // new in 2.7
+		[DataMember(Order = 5)] public List<DocExample> Examples { get; protected set; } // new in 4.2
+		[DataMember(Order = 6)] public List<DocReference> NormativeReferences { get; protected set; } // new in 4.3
+		[DataMember(Order = 7)] public List<DocReference> InformativeReferences { get; protected set; }// new in 4.3
+		[DataMember(Order = 8)] public List<DocTerm> Terms { get; protected set; } // new in 4.3
+		[DataMember(Order = 9)] public List<DocAbbreviation> Abbreviations { get; protected set; } // new in 4.3
+		[DataMember(Order = 10)] public List<DocAnnotation> Annotations { get; protected set; } // new in 8.7: Cover | Foreword | Introduction; Deprecated in 9.6
+		[DataMember(Order = 11)] public List<DocPublication> Publications { get; protected set; } // new in 9.6
+		[DataMember(Order = 11)] public DocListings Listings { get; protected set; }
 
 		public DocProject()
 		{
@@ -5729,6 +5730,36 @@ namespace IfcDoc.Schema.DOC
 	/// </summary>
 	public class DocComment : DocDefinition
 	{
+	}
+
+	/// <summary>
+	/// Represents Project Listings 
+	/// </summary>
+	public class DocListings : DocObject
+	{
+		[DataMember(Order = 0)] public List<DocDefined> ValueTypes { get; protected set; }
+		[DataMember(Order = 1)] public List<DocEnumeration> Enumerations { get; protected set; }
+		[DataMember(Order = 2)] public List<DocSelect> SelectTypes { get; protected set; }
+		[DataMember(Order = 3)] public List<DocEntity> Entities { get; protected set; }
+		[DataMember(Order = 4)] public List<DocFunction> Functions { get; protected set; }
+		[DataMember(Order = 5)] public List<DocGlobalRule> GlobalRules { get; protected set; }
+		[DataMember(Order = 6)] public List<DocProperty> Properties { get; protected set; }
+		[DataMember(Order = 7)] public List<DocPropertySet> PropertySets { get; protected set; }
+		[DataMember(Order = 8)] public List<DocQuantitySet> QuantitySets { get; protected set; }
+
+		//Primitives
+
+		public DocListings()
+		{
+			this.ValueTypes = new List<DocDefined>();
+			this.Enumerations = new List<DocEnumeration>();
+			this.SelectTypes = new List<DocSelect>();
+			this.Entities = new List<DocEntity>();
+			this.Functions = new List<DocFunction>();
+			this.GlobalRules = new List<DocGlobalRule>();
+			this.PropertySets = new List<DocPropertySet>();
+			this.QuantitySets = new List<DocQuantitySet>();
+		}
 	}
 
 	/// <summary>
