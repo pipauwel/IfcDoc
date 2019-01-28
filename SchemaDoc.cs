@@ -595,7 +595,7 @@ namespace IfcDoc.Schema.DOC
 	/// The single root of the documentation having sections in order of ISO documentation
 	/// </summary>
 	public class DocProject : SEntity
-
+	{ 
 		[DataMember(Order = 0)] public List<DocSection> Sections { get; protected set; }
 		[DataMember(Order = 1)] public List<DocAnnex> Annexes { get; protected set; } // inserted in 1.2
 		[DataMember(Order = 2)] public List<DocTemplateDefinition> Templates { get; protected set; }
