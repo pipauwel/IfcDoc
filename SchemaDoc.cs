@@ -608,7 +608,7 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 9)] public List<DocAbbreviation> Abbreviations { get; protected set; } // new in 4.3
 		[DataMember(Order = 10)] public List<DocAnnotation> Annotations { get; protected set; } // new in 8.7: Cover | Foreword | Introduction; Deprecated in 9.6
 		[DataMember(Order = 11)] public List<DocPublication> Publications { get; protected set; } // new in 9.6
-		[DataMember(Order = 11)] public DocListings Listings { get; protected set; }
+		[DataMember(Order = 12)] public DocListings Listings { get; protected set; }
 
 		public DocProject()
 		{
