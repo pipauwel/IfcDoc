@@ -614,6 +614,7 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 9)] public List<DocAbbreviation> Abbreviations { get; protected set; } // new in 4.3
 		[DataMember(Order = 10)] public List<DocAnnotation> Annotations { get; protected set; } // new in 8.7: Cover | Foreword | Introduction; Deprecated in 9.6
 		[DataMember(Order = 11)] public List<DocPublication> Publications { get; protected set; } // new in 9.6
+		[DataMember(Order = 11)] public DocListings Listings { get; protected set; }
 
 		public DocProject()
 		{
@@ -5830,6 +5831,36 @@ namespace IfcDoc.Schema.DOC
 	/// </summary>
 	public class DocComment : DocDefinition
 	{
+	}
+
+	/// <summary>
+	/// Represents Project Listings 
+	/// </summary>
+	public class DocListings : DocObject
+	{
+		[DataMember(Order = 0)] public List<DocDefined> ValueTypes { get; protected set; }
+		[DataMember(Order = 1)] public List<DocEnumeration> Enumerations { get; protected set; }
+		[DataMember(Order = 2)] public List<DocSelect> SelectTypes { get; protected set; }
+		[DataMember(Order = 3)] public List<DocEntity> Entities { get; protected set; }
+		[DataMember(Order = 4)] public List<DocFunction> Functions { get; protected set; }
+		[DataMember(Order = 5)] public List<DocGlobalRule> GlobalRules { get; protected set; }
+		[DataMember(Order = 6)] public List<DocProperty> Properties { get; protected set; }
+		[DataMember(Order = 7)] public List<DocPropertySet> PropertySets { get; protected set; }
+		[DataMember(Order = 8)] public List<DocQuantitySet> QuantitySets { get; protected set; }
+
+		//Primitives
+
+		public DocListings()
+		{
+			this.ValueTypes = new List<DocDefined>();
+			this.Enumerations = new List<DocEnumeration>();
+			this.SelectTypes = new List<DocSelect>();
+			this.Entities = new List<DocEntity>();
+			this.Functions = new List<DocFunction>();
+			this.GlobalRules = new List<DocGlobalRule>();
+			this.PropertySets = new List<DocPropertySet>();
+			this.QuantitySets = new List<DocQuantitySet>();
+		}
 	}
 
 	/// <summary>
