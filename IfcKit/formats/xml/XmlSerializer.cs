@@ -749,7 +749,7 @@ namespace BuildingSmart.Serialization.Xml
 			while (queue.Count > 0)
 			{
 				object ent = queue.Dequeue();
-				if (!mObjectStore.HasEncountered(ent))
+				if (string.IsNullOrEmpty(mObjectStore.EncounteredId(ent)))
 				{
 					this.WriteEntity(writer, ref indent, ent, new HashSet<string>(), queue, true, ref nextID);
 				}
@@ -783,7 +783,7 @@ namespace BuildingSmart.Serialization.Xml
 				rootdelim = true;
 
 				object ent = queue.Dequeue();
-				if(!mObjectStore.HasEncountered(ent))
+				if(string.IsNullOrEmpty(mObjectStore.EncounteredId(ent)))
 				{
 					this.WriteEntity(writer, ref indent, ent, propertiesToIgnore, queue, isIdPass, ref nextID);
 				}
@@ -1211,12 +1211,7 @@ namespace BuildingSmart.Serialization.Xml
 							{
 								// for collection is must be non-zero (e.g. IfcProject.IsNestedBy)
 								bool showit = true; //...check: always include tag if Attribute (even if zero); hide if Element 
-								List<object> forcedReferences = null;
-								PropertySerializationAttribute propertySerialization = f.GetCustomAttribute<PropertySerializationAttribute>();
-								if (propertySerialization != null && propertySerialization.ForceReference)
-								{
-									forcedReferences = new List<object>();
-								}
+								
 								if (value is IEnumerable) // what about IfcProject.RepresentationContexts if empty? include???
 								{
 									showit = false;
@@ -1224,16 +1219,8 @@ namespace BuildingSmart.Serialization.Xml
 									foreach (object check in enumerate)
 									{
 										showit = true; // has at least one element
-										if(forcedReferences == null)
 											break;
-										if(!mObjectStore.HasEncountered(check))
-											forcedReferences.Add(check);
 									}
-								}
-								else
-								{
-									if (forcedReferences != null && !mObjectStore.HasEncountered(value))
-										forcedReferences.Add(value);
 								}
 								if (showit)
 								{
@@ -1248,17 +1235,7 @@ namespace BuildingSmart.Serialization.Xml
 										this.WriteAttributeDelimiter(writer);
 									}
 									previousattribute = true;
-									if(forcedReferences != null)
-									{
-										foreach (object obj in forcedReferences)
-											mObjectStore.MarkEncountered(obj, ref nextID);
-									}
 									WriteAttribute(writer, ref indent, o, new HashSet<string>(), f, queue, isIdPass, ref nextID);
-									if(forcedReferences != null)
-									{
-										foreach (object obj in forcedReferences)
-											mObjectStore.RemoveEncountered(obj);
-									}
 								}
 							}
 						}
@@ -1319,7 +1296,7 @@ namespace BuildingSmart.Serialization.Xml
 								IEnumerable invlist = (IEnumerable)value;
 								foreach (object invobj in invlist)
 								{
-									if (!mObjectStore.HasEncountered(invobj))
+									if (string.IsNullOrEmpty(mObjectStore.EncounteredId(invobj)))
 									{
 										queue.Enqueue(invobj);
 									}
@@ -1685,7 +1662,9 @@ namespace BuildingSmart.Serialization.Xml
 			private string getUniqueId(object o)
 			{
 				Type ot = o.GetType();
-				PropertyInfo propertyInfo = ot.GetProperty("UniqueId", typeof(string));
+				PropertyInfo propertyInfo = ot.GetProperty("id", typeof(string));
+				if (propertyInfo == null)
+					propertyInfo = ot.GetProperty("UniqueId", typeof(string));
 				if (propertyInfo == null)
 					propertyInfo = ot.GetProperty("GlobalId", typeof(string));
 				if (propertyInfo != null)
@@ -1719,10 +1698,6 @@ namespace BuildingSmart.Serialization.Xml
 				string id = createUniqueId(obj, ref nextId);
 				EncounteredObjects[obj] = id;
 				return id;
-			}
-			internal bool HasEncountered(object obj)
-			{
-				return EncounteredObjects.ContainsKey(obj);
 			}
 			internal string EncounteredId(object obj)
 			{

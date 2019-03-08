@@ -9853,6 +9853,7 @@ namespace IfcDoc
 				if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK)
 				{
 					XmlFolderSerializer folderSerializer = new XmlFolderSerializer(typeof(DocProject));
+					folderSerializer.AddFilePrefix(typeof(DocDefinition), "Ifc");
 					folderSerializer.WriteObject(form.SelectedPath, this.m_project);
 
 					return;
