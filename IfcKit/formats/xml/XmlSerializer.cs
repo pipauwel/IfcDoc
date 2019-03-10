@@ -209,7 +209,7 @@ namespace BuildingSmart.Serialization.Xml
 					return o;
 				}
 			}
-			bool isNested = reader.AttributeCount == 0 && nestedElementDefinition;
+			bool isNested = (t == null || reader.AttributeCount == 0) && nestedElementDefinition;
 			while (reader.Read())
 			{
 				switch (reader.NodeType)
@@ -389,15 +389,15 @@ namespace BuildingSmart.Serialization.Xml
 					}
 				}
 			}
-			else if (vt != null)
+			else 
 			{
 				Type et = f.PropertyType;
-				if (typeof(IEnumerable).IsAssignableFrom(f.PropertyType))
+				if (et != typeof(byte[]) && typeof(IEnumerable).IsAssignableFrom(f.PropertyType))
 				{
 					et = f.PropertyType.GetGenericArguments()[0];
 				}
 
-				if (vt.IsValueType)
+				if (vt == null || vt.IsValueType)
 				{
 					// drill in
 					if (!reader.IsEmptyElement)
@@ -448,6 +448,8 @@ namespace BuildingSmart.Serialization.Xml
 					}
 				}
 			}
+
+
 		}
 
 		private void LoadCollectionValue(IEnumerable list, object v)
@@ -626,6 +628,11 @@ namespace BuildingSmart.Serialization.Xml
 					v = Activator.CreateInstance(ft);
 					fieldValue.SetValue(v, primval);
 				}
+				else
+				{
+					object primval = ParsePrimitive(reader.Value, ft);
+					LoadEntityValue(o, f, primval);
+				}
 			}
 			else if (IsEntityCollection(ft))
 			{
@@ -771,7 +778,6 @@ namespace BuildingSmart.Serialization.Xml
 		internal protected void writeObject(Stream stream, object root, HashSet<string> propertiesToIgnore, ref int nextID)
 		{
 			Queue<object> queue = new Queue<object>();
-			queue.Enqueue(root);
 			writeObject(stream, root, propertiesToIgnore, queue, false, ref nextID);
 		}
 		private void writeObject(Stream stream, object root, HashSet<string> propertiesToIgnore, Queue<object> queue, bool isIdPass, ref int nextID)
@@ -1684,13 +1690,29 @@ namespace BuildingSmart.Serialization.Xml
 
 			internal void Queue(object o, PropertyInfo propertyInfo)
 			{
-				attributes.Add(new Tuple<object, PropertyInfo>(o,propertyInfo));
+				attributes.Add(new Tuple<object, PropertyInfo>(o, propertyInfo));
 			}
 			
 			internal void Dequeue(object value)
 			{
 				foreach (Tuple<object, PropertyInfo> tuple in attributes)
-					tuple.Item2.SetValue(tuple.Item1, value);
+				{
+					object obj = tuple.Item1;
+					PropertyInfo propertyInfo = tuple.Item2;
+					if(IsEntityCollection(propertyInfo.PropertyType))
+					{
+						IEnumerable list = propertyInfo.GetValue(obj) as IEnumerable;
+						Type typeCollection = list.GetType();
+						MethodInfo methodAdd = typeCollection.GetMethod("Add");
+						if (methodAdd == null)
+						{
+							throw new Exception("Unsupported collection type " + typeCollection.Name);
+						}
+						methodAdd.Invoke(list, new object[] { value });
+					}
+					else
+						propertyInfo.SetValue(obj, value);
+				}
 			}
 		}
 

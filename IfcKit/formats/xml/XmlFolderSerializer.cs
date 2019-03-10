@@ -331,7 +331,8 @@ namespace BuildingSmart.Serialization.Xml
 			string filePath = files[0];
 			string fileName = Path.GetFileNameWithoutExtension(filePath);
 			Type detectedType = GetTypeByName(fileName);
-			
+			if (detectedType != null && nominatedType != null && !detectedType.IsSubclassOf(nominatedType))
+				detectedType = null;
 
 			string typeName = detectedType == null ? "" : detectedType.Name;
 
@@ -344,7 +345,25 @@ namespace BuildingSmart.Serialization.Xml
 				XmlParserContext context = new XmlParserContext(null, xmlns, "", XmlSpace.Default);
 				using (XmlReader reader = XmlReader.Create(streamSource, settings, context))
 				{
-					result = ReadEntity(reader, instances, typeName, queuedObjects, string.IsNullOrEmpty(typeName));
+					result = ReadEntity(reader, instances, typeName, queuedObjects, true);
+				}
+			}
+			foreach (string file in Directory.GetFiles(folderPath, "*.html", SearchOption.TopDirectoryOnly))
+			{
+				PropertyInfo f = GetFieldByName(detectedType == null ? nominatedType : detectedType, Path.GetFileNameWithoutExtension(file));
+				if (f != null)
+				{
+					string htmlText = File.ReadAllText(file);
+					f.SetValue(result, htmlText);
+				}
+			}
+			foreach (string file in Directory.GetFiles(folderPath, "*.txt", SearchOption.TopDirectoryOnly))
+			{
+				PropertyInfo f = GetFieldByName(detectedType == null ? nominatedType : detectedType, Path.GetFileNameWithoutExtension(file));
+				if (f != null)
+				{
+					string text = File.ReadAllText(file);
+					f.SetValue(result, text);
 				}
 			}
 			string[] directories = Directory.GetDirectories(folderPath, "*", SearchOption.TopDirectoryOnly);
@@ -352,11 +371,7 @@ namespace BuildingSmart.Serialization.Xml
 			{
 				string directoryName = new DirectoryInfo(directory).Name;	
 				PropertyInfo f = GetFieldByName(detectedType == null ? nominatedType : detectedType , directoryName);
-				if (f == null)
-				{
-
-				}
-				else
+				if (f != null)
 				{
 					if (IsEntityCollection(f.PropertyType))
 					{
