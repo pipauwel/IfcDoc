@@ -112,7 +112,6 @@ namespace BuildingSmart.Serialization.Xml
 			while(queue.Count > 0)
 				WriteNestedObject(queue.Dequeue(), queue, ref nextID);
 		}
-
 		private void WriteNestedObject(QueueData dataObject, Queue<QueueData> queue, ref int nextID)
 		{
 			object obj = dataObject.PayLoad;
@@ -308,6 +307,109 @@ namespace BuildingSmart.Serialization.Xml
 					serializer.writeObject(fileStream, obj, nestedProperties, ref nextID);
 				}
 			}
+		}
+
+		public object ReadObject(string folderPath)
+		{
+			if (!Directory.Exists(folderPath))
+				throw new ArgumentNullException("Folder doesn't exist");
+
+			Dictionary<string, object> instances = new Dictionary<string, object>();
+			QueuedObjects queuedObjects = new QueuedObjects();
+
+			return readFolder(folderPath, RootType, instances, queuedObjects);
+		}
+		private object readFolder(string folderPath, Type nominatedType, Dictionary<string, object> instances, QueuedObjects queuedObjects)
+		{
+			string[] files = Directory.GetFiles(folderPath, "*.xml", SearchOption.TopDirectoryOnly);
+			if (files == null || files.Length == 0)
+				return null;
+
+			if (files.Length > 1)
+				throw new Exception("Unexpected multiple xml files in folder " + folderPath);
+
+			string filePath = files[0];
+			string fileName = Path.GetFileNameWithoutExtension(filePath);
+			Type detectedType = GetTypeByName(fileName);
+			
+
+			string typeName = detectedType == null ? "" : detectedType.Name;
+
+			object result = null;
+			using (FileStream streamSource = new FileStream(filePath, FileMode.Open))
+			{
+				XmlReaderSettings settings = new XmlReaderSettings { NameTable = new NameTable() };
+				XmlNamespaceManager xmlns = new XmlNamespaceManager(settings.NameTable);
+				xmlns.AddNamespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
+				XmlParserContext context = new XmlParserContext(null, xmlns, "", XmlSpace.Default);
+				using (XmlReader reader = XmlReader.Create(streamSource, settings, context))
+				{
+					result = ReadEntity(reader, instances, typeName, queuedObjects, string.IsNullOrEmpty(typeName));
+				}
+			}
+			string[] directories = Directory.GetDirectories(folderPath, "*", SearchOption.TopDirectoryOnly);
+			foreach(string directory in directories)
+			{
+				string directoryName = new DirectoryInfo(directory).Name;	
+				PropertyInfo f = GetFieldByName(detectedType == null ? nominatedType : detectedType , directoryName);
+				if (f == null)
+				{
+
+				}
+				else
+				{
+					if (IsEntityCollection(f.PropertyType))
+					{
+						IEnumerable list = f.GetValue(result) as IEnumerable;
+						Type typeCollection = list.GetType();
+						MethodInfo methodAdd = typeCollection.GetMethod("Add");
+						if (methodAdd == null)
+						{
+							throw new Exception("Unsupported collection type " + typeCollection.Name);
+						}
+						Type collectionGeneric = typeCollection.GetGenericArguments()[0];
+						List<object> objects = new List<object>();
+						string[] subDirectories = Directory.GetDirectories(directory, "*", SearchOption.TopDirectoryOnly);
+						foreach(string subDir in subDirectories)
+						{
+							string[] subfiles = Directory.GetFiles(subDir, "*.xml", SearchOption.TopDirectoryOnly);
+							if (subfiles.Length > 0)
+							{
+								object o = readFolder(subDir, collectionGeneric, instances, queuedObjects);
+								if (o != null)
+									objects.Add(o);
+							}
+							else
+							{
+								string[] subsubDirectories = Directory.GetDirectories(subDir, "*", SearchOption.TopDirectoryOnly);
+								foreach(string subsubDir in subsubDirectories)
+								{
+									object o = readFolder(subsubDir, collectionGeneric, instances, queuedObjects);
+									if (o != null)
+										objects.Add(o);
+								}
+
+							}
+						}
+						foreach (object o in objects)
+						{
+							try
+							{
+								methodAdd.Invoke(list, new object[] { o }); // perf!!
+							}
+							catch (Exception) { }
+						}
+					}
+					else
+					{
+						object o = readFolder(directory, f.PropertyType, instances, queuedObjects);
+						if (o != null)
+							LoadEntityValue(result, f, o);
+					}
+				}
+
+			}
+			return result;
 		}
 	}
 }

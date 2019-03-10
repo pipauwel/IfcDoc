@@ -22,7 +22,6 @@ namespace BuildingSmart.Serialization.Xml
 {
 	public class XmlSerializer : Serializer
 	{
-		public bool EnableDualPass { get; set; } = false;
 		protected ObjectStore mObjectStore = new ObjectStore();
 
 		public XmlSerializer(Type type) : base(type)
@@ -39,28 +38,8 @@ namespace BuildingSmart.Serialization.Xml
 			// pull it into a memory stream so we can make multiple passes (can't assume it's a file; could be web service)
 			//...MemoryStream memstream = new MemoryStream();
 
-			Dictionary<string, object> instances = null;
-			return ReadObject(stream, out instances);
-		}
-
-		/// <summary>
-		/// Reads an object graph and provides access to instance identifiers from file.
-		/// </summary>
-		/// <param name="stream"></param>
-		/// <param name="instances"></param>
-		/// <returns></returns>
-		public object ReadObject(Stream stream, out Dictionary<string, object> instances)
-		{
-			instances = new Dictionary<string, object>();
-
-			System.Diagnostics.Debug.WriteLine("!! Reading XML");
-
-			// second pass: read instances
-			if(EnableDualPass)
-				ReadContent(stream, instances, false);
-
-			// third pass: read fields
-			ReadContent(stream, instances, true);
+			Dictionary<string, object> instances = new Dictionary<string, object>();
+			ReadObject(stream, out instances);
 
 			// stash project in empty string key
 			object root = null;
@@ -72,6 +51,19 @@ namespace BuildingSmart.Serialization.Xml
 			return null; // could not find the single project object
 		}
 
+		/// <summary>
+		/// Reads an object graph and provides access to instance identifiers from file.
+		/// </summary>
+		/// <param name="stream"></param>
+		/// <param name="instances"></param>
+		/// <returns></returns>
+		public object ReadObject(Stream stream, out Dictionary<string, object> instances)
+		{
+			System.Diagnostics.Debug.WriteLine("!! Reading XML");
+			instances = new Dictionary<string, object>();
+			
+			return ReadContent(stream, instances);
+		}
 
 		/// <summary>
 		/// 
@@ -79,10 +71,10 @@ namespace BuildingSmart.Serialization.Xml
 		/// <param name="stream"></param>
 		/// <param name="idmap"></param>
 		/// <param name="parsefields">True to populate fields; False to load instances only.</param>
-		private void ReadContent(Stream stream, Dictionary<string, object> idmap, bool parseRefFields)
+		private object ReadContent(Stream stream, Dictionary<string, object> instances)
 		{
-			stream.Position = 0;
-
+			object result = null;
+			QueuedObjects queuedObjects = new QueuedObjects();
 			using (XmlReader reader = XmlReader.Create(stream))
 			{
 				while (reader.Read())
@@ -103,11 +95,13 @@ namespace BuildingSmart.Serialization.Xml
 									switch (reader.NodeType)
 									{
 										case XmlNodeType.Element:
-											ReadEntity(reader, idmap, reader.LocalName, parseRefFields, false);
+											object o = ReadEntity(reader, instances, reader.LocalName, queuedObjects, false);
+											if (result == null && o != null)
+												result = o;
 											break;
 
 										case XmlNodeType.EndElement:
-											return;
+											return result;
 									}
 								}
 
@@ -116,21 +110,24 @@ namespace BuildingSmart.Serialization.Xml
 					}
 				}
 			}
+			return result;
 		}
 
-		private object ReadEntity(XmlReader reader, IDictionary<string, object> instances, string typename, bool parsefields, bool nestedElementDefinition)
+		protected object ReadEntity(XmlReader reader, IDictionary<string, object> instances, string typename, QueuedObjects queuedObjects, bool nestedElementDefinition)
 		{
 			object o = null;
-			Type t;
-			if (typename == "header")
+			Type t = null;
+			if (string.IsNullOrEmpty(typename))
+				t = GetTypeByName(reader.LocalName);
+			else if (string.Compare(typename, "header", true) == 0)
 				t = typeof(header);
 			else
-				t = this.GetTypeByName(typename);
+				t = GetTypeByName(typename);
 
-			if (t == null)
-				return null;
-			if(t.IsAbstract)
+			if (t != null)
 			{
+				if (t.IsAbstract)
+				{
 					reader.MoveToElement();
 					while (reader.Read())
 					{
@@ -139,8 +136,8 @@ namespace BuildingSmart.Serialization.Xml
 							case XmlNodeType.Element:
 								{
 									Type localType = this.GetTypeByName(reader.LocalName);
-									if(localType != null && localType.IsSubclassOf(t) && !localType.IsAbstract)
-										o = ReadEntity(reader, instances, reader.LocalName, parsefields, false);
+									if (localType != null && localType.IsSubclassOf(t) && !localType.IsAbstract)
+										o = ReadEntity(reader, instances, reader.LocalName, queuedObjects, false);
 									break;
 								}
 
@@ -154,17 +151,14 @@ namespace BuildingSmart.Serialization.Xml
 					}
 					//System.Diagnostics.Debug.WriteLine("<<ReadEntity: " + t.Name + "." + reader.LocalName);
 					return o;
-
-			}
-			if(t != null)
-			{
+				}
 				//System.Diagnostics.Debug.WriteLine(">>ReadEntity: " + t.Name + "." + reader.LocalName);
 				// map instance id if used later
 				string sid = reader.GetAttribute("id");
 
-				if(t == this.ProjectType || t.IsSubclassOf(this.ProjectType))
+				if (t == this.ProjectType || t.IsSubclassOf(this.ProjectType))
 				{
-					if(!instances.TryGetValue(String.Empty, out o))
+					if (!instances.TryGetValue(String.Empty, out o))
 					{
 						o = instances[String.Empty] = FormatterServices.GetUninitializedObject(t); // stash project using blank index
 						if (!string.IsNullOrEmpty(sid))
@@ -173,7 +167,7 @@ namespace BuildingSmart.Serialization.Xml
 				}
 				else if (!String.IsNullOrEmpty(sid) && !instances.TryGetValue(sid, out o))
 				{
-					o = FormatterServices.GetUninitializedObject(t); 
+					o = FormatterServices.GetUninitializedObject(t);
 					instances.Add(sid, o);
 				}
 				if (o == null)
@@ -184,38 +178,25 @@ namespace BuildingSmart.Serialization.Xml
 						instances.Add(sid, o);
 					}
 				}
-
-				// ensure all lists/sets are instantiated
-				IList<PropertyInfo> fields = GetFieldsOrdered(t);
-				foreach (PropertyInfo f in fields)
+				if (!string.IsNullOrEmpty(sid))
 				{
-					if (f.GetValue(o) == null)
-					{
-						Type type = f.PropertyType;
-
-						if (IsEntityCollection(type))
-						{
-							Type typeCollection = this.GetCollectionInstanceType(type);
-							object collection = Activator.CreateInstance(typeCollection);
-							f.SetValue(o, collection);
-						}
-					}
+					queuedObjects.DeQueue(sid, o);
 				}
-				
-				if (parsefields)
+				// ensure all lists/sets are instantiated
+				Initialize(o, t);
+
+
+				// read attribute properties
+				for (int i = 0; i < reader.AttributeCount; i++)
 				{
-					// read attribute properties
-					for (int i = 0; i < reader.AttributeCount; i++)
+					reader.MoveToAttribute(i);
+					if (!reader.LocalName.Equals("id"))
 					{
-						reader.MoveToAttribute(i);
-						if (!reader.LocalName.Equals("id"))
+						string match = reader.LocalName;
+						PropertyInfo f = GetFieldByName(t, match);
+						if (f != null)
 						{
-							string match = reader.LocalName;
-							PropertyInfo f = GetFieldByName(t, match);
-							if (f != null)
-							{
-								ReadValue(reader, o, f, f.PropertyType);
-							}
+							ReadValue(reader, o, f, f.PropertyType);
 						}
 					}
 				}
@@ -224,47 +205,53 @@ namespace BuildingSmart.Serialization.Xml
 				// now read attributes or end of entity
 				if (reader.IsEmptyElement)
 				{
-				//	System.Diagnostics.Debug.WriteLine("<<ReadEntity: " + t.Name + "." + reader.LocalName);
+					//	System.Diagnostics.Debug.WriteLine("<<ReadEntity: " + t.Name + "." + reader.LocalName);
 					return o;
 				}
-				bool isNested = reader.AttributeCount == 0 && nestedElementDefinition;
-				while (reader.Read())
+			}
+			bool isNested = reader.AttributeCount == 0 && nestedElementDefinition;
+			while (reader.Read())
+			{
+				switch (reader.NodeType)
 				{
-					switch (reader.NodeType)
-					{
-						case XmlNodeType.Element:
+					case XmlNodeType.Element:
+						{
+							if (isNested)
 							{
-								if (isNested)
+								if(t == null && !string.IsNullOrEmpty(reader.LocalName))
 								{
-									if (string.Compare(reader.LocalName, typename) == 0)
+									o = ReadEntity(reader, instances, reader.LocalName, queuedObjects, false);
+									break;
+								}
+								else if (string.Compare(reader.LocalName, t.Name) == 0)
+								{
+									o = ReadEntity(reader, instances, typename, queuedObjects, false);
+									break;
+								}
+								else
+								{
+									Type localType = this.GetNonAbstractTypeByName(reader.LocalName);
+									if (localType != null && localType.IsSubclassOf(t))
 									{
-										o = ReadEntity(reader, instances, typename, parsefields, false);
+										o = ReadEntity(reader, instances, reader.LocalName, queuedObjects, false);
 										break;
 									}
-									else
-									{
-										Type localType = this.GetNonAbstractTypeByName(reader.LocalName);
-										if (localType != null && localType.IsSubclassOf(t))
-										{
-											o = ReadEntity(reader, instances, reader.LocalName, parsefields, false);
-											break;
-										}
-									}
 								}
-								ReadElement(reader, o, instances);
-								break;
 							}
-
-						case XmlNodeType.Attribute:
+							ReadElement(reader, o, instances, queuedObjects);
 							break;
+						}
 
-						case XmlNodeType.EndElement:
-							//System.Diagnostics.Debug.WriteLine("!!ReadEntity: " + t.Name + "." + reader.LocalName);
-							return o;
-					}
+					case XmlNodeType.Attribute:
+						break;
+
+					case XmlNodeType.EndElement:
+						//System.Diagnostics.Debug.WriteLine("!!ReadEntity: " + t.Name + "." + reader.LocalName);
+						return o;
 				}
-				//System.Diagnostics.Debug.WriteLine("<<ReadEntity: " + t.Name + "." + reader.LocalName);
 			}
+			//System.Diagnostics.Debug.WriteLine("<<ReadEntity: " + t.Name + "." + reader.LocalName);
+
 
 			return o;
 		}
@@ -275,7 +262,7 @@ namespace BuildingSmart.Serialization.Xml
 		/// <param name="reader"></param>
 		/// <param name="o"></param>
 		/// <param name="instances"></param>
-		private void ReadElement(XmlReader reader, object o, IDictionary<string, object> instances)
+		protected void ReadElement(XmlReader reader, object o, IDictionary<string, object> instances, QueuedObjects queuedObjects)
 		{
 			if (o == null)
 				throw new ArgumentNullException("o");
@@ -311,10 +298,14 @@ namespace BuildingSmart.Serialization.Xml
 			}
 
 			// interface, e.g. IfcRepresentation.StyledByItem\IfcStyledItem
-
-			string t = reader.GetAttribute("xsi:type");
 			string r = reader.GetAttribute("href");
-			if (t != null)
+			if(!string.IsNullOrEmpty(r))
+			{
+				processReference(r, o, f, instances, queuedObjects);
+				return;
+			}
+			string t = reader.GetAttribute("xsi:type");
+			if (!string.IsNullOrEmpty(t))
 			{
 				reftype = t;
 				if (t.Contains(":"))
@@ -329,7 +320,7 @@ namespace BuildingSmart.Serialization.Xml
 
 			if (reftype != null)
 			{
-				this.ReadReference(reader, o, f, instances, reftype);
+				this.ReadReference(reader, o, f, instances, queuedObjects, reftype);
 			}
 			else
 			{
@@ -340,8 +331,12 @@ namespace BuildingSmart.Serialization.Xml
 					{
 						switch (reader.NodeType)
 						{
+							case XmlNodeType.Attribute:
+								if(reader.LocalName == "href")
+									processReference(reader.Value, o, f, instances, queuedObjects);
+								break;	
 							case XmlNodeType.Element:
-								ReadReference(reader, o, f, instances, reader.LocalName);
+								ReadReference(reader, o, f, instances, queuedObjects, reader.LocalName);
 								break;
 
 							case XmlNodeType.Text:
@@ -367,7 +362,7 @@ namespace BuildingSmart.Serialization.Xml
 		/// <param name="reader"></param>
 		/// <param name="o"></param>
 		/// <param name="f"></param>
-		private void ReadReference(XmlReader reader, object o, PropertyInfo f, IDictionary<string, object> instances, string typename)
+		private void ReadReference(XmlReader reader, object o, PropertyInfo f, IDictionary<string, object> instances, QueuedObjects queuedObjects, string typename)
 		{
 			if (typename.EndsWith("-wrapper"))
 			{
@@ -442,13 +437,13 @@ namespace BuildingSmart.Serialization.Xml
 						}
 						else
 						{
-							//fixups.Add(new Fixup(o, f, r));
+							queuedObjects.Queue(r, o, f);
 						}
 					}
 					else
 					{
 						// embedded entity definition
-						object v = this.ReadEntity(reader, instances, typename, true, true);
+						object v = this.ReadEntity(reader, instances, typename, queuedObjects, true);
 						LoadEntityValue(o, f, v);
 					}
 				}
@@ -472,8 +467,23 @@ namespace BuildingSmart.Serialization.Xml
 				// could be type that changed and is no longer compatible with schema -- try to keep going
 			}
 		}
+		private bool processReference(string sid, object o, PropertyInfo f, IDictionary<string, object> instances, QueuedObjects queuedObjects)
+		{
+			if (string.IsNullOrEmpty(sid))
+				return false;
 
-		private void LoadEntityValue(object o, PropertyInfo f, object v)
+			object encounteredObject = null;
+			if (instances.TryGetValue(sid, out encounteredObject))
+			{
+				LoadEntityValue(o, f, encounteredObject);
+			}
+			else
+			{
+				queuedObjects.Queue(sid, o, f);
+			}
+			return true;
+		}
+		protected void LoadEntityValue(object o, PropertyInfo f, object v)
 		{
 			if (v == null)
 				return;
@@ -974,10 +984,7 @@ namespace BuildingSmart.Serialization.Xml
 		{
 		}
 
-		protected static bool IsEntityCollection(Type type)
-		{
-			return (type != typeof(string) && type != typeof(byte[]) && typeof(IEnumerable).IsAssignableFrom(type));
-		}
+		
 
 		protected static bool IsValueCollection(Type t)
 		{
@@ -1648,6 +1655,43 @@ namespace BuildingSmart.Serialization.Xml
 			Hidden = 1,//IfcDoc.Schema.CNF.exp_attribute.no_tag,    // for direct attribute, don't include as inverse is defined instead
 			Attribute = 2,//IfcDoc.Schema.CNF.exp_attribute.attribute_tag, // represent as attribute
 			Element = 3,//IfcDoc.Schema.CNF.exp_attribute.double_tag,   // represent as element
+		}
+
+		protected internal class QueuedObjects
+		{
+			private Dictionary<string, QueuedObject> queued = new Dictionary<string, QueuedObject>();
+
+			internal void Queue(string sid, object o, PropertyInfo propertyInfo)
+			{
+				QueuedObject queuedObject = null;
+				if (!queued.TryGetValue(sid, out queuedObject))
+					queuedObject = queued[sid] = new QueuedObject();
+				queuedObject.Queue(o, propertyInfo);
+			}
+			internal void DeQueue(string sid, object value)
+			{
+				QueuedObject queuedObject = null;
+				if(queued.TryGetValue(sid, out queuedObject))
+				{
+					queuedObject.Dequeue(value);
+					queued.Remove(sid);
+				}
+			}
+		}
+		protected internal class QueuedObject
+		{
+			private List<Tuple<object,PropertyInfo>> attributes = new List<Tuple<object,PropertyInfo>>();
+
+			internal void Queue(object o, PropertyInfo propertyInfo)
+			{
+				attributes.Add(new Tuple<object, PropertyInfo>(o,propertyInfo));
+			}
+			
+			internal void Dequeue(object value)
+			{
+				foreach (Tuple<object, PropertyInfo> tuple in attributes)
+					tuple.Item2.SetValue(tuple.Item1, value);
+			}
 		}
 
 		protected internal class ObjectStore

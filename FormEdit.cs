@@ -9835,7 +9835,15 @@ namespace IfcDoc
 
 			try
 			{
-				FolderStorage.LoadFolder(this.m_project, folderBrowserDialog.SelectedPath);
+				XmlFolderSerializer folderSerializer = new XmlFolderSerializer(typeof(DocProject));
+				DocProject docProject = folderSerializer.ReadObject(folderBrowserDialog.SelectedPath) as DocProject;
+				if(docProject == null)
+				{
+					MessageBox.Show(this, "Unrecognized Project, aborted.", "Error loading from folder");
+					return;
+				}
+				m_project = docProject;
+				//FolderStorage.LoadFolder(this.m_project, folderBrowserDialog.SelectedPath);
 			}
 			catch (Exception xx)
 			{

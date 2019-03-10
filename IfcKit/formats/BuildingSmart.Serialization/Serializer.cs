@@ -76,6 +76,30 @@ namespace BuildingSmart.Serialization
 
 		private static ConcurrentDictionary<string, ConstructorInfo> mConstructors = new ConcurrentDictionary<string, ConstructorInfo>();
 		
+		protected void Initialize(object o, Type t)
+		{
+			IList<PropertyInfo> fields = GetFieldsOrdered(t);
+			foreach (PropertyInfo f in fields)
+			{
+				if (f.GetValue(o) == null)
+				{
+					Type type = f.PropertyType;
+
+					if (IsEntityCollection(type))
+					{
+						Type typeCollection = this.GetCollectionInstanceType(type);
+						object collection = Activator.CreateInstance(typeCollection);
+						f.SetValue(o, collection);
+					}
+				}
+			}
+		}
+
+		protected static bool IsEntityCollection(Type type)
+		{
+			return (type != typeof(string) && type != typeof(byte[]) && typeof(IEnumerable).IsAssignableFrom(type));
+		}
+
 		protected static string SerializeBytes(Byte[] vector)
 		{
 			StringBuilder sb = new StringBuilder(vector.Length * 2 + 1);

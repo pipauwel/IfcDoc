@@ -6315,8 +6315,6 @@ namespace IfcDoc.Schema.DOC
 
 		private Type m_runtimetype; // corresponding compiled type
 
-		[IgnoreDataMember] public string id { get { return Name; } }
-
 		public Type RuntimeType
 		{
 			get
@@ -6597,6 +6595,8 @@ namespace IfcDoc.Schema.DOC
 			this.WhereRules.Add(docAttr);
 			return docAttr;
 		}
+
+		[IgnoreDataMember] public virtual string id { get { return Name; } }
 	}
 	[DataContract(IsReference = false)]
 	public class DocSubtype : DocObject
@@ -6829,7 +6829,7 @@ namespace IfcDoc.Schema.DOC
 	/// </summary>
 	public abstract class DocType : DocDefinition
 	{
-
+		[IgnoreDataMember] public virtual string id { get { return Name; } }
 	}
 
 	/// <summary>
