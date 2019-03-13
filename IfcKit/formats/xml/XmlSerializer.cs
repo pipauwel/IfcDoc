@@ -772,7 +772,7 @@ namespace BuildingSmart.Serialization.Xml
 				}
 			}
 			// pass 2: write to file -- clear save map; retain ID map
-			mObjectStore.ClearEncounterd();
+			mObjectStore.ClearEncountered();
 			writeObject(stream, root, new HashSet<string>(), new Queue<object>(), false, ref nextID);
 		}
 		internal protected void writeObject(Stream stream, object root, HashSet<string> propertiesToIgnore, ref int nextID)
@@ -1801,7 +1801,7 @@ namespace BuildingSmart.Serialization.Xml
 			{
 				EncounteredObjects.Remove(obj);
 			}
-			internal void ClearEncounterd() { EncounteredObjects.Clear(); }
+			internal void ClearEncountered() { EncounteredObjects.Clear(); }
 		}
 	}
 
