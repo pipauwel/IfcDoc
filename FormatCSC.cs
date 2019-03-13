@@ -567,7 +567,7 @@ namespace IfcDoc.Format.CSC
 			}
 
 			// don't include our own schema
-			if (listSchema.ContainsKey(this.m_schema.Name))
+			if (this.m_schema != null && listSchema.ContainsKey(this.m_schema.Name))
 			{
 				listSchema.Remove(this.m_schema.Name);
 			}
