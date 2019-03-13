@@ -57,6 +57,12 @@ namespace IfcDoc
 			}
 		}
 
+		public static IfcProjectLibrary generatePropertyLibrary(DocProject docProject, Dictionary<DocObject, bool> included)
+		{
+			IfcProjectLibrary ifcProjectLibrary = new IfcProjectLibrary(new IfcGloballyUniqueId("2OqsW47Dz0LgTmf4DAn1f4"), null, new IfcLabel("IFC Templates"), null, null, null, null, new IfcRepresentationContext[] { }, null);
+			Program.ExportIfc(ifcProjectLibrary, docProject, included);
+			return ifcProjectLibrary;
+		}
 		/// <summary>
 		/// Exports file.
 		/// </summary>
@@ -110,10 +116,9 @@ namespace IfcDoc
 					using (FileStream stream = new FileStream(filepath, FileMode.Create))
 					{
 						// export property sets and quantity sets
-						IfcProject ifcProject = new IfcProject(Program.NewGuid(), null, new IfcLabel("IFC Templates"), null, null, null, null, new IfcRepresentationContext[] { }, null);
-						Program.ExportIfc(ifcProject, docProject, included);
-						StepSerializer format = new StepSerializer(ifcProject.GetType());
-						format.WriteObject(stream, ifcProject);
+						IfcProjectLibrary ifcProjectLibrary = generatePropertyLibrary(docProject, included);
+						StepSerializer format = new StepSerializer(ifcProjectLibrary.GetType());
+						format.WriteObject(stream, ifcProjectLibrary);
 					}
 					break;
 
@@ -121,10 +126,9 @@ namespace IfcDoc
 					using (FileStream stream = new FileStream(filepath, FileMode.Create))
 					{
 						// export property sets and quantity sets
-						IfcProject ifcProject = new IfcProject(Program.NewGuid(), null, new IfcLabel("IFC Templates"), null, null, null, null, new IfcRepresentationContext[] { }, null);
-						Program.ExportIfc(ifcProject, docProject, included);
-						XmlSerializer format = new XmlSerializer(ifcProject.GetType());
-						format.WriteObject(stream, ifcProject);
+						IfcProjectLibrary ifcProjectLibrary = generatePropertyLibrary(docProject, included);
+						XmlSerializer format = new XmlSerializer(ifcProjectLibrary.GetType());
+						format.WriteObject(stream, ifcProjectLibrary);
 					}
 					break;
 
