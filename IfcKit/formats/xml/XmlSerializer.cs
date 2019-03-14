@@ -1012,17 +1012,20 @@ namespace BuildingSmart.Serialization.Xml
 			string id = mObjectStore.EncounteredId(o);
 			if (!string.IsNullOrEmpty(id))
 			{
-				// reference existing; return
+				mObjectStore.MarkReferenced(o, id);
 				this.WriteReference(writer, indent, id);
 				return false;
 			}
 			// give it an ID if needed (first pass)
 			// mark as saved
-			id = mObjectStore.ProccessId(o, isIdPass, ref nextID);
+			id = mObjectStore.IdentifyId(o, isIdPass, ref nextID);
 
-			if (!string.IsNullOrEmpty(id))
+			if (string.IsNullOrEmpty(id))
+				mObjectStore.MarkEncountered(o, ref nextID);
+			else
 			{
 				this.WriteIdentifier(writer, indent, id);
+				mObjectStore.MarkEncountered(o, id);
 			}
 
 			bool previousattribute = false;
@@ -1718,52 +1721,44 @@ namespace BuildingSmart.Serialization.Xml
 
 		protected internal class ObjectStore
 		{
-			internal bool UseUniqueIdReferences { get; set; } = false;
+			internal bool UseUniqueIdReferences { get; set; } = true;
 			private Dictionary<object, string> IdMap = new Dictionary<object, string>();
 			private Dictionary<object, string> EncounteredObjects = new Dictionary<object, string>();
-			private Dictionary<object, string> IdPassObjects = new Dictionary<object, string>();
+			private Dictionary<object, string> ReferencedObjects = new Dictionary<object, string>();
 
 			internal ObjectStore() { }
 
-			private string getUniqueId(object o)
+			internal string UniqueId(object o, ref int nextID)
 			{
-				Type ot = o.GetType();
-				PropertyInfo propertyInfo = ot.GetProperty("id", typeof(string));
-				if (propertyInfo == null)
-					propertyInfo = ot.GetProperty("UniqueId", typeof(string));
-				if (propertyInfo == null)
-					propertyInfo = ot.GetProperty("GlobalId", typeof(string));
-				if (propertyInfo != null)
-				{
-					object obj = propertyInfo.GetValue(o);
-					if (obj != null)
-						return obj.ToString();
-				}
-				return "";
-			}
-			internal protected string createUniqueId(object o, ref int nextID)
-			{
-				string uniqueId = "";
-				if (IdMap.TryGetValue(o, out uniqueId))
-					return uniqueId;
 				if (UseUniqueIdReferences)
 				{
-					uniqueId = getUniqueId(o);
+					Type ot = o.GetType();
+					PropertyInfo propertyInfo = ot.GetProperty("id", typeof(string));
+					if (propertyInfo == null)
+						propertyInfo = ot.GetProperty("UniqueId");
+					if (propertyInfo == null)
+						propertyInfo = ot.GetProperty("GlobalId");
+					if (propertyInfo != null)
+					{
+						object obj = propertyInfo.GetValue(o);
+						if (obj != null)
+							return obj.ToString();
+					}
 				}
-				if (string.IsNullOrEmpty(uniqueId))
-				{
-					nextID++;
-					return "i" + nextID;
-				}
-				IdMap[o] = uniqueId;
-				return uniqueId;
+				nextID++;
+				return "i" + nextID;
 			}
-
+			internal void MarkReferenced(Object obj, string id)
+			{
+				ReferencedObjects[obj] = id;
+			}
+			internal string MarkEncountered(Object obj, string id)
+			{
+				return EncounteredObjects[obj] = id;
+			}
 			internal string MarkEncountered(Object obj, ref int nextId)
 			{
-				string id = createUniqueId(obj, ref nextId);
-				EncounteredObjects[obj] = id;
-				return id;
+				return MarkEncountered(obj,UniqueId(obj, ref nextId));
 			}
 			internal string EncounteredId(object obj)
 			{
@@ -1772,28 +1767,16 @@ namespace BuildingSmart.Serialization.Xml
 					return id;
 				return null;
 			}
-			internal string ProccessId(object obj, bool isIdPass, ref int nextID)
+			internal string IdentifyId(object obj, bool isIdPass, ref int nextId)
 			{
 				string id = "";
+				if (ReferencedObjects.TryGetValue(obj, out id))
+					return id;
 				if (isIdPass)
 				{
-					if (IdPassObjects.TryGetValue(obj, out id))
-					{
-						if (string.IsNullOrEmpty(id))
-						{
-							return IdPassObjects[obj] = createUniqueId(obj, ref nextID);
-						}
-					}
-					else
-						return IdPassObjects[obj] = "";
-				}
-				else if (UseUniqueIdReferences)
-				{
-					string uniqueId = getUniqueId(obj);
-					if(!string.IsNullOrEmpty(uniqueId))
-					{
-						return EncounteredObjects[obj] = uniqueId;
-					}
+					if (IdMap.TryGetValue(obj, out id))
+						return id;
+					return IdMap[obj] = UniqueId(obj, ref nextId);
 				}
 				return "";
 			}
@@ -1801,7 +1784,10 @@ namespace BuildingSmart.Serialization.Xml
 			{
 				EncounteredObjects.Remove(obj);
 			}
-			internal void ClearEncountered() { EncounteredObjects.Clear(); }
+			internal void ClearEncountered()
+			{
+				EncounteredObjects.Clear();
+			}
 		}
 	}
 
