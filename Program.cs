@@ -1084,9 +1084,7 @@ namespace IfcDoc
 						{
 							propertySets.Add(docPset);
 							foreach (DocProperty docProp in docPset.Properties)
-							{
-								
-							}
+								processProperty(docProp, ref nonComplexProperties, ref complexProperties);
 						}
 					}
 
@@ -1112,6 +1110,14 @@ namespace IfcDoc
 				propertyTemplates[docProp.UniqueId] = ifcProp;
 				rel.RelatedDefinitions.Add(ifcProp);
 			}
+
+			foreach (DocProperty docProp in nonComplexProperties.Values.OrderBy(x => x, comparer))
+			{
+				IfcPropertyTemplate ifcProp = ExportIfcPropertyTemplate(docProp, mapEnums);
+				propertyTemplates[docProp.UniqueId] = ifcProp;
+				rel.RelatedDefinitions.Add(ifcProp);
+			}
+
 			foreach (DocProperty docProp in complexProperties.OrderBy(x => x, comparer))
 			{
 				IfcPropertyTemplate ifcProp = ExportIfcPropertyTemplate(docProp, mapEnums);
