@@ -1106,15 +1106,13 @@ namespace IfcDoc
 			Dictionary<string, IfcPropertyTemplate> propertyTemplates = new Dictionary<string, IfcPropertyTemplate>();
 			foreach(DocProperty docProperty in nonComplexProperties.Values.OrderBy(x=> x,comparer))
 			{
-				IfcPropertyTemplate ifcProperty = convertProperty(docProperty, mapEnums);
-				propertyTemplates[docProperty.UniqueId] = ifcProperty;
+				IfcPropertyTemplate ifcProperty = convertProperty(docProperty, mapEnums, propertyTemplates);
 				rel.RelatedDefinitions.Add(ifcProperty);
 			}
 
 			foreach (DocProperty docProperty in complexProperties.OrderBy(x => x, comparer))
 			{
-				IfcPropertyTemplate ifcProperty = convertProperty(docProperty, mapEnums);
-				propertyTemplates[docProperty.UniqueId] = ifcProperty;
+				IfcPropertyTemplate ifcProperty = convertProperty(docProperty, mapEnums, propertyTemplates);
 				rel.RelatedDefinitions.Add(ifcProperty);
 			}
 			//complex quantities?
@@ -1167,7 +1165,7 @@ namespace IfcDoc
 					ifcPset.HasPropertyTemplates.Add(propertyTemplates[docProp.UniqueId]);
 			}
 		}
-		private static IfcPropertyTemplate convertProperty(DocProperty property, Dictionary<string, DocPropertyEnumeration> mapEnums)
+		private static IfcPropertyTemplate convertProperty(DocProperty property, Dictionary<string, DocPropertyEnumeration> mapEnums, Dictionary<string, IfcPropertyTemplate> properties)
 		{
 			if (property.PropertyType == DocPropertyTemplateTypeEnum.COMPLEX)
 			{
@@ -1175,10 +1173,18 @@ namespace IfcDoc
 				ExportIfcDefinition(ifcProp, property);
 				ifcProp.TemplateType = IfcComplexPropertyTemplateTypeEnum.P_COMPLEX;
 				foreach (DocProperty element in property.Elements)
-					ifcProp.HasPropertyTemplates.Add(convertProperty(element, mapEnums));
-				return ifcProp;
+				{
+					IfcPropertyTemplate propertyTemplate = null;
+					if (properties.TryGetValue(element.UniqueId, out propertyTemplate))
+						ifcProp.HasPropertyTemplates.Add(propertyTemplate);
+					else
+					{
+						ifcProp.HasPropertyTemplates.Add(properties[element.UniqueId] = convertProperty(element, mapEnums, properties));
+					}
+				}
+				properties[property.UniqueId] = ifcProp;
 			}
-			return ExportIfcPropertyTemplate(property, mapEnums);
+			return properties[property.UniqueId] = ExportIfcPropertyTemplate(property, mapEnums);
 		}
 		private static void processProperty(DocProperty property, Dictionary<string, DocProperty> nonComplexProperties, List<DocProperty> complexProperties)
 		{
