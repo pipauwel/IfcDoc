@@ -1175,7 +1175,7 @@ namespace IfcDoc
 				ExportIfcDefinition(ifcProp, property);
 				ifcProp.TemplateType = IfcComplexPropertyTemplateTypeEnum.P_COMPLEX;
 				foreach (DocProperty element in property.Elements)
-					ifcProp.HasPropertyTemplates.Add(convertProperty(property, mapEnums));
+					ifcProp.HasPropertyTemplates.Add(convertProperty(element, mapEnums));
 				return ifcProp;
 			}
 			return ExportIfcPropertyTemplate(property, mapEnums);
