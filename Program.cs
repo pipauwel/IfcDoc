@@ -1179,10 +1179,10 @@ namespace IfcDoc
 						ifcProp.HasPropertyTemplates.Add(propertyTemplate);
 					else
 					{
-						ifcProp.HasPropertyTemplates.Add(properties[element.UniqueId] = convertProperty(element, mapEnums, properties));
+						ifcProp.HasPropertyTemplates.Add(convertProperty(element, mapEnums, properties));
 					}
 				}
-				properties[property.UniqueId] = ifcProp;
+				return properties[property.UniqueId] = ifcProp;
 			}
 			return properties[property.UniqueId] = ExportIfcPropertyTemplate(property, mapEnums);
 		}
