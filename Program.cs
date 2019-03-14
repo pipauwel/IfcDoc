@@ -1104,7 +1104,6 @@ namespace IfcDoc
 			}
 			PropertyTemplateComparer comparer = new PropertyTemplateComparer();
 			Dictionary<string, IfcPropertyTemplate> propertyTemplates = new Dictionary<string, IfcPropertyTemplate>();
-
 			foreach(DocProperty docProperty in nonComplexProperties.Values.OrderBy(x=> x,comparer))
 			{
 				IfcPropertyTemplate ifcProperty = convertProperty(docProperty, mapEnums);
@@ -1172,7 +1171,7 @@ namespace IfcDoc
 		{
 			if (property.PropertyType == DocPropertyTemplateTypeEnum.COMPLEX)
 			{
-				IfcComplexPropertyTemplate ifcProp = new IfcComplexPropertyTemplate(Program.NewGuid(), null, null, null, null, null, null);
+				IfcComplexPropertyTemplate ifcProp = new IfcComplexPropertyTemplate(Program.NewGuid(), null, null, null, null, null, new IfcPropertyTemplate[0]);
 				ExportIfcDefinition(ifcProp, property);
 				ifcProp.TemplateType = IfcComplexPropertyTemplateTypeEnum.P_COMPLEX;
 				foreach (DocProperty element in property.Elements)
@@ -1188,6 +1187,7 @@ namespace IfcDoc
 				complexProperties.Add(property);
 				foreach (DocProperty element in property.Elements)
 					processProperty(element, nonComplexProperties, complexProperties);
+
 			}
 			else if (!nonComplexProperties.ContainsKey(property.UniqueId))
 				nonComplexProperties[property.UniqueId] = property;
