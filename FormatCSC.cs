@@ -1429,11 +1429,40 @@ namespace IfcDoc.Format.CSC
 			DocDefined docIndirect = this.m_project.GetDefinition(docDefined.DefinedType) as DocDefined;
 			if (docIndirect != null)
 			{
+				sb.AppendLine();
 				sb.AppendLine("\tpublic " + docDefined.Name + "(" + FormatIdentifier(docIndirect.DefinedType) + " value) : this()");
 				sb.AppendLine("\t{");
 				sb.AppendLine("\t\tthis.Value = new " + docDefined.DefinedType + "(value);");
 				sb.AppendLine("\t}");
+
 			}
+
+			DocPrimitive primitive = docDefined.Definition as DocPrimitive;
+			if(primitive != null)
+			{
+				sb.AppendLine();
+				sb.AppendLine("\tpublic static implicit operator " + docDefined.Name + "(" + FormatIdentifier(docDefined.DefinedType) + " value)");
+				sb.AppendLine("\t{");
+				sb.AppendLine("\t\tif (value == null)");
+				sb.AppendLine("\t\t\treturn null;");
+				sb.AppendLine();
+				sb.AppendLine("\t\treturn new " + docDefined.Name + "(value);");
+				sb.AppendLine("\t}");
+
+				sb.AppendLine();
+				sb.AppendLine("\tpublic static implicit operator " + FormatIdentifier(docDefined.DefinedType)  + "(" + docDefined.Name + " value)");
+				sb.AppendLine("\t{");
+				sb.AppendLine("\t\tif (value == null)");
+				sb.AppendLine("\t\t\treturn null;");
+				sb.AppendLine();
+				sb.AppendLine("\t\treturn value.Value;");
+				sb.AppendLine("\t}");
+			}
+			sb.AppendLine();
+			sb.AppendLine("\tpublic override string ToString()");
+			sb.AppendLine("\t{");
+			sb.AppendLine("\t\treturn Value.ToString();");
+			sb.AppendLine("\t}");
 
 			// end of type
 			sb.AppendLine("}");
