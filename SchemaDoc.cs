@@ -64,7 +64,6 @@ namespace IfcDoc.Schema.DOC
 	/// <summary>
 	/// Localization of a definition for a particular language and region, or an identifier on a remote system (e.g. bsDD)
 	/// </summary>
-	[DataContract(IsReference = false)]
 	public class DocLocalization : SEntity,
 		IDocumentation,
 		IComparable
@@ -532,6 +531,7 @@ namespace IfcDoc.Schema.DOC
 
 		// unserialized
 		private List<string> m_errorlog; // list of filenames missing for images
+		[IgnoreDataMember] public string id { get { return Name; } }
 
 		public DocPublication()
 		{
@@ -2310,7 +2310,6 @@ namespace IfcDoc.Schema.DOC
 	/// <summary>
 	/// A definition of a template which provides boilerplate text for Use Definitions, and is applicable to a particular IFC entity and its descendents.
 	/// </summary>
-	[DataContract(IsReference = false)]
 	public class DocTemplateDefinition : DocObject // now inherits from DocObject
 	{
 		[DataMember(Order = 0)] [XmlAttribute] public string Type { get; set; } // applicable entity base type for which this template may be used, e.g. "IfcElement"
@@ -2676,6 +2675,7 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 9)] [XmlElement] public List<DocModelView> ModelViews { get; protected set; } // new in V11.6 -- organize sub-views
 
 		private Dictionary<DocObject, bool> m_filtercache; // for performance, remember items within scope of model view; built on demand, cleared whenever there's a change that could impact
+		[IgnoreDataMember] public string id { get { return Name; } }
 
 		public DocModelView()
 		{
@@ -2802,7 +2802,6 @@ namespace IfcDoc.Schema.DOC
 	}
 
 	// new in IfcDoc 2.5
-	[DataContract(IsReference = false)]
 	public abstract class DocModelRule : SEntity,
 		ICloneable// abstract in IfcDoc 2.7
 	{
@@ -4720,7 +4719,6 @@ namespace IfcDoc.Schema.DOC
 	/// <summary>
 	/// Concept (usage of a template)
 	/// </summary>
-	[DataContract(IsReference = false)]
 	public class DocTemplateUsage : DocObject // now inherits from DocObject
 	{
 		[DataMember(Order = 0)] [XmlElement] public DocTemplateDefinition Definition { get; set; } // the template definition to be used for formatting text.
@@ -5152,7 +5150,6 @@ namespace IfcDoc.Schema.DOC
 	// 0x       | Green   | T         F         F          F          // optional input
 	// 0x       | Blue    | T         ?         ?          T          // system calculation (e.g. Energy Analysis)
 	// 0x       | Purple  | F         ?         ?          T          // system mapping     (e.g. GUID)
-	[DataContract(IsReference = false)]
 	public class DocTemplateItem : DocObject // now inherits from DocObject
 	{
 		[DataMember(Order = 0)] [XmlElement] public List<DocTemplateUsage> Concepts { get; protected set; }// IfcDoc 6.3: for parameters consisting of lists of objects -- translates to nested concepts in mvdXML
@@ -5560,6 +5557,8 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 0)] [XmlElement] public List<DocAnnotation> Annotations { get; protected set; } // v1.8 inserted  TBD - use MVD-XML concept instead
 		[DataMember(Order = 1)] [XmlElement] public List<DocSchema> Schemas { get; protected set; }
 
+		[IgnoreDataMember] public string id { get { return Name; } }
+
 		public DocSection() : this(null)
 		{
 		}
@@ -5591,7 +5590,6 @@ namespace IfcDoc.Schema.DOC
 	/// <summary>
 	/// Represents a top-level documentation annex
 	/// </summary>
-	[DataContract(IsReference = false)]
 	public class DocAnnex : DocObject
 	{
 		public DocAnnex()
@@ -5625,23 +5623,19 @@ namespace IfcDoc.Schema.DOC
 	/// <summary>
 	/// A reference which may be normative or non-normative (in bibliography)
 	/// </summary>
-	[DataContract(IsReference = false)]
 	public class DocReference : DocObject
 	{
 	}
 	
-	[DataContract(IsReference = false)]
 	public class DocTerm : DocObject
 	{
 		[DataMember(Order = 0)] [XmlElement] public List<DocTerm> Terms { get; protected set; } // added in V7.3  // sub-terms
 	}
 
-	[DataContract(IsReference = false)]
 	public class DocAbbreviation : DocObject
 	{
 	}
 
-	[DataContract(IsReference = false)]
 	public abstract class DocGeometry : SEntity
 	{
 	}
@@ -5689,7 +5683,6 @@ namespace IfcDoc.Schema.DOC
 	/// <summary>
 	/// Reference to another schema
 	/// </summary>
-	[DataContract(IsReference = false)]
 	public class DocSchemaRef : DocObject // new in v4.9
 	{
 		[DataMember(Order = 0)] [XmlElement] public List<DocDefinitionRef> Definitions { get; set; }
@@ -5734,7 +5727,6 @@ namespace IfcDoc.Schema.DOC
 	/// <summary>
 	/// Comment
 	/// </summary>
-	[DataContract(IsReference = false)]
 	public class DocComment : DocDefinition
 	{
 	}
@@ -5744,15 +5736,17 @@ namespace IfcDoc.Schema.DOC
 	/// </summary>
 	public class DocListings : DocObject
 	{
-		[DataMember(Order = 0)] public List<DocDefined> ValueTypes { get; protected set; }
-		[DataMember(Order = 1)] public List<DocEnumeration> Enumerations { get; protected set; }
-		[DataMember(Order = 2)] public List<DocSelect> SelectTypes { get; protected set; }
-		[DataMember(Order = 3)] public List<DocEntity> Entities { get; protected set; }
-		[DataMember(Order = 4)] public List<DocFunction> Functions { get; protected set; }
-		[DataMember(Order = 5)] public List<DocGlobalRule> GlobalRules { get; protected set; }
-		[DataMember(Order = 6)] public List<DocProperty> Properties { get; protected set; }
-		[DataMember(Order = 7)] public List<DocPropertySet> PropertySets { get; protected set; }
-		[DataMember(Order = 8)] public List<DocQuantitySet> QuantitySets { get; protected set; }
+		[DataMember(Order = 0)] public List<DocConstant> Constants { get; protected set; }
+		[DataMember(Order = 1)] public List<DocDefined> ValueTypes { get; protected set; }
+		[DataMember(Order = 2)] public List<DocEnumeration> Enumerations { get; protected set; }
+		[DataMember(Order = 3)] public List<DocSelect> SelectTypes { get; protected set; }
+		[DataMember(Order = 4)] public List<DocEntity> Entities { get; protected set; }
+		[DataMember(Order = 5)] public List<DocFunction> Functions { get; protected set; }
+		[DataMember(Order = 6)] public List<DocGlobalRule> GlobalRules { get; protected set; }
+		[DataMember(Order = 7)] public List<DocProperty> Properties { get; protected set; }
+		[DataMember(Order = 8)] public List<DocPropertySet> PropertySets { get; protected set; }
+		[DataMember(Order = 9)] public List<DocQuantity> Quantities { get; protected set; }
+		[DataMember(Order = 10)] public List<DocQuantitySet> QuantitySets { get; protected set; }
 
 		//Primitives
 
@@ -5764,7 +5758,9 @@ namespace IfcDoc.Schema.DOC
 			this.Entities = new List<DocEntity>();
 			this.Functions = new List<DocFunction>();
 			this.GlobalRules = new List<DocGlobalRule>();
+			this.Properties = new List<DocProperty>();
 			this.PropertySets = new List<DocPropertySet>();
+			this.Quantities = new List<DocQuantity>();
 			this.QuantitySets = new List<DocQuantitySet>();
 		}
 	}
@@ -5789,6 +5785,8 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 11)] [XmlElement] public List<DocPrimitive> Primitives { get; protected set; }    // inserted in 5.8
 		[DataMember(Order = 12)] [XmlAttribute] public int DiagramPagesHorz { get; set; } // inserted in 5.8
 		[DataMember(Order = 13)] [XmlAttribute] public int DiagramPagesVert { get; set; } // inserted in 5.8
+
+		[IgnoreDataMember] public string id { get { return Name; } }
 
 		public DocSchema()
 		{
@@ -6307,7 +6305,6 @@ namespace IfcDoc.Schema.DOC
 	/// <summary>
 	/// Abstract type definition (base of Identity and Type)
 	/// </summary>
-	[DataContract(IsReference = false)]
 	public abstract class DocDefinition : DocObject
 	{
 		[DataMember(Order = 0)] [XmlElement] public DocRectangle DiagramRectangle { get; set; } // replaces template status (Integer) in v3.5
@@ -6341,7 +6338,6 @@ namespace IfcDoc.Schema.DOC
 	/// EXPRESS-G page reference targets (has one or more sources that point to it)
 	/// The name identifies the entity or type to be referenced across pages.
 	/// </summary>
-	[DataContract(IsReference = false)]
 	public class DocPageTarget : DocDefinition // 4.9
 	{
 		[DataMember(Order = 0)] [XmlElement] public List<DocPoint> DiagramLine { get; protected set; }
@@ -6359,7 +6355,6 @@ namespace IfcDoc.Schema.DOC
 	/// <summary>
 	/// Express-G page reference sources (link to targets)
 	/// </summary>
-	[DataContract(IsReference = false)]
 	public class DocPageSource : DocDefinition // 4.9
 	{
 		// OBSOLETE - REMOVED 8.6 // [DataMember(Order = 0)] public DocPageTarget Target; // new in 5.8 -- link to associated target
@@ -6392,6 +6387,8 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 8), Obsolete]
 		private List<DocPoint> _DiagramLine { get; set; } // 3.5 -- line to tree of subtypes - removed in V5.8
 		[DataMember(Order = 9)] [XmlElement] public List<DocLine> Tree { get; protected set; } // 5.8 -- tree of lines and subtypes for diagram rendering
+
+		[IgnoreDataMember] public string id { get { return Name; } }
 
 		internal bool _InheritanceDiagramFlag;
 
@@ -6595,10 +6592,7 @@ namespace IfcDoc.Schema.DOC
 			this.WhereRules.Add(docAttr);
 			return docAttr;
 		}
-
-		[IgnoreDataMember] public virtual string id { get { return Name; } }
 	}
-	[DataContract(IsReference = false)]
 	public class DocSubtype : DocObject
 	{
 		[DataMember(Order = 0)] [XmlAttribute] public string DefinedType { get; set; }
@@ -6623,7 +6617,6 @@ namespace IfcDoc.Schema.DOC
 	/// <summary>
 	/// Represents an Attribute
 	/// </summary>
-	[DataContract(IsReference = false)]
 	public class DocAttribute : DocObject
 	{
 		[DataMember(Order = 0)] [XmlAttribute] public string DefinedType { get; set; } // the EXPRESS type (bypassing any indirection from page references, etc.)
@@ -6819,7 +6812,6 @@ namespace IfcDoc.Schema.DOC
 	{
 	}
 
-	[DataContract(IsReference = false)]
 	public class DocWhereRule : DocConstraint
 	{
 	}
@@ -6829,7 +6821,7 @@ namespace IfcDoc.Schema.DOC
 	/// </summary>
 	public abstract class DocType : DocDefinition
 	{
-		[IgnoreDataMember] public virtual string id { get { return Name; } }
+		[IgnoreDataMember] public string id { get { return Name; } }
 	}
 
 	/// <summary>
@@ -6867,7 +6859,6 @@ namespace IfcDoc.Schema.DOC
 		}
 	}
 
-	[DataContract(IsReference = false)]
 	public class DocSelectItem : DocObject
 	{
 		//[DataMember(Order = 0), Obsolete]
@@ -6894,16 +6885,16 @@ namespace IfcDoc.Schema.DOC
 	/// <summary>
 	/// Constant of an enumeration
 	/// </summary>
-	[DataContract(IsReference = false)]
 	public class DocConstant : DocObject
 	{
+		[IgnoreDataMember] public string id { get { return Name + "_" + GlobalId.Format(Uuid); } }
 	}
 
 	public abstract class DocConstraint : DocObject
 	{
 		[DataMember(Order = 0)] [XmlElement] [DataType(DataType.MultilineText)] public string Expression { get; set; }
 
-		[IgnoreDataMember] public string id { get { return Name; } }
+		[IgnoreDataMember] public string id { get { return Name + "_" + GlobalId.Format(Uuid); } }
 	}
 
 	/// <summary>
@@ -7062,7 +7053,7 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 3)] [XmlElement] public List<DocProperty> Elements { get; set; } // enumerated or complex properties
 		[DataMember(Order = 4)] [XmlAttribute] public DocStateEnum AccessState { get; set; } // V10.5
 
-		[IgnoreDataMember] public string id { get { return Name; } }
+		[IgnoreDataMember] public string id { get { return Name + "_" + GlobalId.Format(Uuid); } }
 
 		public DocProperty()
 		{
@@ -7224,7 +7215,6 @@ namespace IfcDoc.Schema.DOC
 	}
 
 	// new in IFCDOC 5.8
-	[DataContract(IsReference = false)]
 	public class DocPropertyEnumeration : DocObject
 	{
 		[DataMember(Order = 0)] [XmlElement] public List<DocPropertyConstant> Constants { get; protected set; }
@@ -7332,11 +7322,12 @@ namespace IfcDoc.Schema.DOC
 	/// <summary>
 	/// Quantity definition
 	/// </summary>
-	[DataContract(IsReference = false)]
 	public class DocQuantity : DocObject
 	{
 		[DataMember(Order = 0)] [XmlAttribute] public DocQuantityTemplateTypeEnum QuantityType { get; set; } // IfcQuantityWeight, IfcQuantityLength, etc.
 		[DataMember(Order = 1)] [XmlAttribute] public DocStateEnum AccessState { get; set; } // V10.5
+
+		[IgnoreDataMember] public string id { get { return Name + "_" + GlobalId.Format(Uuid); } }
 
 		public string GetEntityName()
 		{
@@ -7425,7 +7416,6 @@ namespace IfcDoc.Schema.DOC
 	}
 
 	// Name identifies item
-	[DataContract(IsReference = false)]
 	public class DocChangeAction : DocObject
 	{
 		[DataMember(Order = 0)] [XmlAttribute] public DocChangeActionEnum Action { get; set; } 
@@ -7496,7 +7486,6 @@ namespace IfcDoc.Schema.DOC
 		MOVED = 5, // moved from another schema
 	}
 
-	[DataContract(IsReference = false)]
 	public class DocChangeAspect : SEntity
 	{
 		[DataMember(Order = 0)] [XmlAttribute] public DocChangeAspectEnum Aspect { get; set; }
