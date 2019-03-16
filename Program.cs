@@ -1253,7 +1253,6 @@ namespace IfcDoc
 					if (mapEnums.TryGetValue(propdatatype, out docEnumeration))
 					{
 						ifcProp.Enumerators = new IfcPropertyEnumeration(new IfcLabel(docEnumeration.Name), new IfcValue[] { }, null);
-						ifcProp.GlobalId = new IfcGloballyUniqueId(GlobalId.Format(docEnumeration.Uuid));
 						ifcProp.Enumerators.Name = new IfcLabel(docEnumeration.Name);
 						ifcProp.SecondaryMeasureType = null;
 
