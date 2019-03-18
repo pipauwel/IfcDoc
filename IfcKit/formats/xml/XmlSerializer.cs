@@ -752,10 +752,14 @@ namespace BuildingSmart.Serialization.Xml
 		{
 			string header = "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
 
-			string schema = "<ifc:ifcXML xsi:schemaLocation=\"" + this.BaseURI + " " + this.Schema + ".xsd\" " +
-				"xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" " +
-				"xmlns:ifc=\"" + this.BaseURI + "\" " +
-				"xmlns=\"" + this.BaseURI + "\">";
+			//string schema = "<ifcXML xmlns:ifc=\"" + this.BaseURI + this.Schema + " " +
+			//	"xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" " +
+			//	"xmlns=\"" + this.BaseURI + "\" " +
+			//	"xsi:schemaLocation=\"" + this.BaseURI + this.Schema + ".xsd\">";
+			string schema = "<ifcXML xmlns:ifc = \"http://www.buildingsmart-tech.org/ifcXML/IFC4/final\" " +
+				"xmlns:xsi = \"http://www.w3.org/2001/XMLSchema-instance\" " +
+				"xmlns = \"http://www.buildingsmart-tech.org/ifcXML/IFC4/Add1\" " +
+				"xsi:schemaLocation = \"http://www.buildingsmart-tech.org/ifcXML/IFC4/Add1/IFC4_ADD1.xsd\">";
 
 			writer.WriteLine(header);
 			writer.WriteLine(schema);
@@ -763,7 +767,7 @@ namespace BuildingSmart.Serialization.Xml
 
 		protected virtual void WriteFooter(StreamWriter writer)
 		{
-			string footer = "</ifc:ifcXML>";
+			string footer = "</ifcXML>";
 			writer.WriteLine(footer);
 			writer.Write("\r\n\r\n");
 		}

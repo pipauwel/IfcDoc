@@ -1065,14 +1065,22 @@ namespace IfcDoc
 				}
 			}
 
-			IfcRelDeclares rel = new IfcRelDeclares(new IfcGloballyUniqueId("3RyLNYXkX479wspBr_nf6n"), null, null, null, ifcProjectLibrary, new IfcDefinitionSelect[] { });
-			ifcProjectLibrary.Declares.Add(rel);
-			Dictionary<string, DocProperty> nonComplexProperties = new Dictionary<string, DocProperty>();
-			Dictionary<string, DocQuantity> nonComplexQuantities = new Dictionary<string, DocQuantity>();
+			IfcRelDeclares simpleProperties = new IfcRelDeclares(new IfcGloballyUniqueId("3RyLNYXkX479wspBr_nf6n"), null, new IfcLabel("SimpleProperties"), null, ifcProjectLibrary, new IfcDefinitionSelect[] { });
+			IfcRelDeclares complexProperties = new IfcRelDeclares(new IfcGloballyUniqueId("0dJzky7sb6txqIsyVpv7iW"), null, new IfcLabel("ComplexProperties"), null, ifcProjectLibrary, new IfcDefinitionSelect[] { });
+			IfcRelDeclares propertySets = new IfcRelDeclares(new IfcGloballyUniqueId("3M4U3yWxr3_gsGvVZ3qXJS"), null, new IfcLabel("PropertySets"), null, ifcProjectLibrary, new IfcDefinitionSelect[] { });
+			IfcRelDeclares quantities = new IfcRelDeclares(new IfcGloballyUniqueId("1$c0OOaRDF_OBDoEs$xzcD"), null, new IfcLabel("Quantities"), null, ifcProjectLibrary, new IfcDefinitionSelect[] { });
+			IfcRelDeclares quantitySets = new IfcRelDeclares(new IfcGloballyUniqueId("1CpAEUB6v1Fhb57tduNMhL"), null, new IfcLabel("QuantitySets"), null, ifcProjectLibrary, new IfcDefinitionSelect[] { });
+			ifcProjectLibrary.Declares.Add(simpleProperties);
+			ifcProjectLibrary.Declares.Add(complexProperties);
+			ifcProjectLibrary.Declares.Add(propertySets);
+			ifcProjectLibrary.Declares.Add(quantities);
+			ifcProjectLibrary.Declares.Add(quantitySets);
 
-			List<DocProperty> complexProperties = new List<DocProperty>();
-			List<DocPropertySet> propertySets = new List<DocPropertySet>();
-			List<DocQuantitySet> quantitySets = new List<DocQuantitySet>();
+			Dictionary<string, DocProperty> simplePropertyDictionary = new Dictionary<string, DocProperty>();
+			Dictionary<string, DocProperty> complexPropertyDictionary = new Dictionary<string, DocProperty>();
+			List<DocQuantity> simpleQuantityList = new List<DocQuantity>();
+			List<DocPropertySet> propertySetList = new List<DocPropertySet>();
+			List<DocQuantitySet> quantitySetList = new List<DocQuantitySet>();
 
 			foreach (DocSection docSection in docProject.Sections)
 			{
@@ -1082,45 +1090,38 @@ namespace IfcDoc
 					{
 						if (included == null || included.ContainsKey(docPset))
 						{
-							propertySets.Add(docPset);
+							propertySetList.Add(docPset);
 							foreach (DocProperty docProp in docPset.Properties)
-								processProperty(docProp, nonComplexProperties, complexProperties);
+								processProperty(docProp, simplePropertyDictionary, complexPropertyDictionary);
 						}
 					}
 					foreach (DocQuantitySet docQuantitySet in docSchema.QuantitySets)
 					{
 						if (included == null || included.ContainsKey(docQuantitySet))
 						{
-							quantitySets.Add(docQuantitySet);
+							quantitySetList.Add(docQuantitySet);
 							foreach (DocQuantity docQuantity in docQuantitySet.Quantities)
-								nonComplexQuantities[docQuantity.UniqueId] = docQuantity;
+								simpleQuantityList.Add(docQuantity);
 						}
 					}
 				}
 			}
 			PropertyTemplateComparer comparer = new PropertyTemplateComparer();
 			Dictionary<string, IfcPropertyTemplate> propertyTemplates = new Dictionary<string, IfcPropertyTemplate>();
-			foreach(DocProperty docProperty in nonComplexProperties.Values.OrderBy(x=> x,comparer))
+			foreach(DocProperty docProperty in simplePropertyDictionary.Values.OrderBy(x=> x,comparer))
 			{
 				IfcPropertyTemplate ifcProperty = convertProperty(docProperty, mapEnums, propertyTemplates);
-				rel.RelatedDefinitions.Add(ifcProperty);
+				simpleProperties.RelatedDefinitions.Add(ifcProperty);
 			}
 
-			foreach (DocProperty docProperty in complexProperties.OrderBy(x => x, comparer))
+			foreach (DocProperty docProperty in complexPropertyDictionary.Values.OrderBy(x => x, comparer))
 			{
 				IfcPropertyTemplate ifcProperty = convertProperty(docProperty, mapEnums, propertyTemplates);
-				rel.RelatedDefinitions.Add(ifcProperty);
+				complexProperties.RelatedDefinitions.Add(ifcProperty);
 			}
-			foreach(DocQuantity docQuantity in nonComplexQuantities.Values.OrderBy(x=> x,comparer))
-			{
-				IfcSimplePropertyTemplate ifcProperty = new IfcSimplePropertyTemplate(Program.NewGuid(), null, null, null, null, null, null, null, null, null, null, null);
-				ExportIfcDefinition(ifcProperty, docQuantity);
-				ifcProperty.TemplateType = (IfcSimplePropertyTemplateTypeEnum)Enum.Parse(typeof(IfcSimplePropertyTemplateTypeEnum), docQuantity.QuantityType.ToString());
-				propertyTemplates[docQuantity.UniqueId] = ifcProperty;
-				rel.RelatedDefinitions.Add(ifcProperty);
-			}
+			
 
-			foreach (DocPropertySet docPset in propertySets.OrderBy(x => x, comparer))
+			foreach (DocPropertySet docPset in propertySetList.OrderBy(x => x, comparer))
 			{
 				IfcPropertySetTemplate ifcPset = new IfcPropertySetTemplate(Program.NewGuid(), null, null, null, null, null, new IfcPropertyTemplate[] { });
 
@@ -1142,12 +1143,21 @@ namespace IfcDoc
 				}
 
 				ifcPset.ApplicableEntity = new IfcIdentifier(docPset.ApplicableType);
-				rel.RelatedDefinitions.Add(ifcPset);
+				propertySets.RelatedDefinitions.Add(ifcPset);
 
 				foreach (DocProperty docProp in docPset.Properties)
 					ifcPset.HasPropertyTemplates.Add(propertyTemplates[docProp.UniqueId]);	
 			}
-			foreach(DocQuantitySet docQuantitySet in quantitySets.OrderBy(x=>x,comparer))
+
+			foreach (DocQuantity docQuantity in simpleQuantityList.OrderBy(x => x, comparer))
+			{
+				IfcSimplePropertyTemplate ifcProperty = new IfcSimplePropertyTemplate(Program.NewGuid(), null, null, null, null, null, null, null, null, null, null, null);
+				ExportIfcDefinition(ifcProperty, docQuantity);
+				ifcProperty.TemplateType = (IfcSimplePropertyTemplateTypeEnum)Enum.Parse(typeof(IfcSimplePropertyTemplateTypeEnum), docQuantity.QuantityType.ToString());
+				propertyTemplates[docQuantity.UniqueId] = ifcProperty;
+				quantities.RelatedDefinitions.Add(ifcProperty);
+			}
+			foreach (DocQuantitySet docQuantitySet in quantitySetList.OrderBy(x=>x,comparer))
 			{
 				IfcPropertySetTemplate ifcPset = new IfcPropertySetTemplate(Program.NewGuid(), null, null, null, null, null, new IfcPropertyTemplate[] { });
 
@@ -1155,13 +1165,13 @@ namespace IfcDoc
 
 				ifcPset.TemplateType = IfcPropertySetTemplateTypeEnum.QTO_OCCURRENCEDRIVEN;
 				ifcPset.ApplicableEntity = new IfcIdentifier(docQuantitySet.ApplicableType);
-				rel.RelatedDefinitions.Add(ifcPset);
+				quantitySets.RelatedDefinitions.Add(ifcPset);
 
 				foreach (DocQuantity docQuantity in docQuantitySet.Quantities)
 					ifcPset.HasPropertyTemplates.Add(propertyTemplates[docQuantity.UniqueId]);
 			}
 		}
-		private static IfcPropertyTemplate convertProperty(DocProperty property, Dictionary<string, DocPropertyEnumeration> mapEnums, Dictionary<string, IfcPropertyTemplate> properties)
+		private static IfcPropertyTemplate convertProperty(DocProperty property, Dictionary<string, DocPropertyEnumeration> mapEnums, Dictionary<string,IfcPropertyTemplate> properties)
 		{
 			if (property.PropertyType == DocPropertyTemplateTypeEnum.COMPLEX)
 			{
@@ -1182,17 +1192,19 @@ namespace IfcDoc
 			}
 			return properties[property.UniqueId] = ExportIfcPropertyTemplate(property, mapEnums);
 		}
-		private static void processProperty(DocProperty property, Dictionary<string, DocProperty> nonComplexProperties, List<DocProperty> complexProperties)
+		private static void processProperty(DocProperty property, Dictionary<string, DocProperty> simpleProperties, Dictionary<string, DocProperty> complexProperties)
 		{
 			if (property.PropertyType == DocPropertyTemplateTypeEnum.COMPLEX)
 			{
-				complexProperties.Add(property);
-				foreach (DocProperty element in property.Elements)
-					processProperty(element, nonComplexProperties, complexProperties);
-
+				if (!complexProperties.ContainsKey(property.UniqueId))
+				{
+					complexProperties[property.UniqueId] = property;
+					foreach (DocProperty element in property.Elements)
+						processProperty(element, simpleProperties, complexProperties);
+				}
 			}
-			else if (!nonComplexProperties.ContainsKey(property.UniqueId))
-				nonComplexProperties[property.UniqueId] = property;
+			else if (!simpleProperties.ContainsKey(property.UniqueId))
+				simpleProperties[property.UniqueId] = property;
 		}
 		public class PropertyTemplateComparer : IComparer<DocObject>
 		{
