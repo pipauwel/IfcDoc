@@ -1746,7 +1746,15 @@ namespace BuildingSmart.Serialization.Xml
 					{
 						object obj = propertyInfo.GetValue(o);
 						if (obj != null)
-							return obj.ToString();
+						{
+							string str = obj.ToString();
+							if(!string.IsNullOrEmpty(str))
+							{
+								if (char.IsDigit(str[0]))
+									return "x" + str;
+								return str;
+							}
+						}
 					}
 				}
 				nextID++;
