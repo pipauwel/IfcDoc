@@ -1452,9 +1452,6 @@ namespace IfcDoc.Format.CSC
 				sb.AppendLine();
 				sb.AppendLine("\tpublic static implicit operator " + FormatIdentifier(docDefined.DefinedType)  + "(" + docDefined.Name + " value)");
 				sb.AppendLine("\t{");
-				sb.AppendLine("\t\tif (value == null)");
-				sb.AppendLine("\t\t\treturn null;");
-				sb.AppendLine();
 				sb.AppendLine("\t\treturn value.Value;");
 				sb.AppendLine("\t}");
 			}

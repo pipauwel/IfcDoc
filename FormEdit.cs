@@ -11,6 +11,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 
@@ -254,46 +255,9 @@ namespace IfcDoc
 
 			this.m_mapTree.Clear();
 			this.m_clipboard = null;
-			this.m_project = null;
-
-			List<DocChangeAction> listChange = new List<DocChangeAction>(); //temp
-
-			List<object> instances = new List<object>();
-			string ext = System.IO.Path.GetExtension(this.m_file).ToLower();
 			try
 			{
-				switch (ext)
-				{
-					case ".ifcdoc":
-						using (FileStream streamDoc = new FileStream(this.m_file, FileMode.Open, FileAccess.Read))
-						{
-							Dictionary<long, object> dictionaryInstances = null;
-							StepSerializer formatDoc = new StepSerializer(typeof(DocProject), SchemaDOC.Types);
-							this.m_project = (DocProject)formatDoc.ReadObject(streamDoc, out dictionaryInstances);
-							instances.AddRange(dictionaryInstances.Values);
-						}
-						break;
-					case ".ifcdocxml":
-						using (FileStream streamDoc = new FileStream(this.m_file, FileMode.Open, FileAccess.Read))
-						{
-							Dictionary<string, object> dictionaryInstances = null;
-							XmlSerializer formatDoc = new XmlSerializer(typeof(DocProject));
-							this.m_project = (DocProject)formatDoc.ReadObject(streamDoc, out dictionaryInstances);
-							instances.AddRange(dictionaryInstances.Values);
-						}
-						break;
-					default:
-						MessageBox.Show("Unsupported file type " + ext, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-						break;
-#if MDB
-                    case ".mdb":
-                        using (FormatMDB format = new FormatMDB(this.m_file, SchemaDOC.Types, this.m_instances))
-                        {
-                            format.Load();
-                        }
-                        break;
-#endif
-				}
+				this.m_project = IfcDocUtils.LoadFile(this.m_file);
 			}
 			catch (Exception x)
 			{
@@ -304,140 +268,15 @@ namespace IfcDoc
 				this.toolStripMenuItemFileNew_Click(this, EventArgs.Empty);
 				return;
 			}
-
-			List<SEntity> listDelete = new List<SEntity>();
-			List<DocTemplateDefinition> listTemplate = new List<DocTemplateDefinition>();
-
-			foreach (object o in instances)
-			{
-				if (o is DocSchema)
-				{
-					DocSchema docSchema = (DocSchema)o;
-
-					// renumber page references
-					foreach (DocPageTarget docTarget in docSchema.PageTargets)
-					{
-						if (docTarget.Definition != null) // fix it up -- NULL bug from older .ifcdoc files
-						{
-							int page = docSchema.GetDefinitionPageNumber(docTarget);
-							int item = docSchema.GetPageTargetItemNumber(docTarget);
-							docTarget.Name = page + "," + item + " " + docTarget.Definition.Name;
-
-							foreach (DocPageSource docSource in docTarget.Sources)
-							{
-								docSource.Name = docTarget.Name;
-							}
-						}
-					}
-				}
-				else if (o is DocExchangeDefinition)
-				{
-					// files before V4.9 had Description field; no longer needed so use regular Documentation field again.
-					DocExchangeDefinition docexchange = (DocExchangeDefinition)o;
-					if (docexchange._Description != null)
-					{
-						docexchange.Documentation = docexchange._Description;
-						docexchange._Description = null;
-					}
-				}
-				else if (o is DocTemplateDefinition)
-				{
-					// files before V5.0 had Description field; no longer needed so use regular Documentation field again.
-					DocTemplateDefinition doctemplate = (DocTemplateDefinition)o;
-					if (doctemplate._Description != null)
-					{
-						doctemplate.Documentation = doctemplate._Description;
-						doctemplate._Description = null;
-					}
-
-					listTemplate.Add((DocTemplateDefinition)o);
-				}
-				else if (o is DocConceptRoot)
-				{
-					// V12.0: ensure template is defined
-					DocConceptRoot docConcRoot = (DocConceptRoot)o;
-					if (docConcRoot.ApplicableTemplate == null && docConcRoot.ApplicableEntity != null)
-					{
-						docConcRoot.ApplicableTemplate = new DocTemplateDefinition();
-						docConcRoot.ApplicableTemplate.Type = docConcRoot.ApplicableEntity.Name;
-					}
-				}
-				else if (o is DocTemplateUsage)
-				{
-					// V12.0: ensure template is defined
-					DocTemplateUsage docUsage = (DocTemplateUsage)o;
-					if (docUsage.Definition == null)
-					{
-						docUsage.Definition = new DocTemplateDefinition();
-					}
-				}
-				else if (o is DocChangeAction)
-				{
-					listChange.Add((DocChangeAction)o);
-				}
-
-
-				// ensure all objects have valid guid
-				if (o is DocObject)
-				{
-					DocObject docobj = (DocObject)o;
-					if (docobj.Uuid == Guid.Empty)
-					{
-						docobj.Uuid = Guid.NewGuid();
-					}
-				}
-			}
-
 			if (this.m_project == null)
 			{
 				MessageBox.Show(this, "File is invalid; no project is defined.", "Error", MessageBoxButtons.OK);
 				return;
 			}
 
-			foreach (DocModelView docModelView in this.m_project.ModelViews)
-			{
-				// sort alphabetically (V11.3+)
-				docModelView.SortConceptRoots();
-			}
-
-			// upgrade to Publications (V9.6)
-			if (this.m_project.Annotations.Count == 4)
-			{
-				this.m_project.Publications.Clear();
-
-				DocAnnotation docCover = this.m_project.Annotations[0];
-				DocAnnotation docContents = this.m_project.Annotations[1];
-				DocAnnotation docForeword = this.m_project.Annotations[2];
-				DocAnnotation docIntro = this.m_project.Annotations[3];
-
-				DocPublication docPub = new DocPublication();
-				docPub.Name = "Default";
-				docPub.Documentation = docCover.Documentation;
-				docPub.Owner = docCover.Owner;
-				docPub.Author = docCover.Author;
-				docPub.Code = docCover.Code;
-				docPub.Copyright = docCover.Copyright;
-				docPub.Status = docCover.Status;
-				docPub.Version = docCover.Version;
-
-				docPub.Annotations.Add(docForeword);
-				docPub.Annotations.Add(docIntro);
-
-				this.m_project.Publications.Add(docPub);
-
-				docCover.Delete();
-				docContents.Delete();
-				this.m_project.Annotations.Clear();
-			}
-
-			// V11.3: sort terms, references
-			this.m_project.SortTerms();
-			this.m_project.SortAbbreviations();
-			this.m_project.SortNormativeReferences();
-			this.m_project.SortInformativeReferences();
-
 			LoadTree();
 		}
+		
 
 		/// <summary>
 		/// Temporary routine for providing English localization for definition
@@ -518,6 +357,7 @@ namespace IfcDoc
 							using (FileStream streamDoc = new FileStream(this.m_file, FileMode.Create, FileAccess.ReadWrite))
 							{
 								XmlSerializer formatDoc = new XmlSerializer(typeof(DocProject));
+								
 								formatDoc.WriteObject(streamDoc, this.m_project); // ... specify header...IFCDOC_11_8
 							}
 							break;

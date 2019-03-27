@@ -14,6 +14,7 @@ using System.Text;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Xml.Serialization;
 
 
 namespace BuildingSmart.Serialization
@@ -32,7 +33,9 @@ namespace BuildingSmart.Serialization
 		Dictionary<Type, IList<PropertyInfo>> _fieldinv = new Dictionary<Type, IList<PropertyInfo>>(); // cached field lists for inverses
 		Dictionary<Type, IList<PropertyInfo>> _fieldall = new Dictionary<Type, IList<PropertyInfo>>(); // combined
 		Dictionary<int, List<PropertyInfo>> _inversemap = new Dictionary<int, List<PropertyInfo>>();
+		Dictionary<Type, MethodInfo> _deserializingmap = new Dictionary<Type, MethodInfo>(); // cached field lists in declaration order
 
+		protected bool _prioritizeXmlOrder { get; set; } = false;
 		/// <summary>
 		/// Creates serializer accepting all types within assembly.
 		/// </summary>
@@ -217,11 +220,15 @@ namespace BuildingSmart.Serialization
 		/// <summary>
 		/// The schema identifier (e.g "IFC4")
 		/// </summary>
-		protected string Schema
+		public string Schema
 		{
 			get
 			{
 				return this._schema;
+			}
+			set
+			{
+				this._schema = value;
 			}
 		}
 
@@ -244,15 +251,15 @@ namespace BuildingSmart.Serialization
 			}
 		}
 
-		protected string Preprocessor
+		public string Preprocessor
 		{
 			get
 			{
-				return "BuildingSmart IfcKit by Constructivity";
+				return "BuildingSmart IfcKit";
 			}
 		}
 
-		protected string Application
+		public string Application
 		{
 			get
 			{
@@ -417,7 +424,6 @@ namespace BuildingSmart.Serialization
 			return fields;
 		}
 
-
 		/// <summary>
 		/// Returns all inverse fields for object.
 		/// </summary>
@@ -488,10 +494,20 @@ namespace BuildingSmart.Serialization
 			PropertyInfo[] sorted = new PropertyInfo[fields.Length];
 			foreach (PropertyInfo field in fields)
 			{
+				if (_prioritizeXmlOrder && field.IsDefined(typeof(XmlElementAttribute), false))
+				{
+					XmlElementAttribute attr = (XmlElementAttribute)field.GetCustomAttributes(typeof(XmlElementAttribute), false)[0];
+					if (attr.Order > -1 && attr.Order < fields.Length)
+					{
+						sorted[attr.Order] = field;
+						continue;
+					}
+				}
 				if (field.IsDefined(typeof(DataMemberAttribute), false))
 				{
 					DataMemberAttribute attr = (DataMemberAttribute)field.GetCustomAttributes(typeof(DataMemberAttribute), false)[0];
-					sorted[attr.Order] = field;
+					if(attr.Order < fields.Length)
+						sorted[attr.Order] = field;
 				}
 			}
 

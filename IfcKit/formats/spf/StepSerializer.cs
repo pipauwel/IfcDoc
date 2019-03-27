@@ -1200,7 +1200,7 @@ namespace BuildingSmart.Serialization.Step
 					field.ToString();
 				}
 
-				field.SetValue(instance, value);
+				LoadEntityValue(instance, field, value);
 
 				//... todo: use generated code for specialized collections to keep inverse properties in sync...
 				this.UpdateInverse(instance, field, value);
@@ -1256,7 +1256,7 @@ namespace BuildingSmart.Serialization.Step
 
 							parse = ParseSection.IsoStep;
 						}
-						else if (parsescope == ParseScope.Header)
+						else if (parsescope == ParseScope.Header ||	parsescope == ParseScope.DataInstances)
 						{
 							// process header
 							int iParam = commandline.IndexOf('(');
@@ -1268,27 +1268,26 @@ namespace BuildingSmart.Serialization.Step
 							string strType = commandline.Substring(0, iParam);
 							strType = strType.Trim();
 
-							object headertag = null;
 							switch (strType)
 							{
 								case "FILE_DESCRIPTION":
-									headertag = new FILE_DESCRIPTION(new string[] { });
+									FILE_DESCRIPTION fileDescription = new FILE_DESCRIPTION(new string[] { });
+									this.ParseFields(fileDescription, commandline, idmap);
 									break;
 
 								case "FILE_SCHEMA":
-									headertag = new FILE_SCHEMA(new string[] { });
+									FILE_SCHEMA fileSchema = new FILE_SCHEMA(new string[] { });
+									this.ParseFields(fileSchema, commandline, idmap);
+									if(fileSchema.schema.Count > 0)
+									this.Schema = fileSchema.schema[0];
 									break;
 
 								case "FILE_NAME":
-									headertag = new FILE_NAME("", "", "", "", "");
+									FILE_NAME fileName = new FILE_NAME("", "", "", "", "");
+									this.ParseFields(fileName, commandline, idmap);
 									break;
 							}
 
-							if (headertag != null)
-							{
-								this.ParseFields(headertag, commandline, idmap);
-								//m_headertags.Add(headertag);
-							}
 						}
 						break;
 
@@ -1370,8 +1369,10 @@ namespace BuildingSmart.Serialization.Step
 						if (t != null)
 						{
 							object o = FormatterServices.GetUninitializedObject(t); // works if no parameterless constructor is defined
+																					// capture project
+							if (this.RootType.IsInstanceOfType(o) && !idmap.ContainsKey(0))
+								idmap.Add(0, o);
 							idmap.Add(id, o);
-
 							// populate collections (catch case of older version where field may not be asserted)
 							IList<PropertyInfo> listProp = GetFieldsOrdered(t);
 							foreach (PropertyInfo prop in listProp)
@@ -1385,12 +1386,6 @@ namespace BuildingSmart.Serialization.Step
 									prop.SetValue(o, colval);
 								}
 
-							}
-
-							// capture project
-							if (this.RootType.IsInstanceOfType(o) && !idmap.ContainsKey(0))
-							{
-								idmap.Add(0, o);
 							}
 						}
 					}

@@ -109,7 +109,7 @@ namespace BuildingSmart.Serialization.Xml
 			Queue<QueueData> queue = new Queue<QueueData>();
 
 			int nextID = 0;
-
+			writeFirstPassForIds(root, new HashSet<string>(), ref nextID);
 			WriteNestedObject(new QueueData(Path.Combine(folderPath, removeInvalidFile(root.GetType().Name)+".xml"), root), queue, ref nextID);
 			while (queue.Count > 0)
 				WriteNestedObject(queue.Dequeue(), queue, ref nextID);
@@ -307,7 +307,7 @@ namespace BuildingSmart.Serialization.Xml
 				XmlParserContext context = new XmlParserContext(null, xmlns, "", XmlSpace.Default);
 				using (XmlReader reader = XmlReader.Create(streamSource, settings, context))
 				{
-					result = ReadEntity(reader, instances, typeName, queuedObjects, true);
+					result = ReadEntity(reader, instances, typeName, queuedObjects);
 				}
 			}
 			foreach (string file in Directory.GetFiles(folderPath, "*.html", SearchOption.TopDirectoryOnly))

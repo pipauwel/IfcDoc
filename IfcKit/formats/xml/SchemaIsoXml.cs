@@ -9,7 +9,7 @@ using System.Xml.Serialization;
 
 namespace BuildingSmart.Serialization.Xml
 {
-	public class header
+	public class headerData
 	{
 		[DataMember(Order = 0)]
 		[XmlElement(ElementName ="name")]

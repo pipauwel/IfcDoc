@@ -214,6 +214,7 @@
     <Compile Include="FormValidateMappings.Designer.cs">
       <DependentUpon>FormValidateMappings.cs</DependentUpon>
     </Compile>
+    <Compile Include="IfcDocUtils.cs" />
     <Compile Include="SchemaSVG.cs" />
     <Compile Include="SchemaXsd.cs" />
     <Compile Include="ThemedTreeView.cs">
