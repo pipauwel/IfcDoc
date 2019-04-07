@@ -331,37 +331,10 @@ namespace IfcDoc
 		{
 			if (this.m_file != null)
 			{
-				string ext = System.IO.Path.GetExtension(this.m_file).ToLower();
 
 				try
 				{
-					switch (ext)
-					{
-						case ".ifcdoc":
-							using (FileStream streamDoc = new FileStream(this.m_file, FileMode.Create, FileAccess.ReadWrite))
-							{
-								StepSerializer formatDoc = new StepSerializer(typeof(DocProject), SchemaDOC.Types, "IFCDOC_12_0", "IfcDoc 12.0", "BuildingSmart IFC Documentation Generator");
-								formatDoc.WriteObject(streamDoc, this.m_project); // ... specify header...IFCDOC_11_8
-							}
-							break;
-
-#if MDB
-                        case ".mdb":
-                            using (FormatMDB format = new FormatMDB(this.m_file, SchemaDOC.Types, this.m_instances))
-                            {
-                                format.Save();
-                            }
-                            break;
-#endif
-						case ".ifcdocxml":
-							using (FileStream streamDoc = new FileStream(this.m_file, FileMode.Create, FileAccess.ReadWrite))
-							{
-								XmlSerializer formatDoc = new XmlSerializer(typeof(DocProject));
-								
-								formatDoc.WriteObject(streamDoc, this.m_project); // ... specify header...IFCDOC_11_8
-							}
-							break;
-					}
+					IfcDocUtils.SaveProject(this.m_project ,this.m_file);
 					this.m_modified = false;
 				}
 				catch (System.Exception x)
@@ -1295,7 +1268,7 @@ namespace IfcDoc
 			{
 				DocPropertyEnumeration docTarget = (DocPropertyEnumeration)this.treeView.SelectedNode.Tag;
 				DocSchema docSchema = (DocSchema)this.treeView.SelectedNode.Parent.Parent.Tag;
-				docSchema.PropertyEnums.Remove(docTarget);
+				docSchema.PropertyEnumerations.Remove(docTarget);
 				this.treeView.SelectedNode.Remove();
 				docTarget.Delete();
 			}
@@ -1944,7 +1917,7 @@ namespace IfcDoc
 							mapEntity.Add(def.Name, def);
 						}
 					}
-					foreach (DocPropertyEnumeration def in docSchema.PropertyEnums)
+					foreach (DocPropertyEnumeration def in docSchema.PropertyEnumerations)
 					{
 						mapSchema.Add(def.Name, docSchema.Name);
 						if (!mapEntity.ContainsKey(def.Name))
@@ -2265,7 +2238,7 @@ namespace IfcDoc
 			}
 
 			TreeNode tnPeHeader = LoadNode(tnSchema, typeof(DocPropertyEnumeration), "Property Enumerations", false);
-			foreach (DocPropertyEnumeration en in schema.PropertyEnums)
+			foreach (DocPropertyEnumeration en in schema.PropertyEnumerations)
 			{
 				TreeNode tnEnum = LoadNode(tnPeHeader, en, en.Name, true);
 				foreach (DocPropertyConstant docconst in en.Constants)
@@ -4745,7 +4718,7 @@ namespace IfcDoc
 				{
 					foreach (DocSchema docSchema in docSection.Schemas)
 					{
-						foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnums)
+						foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnumerations)
 						{
 							mapPropEnum.Add(docEnum.Name, docEnum);
 						}
@@ -6728,7 +6701,7 @@ namespace IfcDoc
 			{
 				DocSchema docSchema = (DocSchema)tn.Tag;
 				DocPropertyEnumeration docType = new DocPropertyEnumeration();
-				docSchema.PropertyEnums.Add(docType);
+				docSchema.PropertyEnumerations.Add(docType);
 				this.treeView.SelectedNode = this.LoadNode(tn.Nodes[5], docType, null, true);
 				toolStripMenuItemEditRename_Click(this, e);
 			}
@@ -7157,9 +7130,9 @@ namespace IfcDoc
 			DocPropertyEnumeration docEntity = (DocPropertyEnumeration)tn.Tag;
 
 			DocSchema docSchema = (DocSchema)this.treeView.SelectedNode.Parent.Parent.Tag;
-			int indexOld = docSchema.PropertyEnums.IndexOf(docEntity);
+			int indexOld = docSchema.PropertyEnumerations.IndexOf(docEntity);
 			docSchema.SortPropertyEnums();
-			int indexNew = docSchema.PropertyEnums.IndexOf(docEntity);
+			int indexNew = docSchema.PropertyEnumerations.IndexOf(docEntity);
 			if (indexNew != indexOld)
 			{
 				TreeNode tnParent = tn.Parent;
@@ -9700,11 +9673,11 @@ namespace IfcDoc
 				form.SelectedPath = this.folderBrowserDialog.SelectedPath;
 				if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK)
 				{
-					XmlFolderSerializer folderSerializer = new XmlFolderSerializer(typeof(DocProject));
-					folderSerializer.AddFilePrefix(typeof(DocDefinition), "Ifc");
-					folderSerializer.WriteObject(form.SelectedPath, this.m_project);
+					//XmlFolderSerializer folderSerializer = new XmlFolderSerializer(typeof(DocProject));
+					//folderSerializer.AddFilePrefix(typeof(DocDefinition), "Ifc");
+					//folderSerializer.WriteObject(form.SelectedPath, this.m_project);
 
-					return;
+					//return;
 					Dictionary<string, DocObject> mapEntity = new Dictionary<string, DocObject>();
 					Dictionary<string, string> mapSchema = new Dictionary<string, string>();
 					BuildMaps(mapEntity, mapSchema);

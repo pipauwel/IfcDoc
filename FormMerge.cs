@@ -323,7 +323,7 @@ namespace IfcDoc
 
 							}
 
-							foreach (DocPropertyEnumeration docChangePset in docChangeSchema.PropertyEnums)
+							foreach (DocPropertyEnumeration docChangePset in docChangeSchema.PropertyEnumerations)
 							{
 								DocObject docOriginalPset = null;
 								if (mapOriginal.TryGetValue(docChangePset.Uuid, out docOriginalPset))

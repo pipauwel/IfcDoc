@@ -4118,7 +4118,7 @@
     <value>237, 17</value>
   </metadata>
   <data name="openFileDialogLoad.Filter" xml:space="preserve">
-    <value>IFC Documentation (*.ifcdoc)|*.ifcdoc|Access Database (*.mdb)|*.mdb|IfcDocXml (*.ifcdocxml)|*.ifcdocxml</value>
+    <value>IFC Documentation (*.ifcdoc,*.ifcdocxml)|*.ifcdoc;*.ifcdocxml|Access Database (*.mdb)|*.mdb</value>
   </data>
   <data name="openFileDialogLoad.Title" xml:space="preserve">
     <value>Open Documentation File</value>
@@ -4127,7 +4127,7 @@
     <value>397, 17</value>
   </metadata>
   <data name="saveFileDialogSave.Filter" xml:space="preserve">
-    <value>IFC Documentation (*.ifcdoc)|*.ifcdoc|Access Database (*.mdb)|*.mdb|IfcDocXml (*.ifcdocxml)|*.ifcdocxml</value>
+    <value>IFC Documentation (IfcDocXml (*.ifcdocxml)|*.ifcdocxml|IFC Documentation  (*.ifcdoc)|*.ifcdoc|Access Database (*.mdb)|*.mdb</value>
   </data>
   <data name="saveFileDialogSave.Title" xml:space="preserve">
     <value>Save Documentation File</value>

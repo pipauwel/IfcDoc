@@ -920,7 +920,7 @@ namespace IfcDoc
 						// end property sets
 
 						// property enums
-						foreach (DocPropertyEnumeration docPset in docSchema.PropertyEnums)
+						foreach (DocPropertyEnumeration docPset in docSchema.PropertyEnumerations)
 						{
 							DocChangeAction docChangePset = new DocChangeAction();
 							docChangeSchemaProperties.Changes.Add(docChangePset);
@@ -928,7 +928,7 @@ namespace IfcDoc
 
 							// find equivalent pset
 							DocPropertyEnumeration docPsetBase = null;
-							foreach (DocPropertyEnumeration docEntityEach in docSchemaBase.PropertyEnums)
+							foreach (DocPropertyEnumeration docEntityEach in docSchemaBase.PropertyEnumerations)
 							{
 								if (docEntityEach.Name.Equals(docPset.Name))
 								{
@@ -947,7 +947,7 @@ namespace IfcDoc
 								{
 									foreach (DocSchema docOtherSchema in docOtherSection.Schemas)
 									{
-										foreach (DocPropertyEnumeration docOtherPset in docOtherSchema.PropertyEnums)
+										foreach (DocPropertyEnumeration docOtherPset in docOtherSchema.PropertyEnumerations)
 										{
 											if (docOtherPset.Name.Equals(docPset.Name))
 											{
@@ -1017,11 +1017,11 @@ namespace IfcDoc
 						}
 
 						// now find deleted property enums
-						foreach (DocPropertyEnumeration docEntityBase in docSchemaBase.PropertyEnums)
+						foreach (DocPropertyEnumeration docEntityBase in docSchemaBase.PropertyEnumerations)
 						{
 							// find equivalent
 							DocPropertyEnumeration docEntity = null;
-							foreach (DocPropertyEnumeration docEntityEach in docSchema.PropertyEnums)
+							foreach (DocPropertyEnumeration docEntityEach in docSchema.PropertyEnumerations)
 							{
 								if (docEntityEach.Name.Equals(docEntityBase.Name))
 								{
@@ -1038,7 +1038,7 @@ namespace IfcDoc
 								{
 									foreach (DocSchema docOtherSchema in docOtherSection.Schemas)
 									{
-										foreach (DocPropertyEnumeration docOtherEntity in docOtherSchema.PropertyEnums)
+										foreach (DocPropertyEnumeration docOtherEntity in docOtherSchema.PropertyEnumerations)
 										{
 											if (docOtherEntity.Name.Equals(docEntityBase.Name))
 											{

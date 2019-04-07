@@ -1058,7 +1058,7 @@ namespace IfcDoc
 			ifcProjectLibrary.Declares.Add(quantities);
 			ifcProjectLibrary.Declares.Add(quantitySets);
 
-			Dictionary<string, DocEnumeration> enumerations = new Dictionary<string, DocEnumeration>();
+			Dictionary<string, DocPropertyEnumeration> enumerations = new Dictionary<string, DocPropertyEnumeration>();
 			Dictionary<string, DocProperty> simplePropertyDictionary = new Dictionary<string, DocProperty>();
 			Dictionary<string, DocProperty> complexPropertyDictionary = new Dictionary<string, DocProperty>();
 			List<DocQuantity> simpleQuantityList = new List<DocQuantity>();
@@ -1092,14 +1092,14 @@ namespace IfcDoc
 			DocObject.ComparerDocObject comparer = new DocObject.ComparerDocObject();
 			Dictionary<string, IfcPropertyTemplate> propertyTemplates = new Dictionary<string, IfcPropertyTemplate>();
 			Dictionary<string, IfcPropertyEnumeration> dictionaryEnumerations = new Dictionary<string, IfcPropertyEnumeration>();
-			foreach (DocEnumeration docEnumeration in enumerations.Values)
+			foreach (DocPropertyEnumeration docEnumeration in enumerations.Values)
 			{
 				// cache enumerators
 				try
 				{
 					IfcPropertyEnumeration ifcProp =  new IfcPropertyEnumeration(new IfcLabel(docEnumeration.Name), new IfcValue[] { }, null);
 					dictionaryEnumerations[docEnumeration.Name] = ifcProp; //
-					foreach (DocConstant docConst in docEnumeration.Constants)
+					foreach (DocPropertyConstant docConst in docEnumeration.Constants)
 					{
 						IfcLabel label = new IfcLabel(docConst.Name);
 						ifcProp.EnumerationValues.Add(label);
@@ -1218,7 +1218,7 @@ namespace IfcDoc
 			}
 			return properties[property.UniqueId] = ExportIfcPropertyTemplate(property, mapEnums);
 		}
-		private static void processProperty(DocProperty property, Dictionary<string, DocProperty> simpleProperties, Dictionary<string, DocProperty> complexProperties, Dictionary<string, DocEnumeration> enumerations)
+		private static void processProperty(DocProperty property, Dictionary<string, DocProperty> simpleProperties, Dictionary<string, DocProperty> complexProperties, Dictionary<string, DocPropertyEnumeration> enumerations)
 		{
 			if (property.PropertyType == DocPropertyTemplateTypeEnum.COMPLEX)
 			{
@@ -1664,7 +1664,7 @@ namespace IfcDoc
 				{
 					docEnum = new DocPropertyEnumeration();
 					docEnum.Name = def.PropertyType.TypePropertyEnumeratedValue.EnumList.name;
-					docSchema.PropertyEnums.Add(docEnum);
+					docSchema.PropertyEnumerations.Add(docEnum);
 
 					foreach (EnumItem item in def.PropertyType.TypePropertyEnumeratedValue.EnumList.Items)
 					{

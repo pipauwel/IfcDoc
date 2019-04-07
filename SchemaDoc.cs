@@ -12,6 +12,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.Serialization;
@@ -609,19 +610,18 @@ namespace IfcDoc.Schema.DOC
 	/// </summary>
 	public class DocProject : SEntity
 	{ 
-		[DataMember(Order = 0)] [XmlElement(Order = 1)] public List<DocSection> Sections { get; protected set; }
-		[DataMember(Order = 1)] [XmlElement(Order = 2)] public List<DocAnnex> Annexes { get; protected set; } // inserted in 1.2
-		[DataMember(Order = 2)] [XmlElement(Order = 3)] public List<DocTemplateDefinition> Templates { get; protected set; }
-		[DataMember(Order = 3)] [XmlElement(Order = 4)] public List<DocModelView> ModelViews { get; protected set; } // new in 2.7
-		[DataMember(Order = 4)] [XmlElement(Order = 5)] public List<DocChangeSet> ChangeSets { get; protected set; } // new in 2.7
-		[DataMember(Order = 5)] [XmlElement(Order = 6)] public List<DocExample> Examples { get; protected set; } // new in 4.2
-		[DataMember(Order = 6)] [XmlElement(Order = 7)] public List<DocReference> NormativeReferences { get; protected set; } // new in 4.3
-		[DataMember(Order = 7)] [XmlElement(Order = 8)] public List<DocReference> InformativeReferences { get; protected set; }// new in 4.3
-		[DataMember(Order = 8)] [XmlElement(Order = 9)] public List<DocTerm> Terms { get; protected set; } // new in 4.3
-		[DataMember(Order = 9)] [XmlElement(Order = 10)] public List<DocAbbreviation> Abbreviations { get; protected set; } // new in 4.3
-		[DataMember(Order = 10)] [XmlElement(Order = 11)] public List<DocAnnotation> Annotations { get; protected set; } // new in 8.7: Cover | Foreword | Introduction; Deprecated in 9.6
-		[DataMember(Order = 11)] [XmlElement(Order = 12)] public List<DocPublication> Publications { get; protected set; } // new in 9.6
-		[DataMember(Order = 12)] [XmlElement(Order =0)] public DocListings Listings { get; internal set; }
+		[DataMember(Order = 0)] [XmlElement] public List<DocSection> Sections { get; protected set; }
+		[DataMember(Order = 1)] [XmlElement] public List<DocAnnex> Annexes { get; protected set; } // inserted in 1.2
+		[DataMember(Order = 2)] [XmlElement] public List<DocTemplateDefinition> Templates { get; protected set; }
+		[DataMember(Order = 3)] [XmlElement] public List<DocModelView> ModelViews { get; protected set; } // new in 2.7
+		[DataMember(Order = 4)] [XmlElement] public List<DocChangeSet> ChangeSets { get; protected set; } // new in 2.7
+		[DataMember(Order = 5)] [XmlElement] public List<DocExample> Examples { get; protected set; } // new in 4.2
+		[DataMember(Order = 6)] [XmlElement] public List<DocReference> NormativeReferences { get; protected set; } // new in 4.3
+		[DataMember(Order = 7)] [XmlElement] public List<DocReference> InformativeReferences { get; protected set; }// new in 4.3
+		[DataMember(Order = 8)] [XmlElement] public List<DocTerm> Terms { get; protected set; } // new in 4.3
+		[DataMember(Order = 9)] [XmlElement] public List<DocAbbreviation> Abbreviations { get; protected set; } // new in 4.3
+		[DataMember(Order = 10)] [XmlElement] public List<DocAnnotation> Annotations { get; protected set; } // new in 8.7: Cover | Foreword | Introduction; Deprecated in 9.6
+		[DataMember(Order = 11)] [XmlElement] public List<DocPublication> Publications { get; protected set; } // new in 9.6
 
 		public DocProject()
 		{
@@ -637,7 +637,6 @@ namespace IfcDoc.Schema.DOC
 			this.Abbreviations = new List<DocAbbreviation>();
 			this.Annotations = new List<DocAnnotation>();
 			this.Publications = new List<DocPublication>();
-			this.Listings = new DocListings();
 
 			this.Sections.Add(new DocSection("Scope"));
 			this.Sections.Add(new DocSection("Normative references"));
@@ -858,7 +857,7 @@ namespace IfcDoc.Schema.DOC
 			{
 				foreach (DocSchema docSchema in docSection.Schemas)
 				{
-					foreach (DocPropertyEnumeration docType in docSchema.PropertyEnums)
+					foreach (DocPropertyEnumeration docType in docSchema.PropertyEnumerations)
 					{
 						if (docType.Name != null && docType.Name.Equals(def))
 						{
@@ -1546,7 +1545,7 @@ namespace IfcDoc.Schema.DOC
 						{
 							included[docProp] = true;
 						}
-						foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnums)
+						foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnumerations)
 						{
 							included[docEnum] = true;
 						}
@@ -1725,7 +1724,7 @@ namespace IfcDoc.Schema.DOC
 										{
 											foreach (DocSchema docPropSchema in docPropSection.Schemas)
 											{
-												foreach (DocPropertyEnumeration docEnum in docPropSchema.PropertyEnums)
+												foreach (DocPropertyEnumeration docEnum in docPropSchema.PropertyEnumerations)
 												{
 													if (docEnum.Name.Equals(propenunmane))
 													{
@@ -1974,7 +1973,7 @@ namespace IfcDoc.Schema.DOC
 						{
 							docGlob.FindQuery(query, searchtext, results);
 						}
-						foreach (DocPropertyEnumeration docPset in docSchema.PropertyEnums)
+						foreach (DocPropertyEnumeration docPset in docSchema.PropertyEnumerations)
 						{
 							docPset.FindQuery(query, searchtext, results);
 							foreach (DocPropertyConstant docProp in docPset.Constants)
@@ -2110,7 +2109,15 @@ namespace IfcDoc.Schema.DOC
 			}
 		}
 
-
+		public void SortProject()
+		{
+			SortTerms();
+			SortAbbreviations();
+			SortNormativeReferences();
+			SortInformativeReferences();
+			foreach (DocSchema schema in Sections.SelectMany(x => x.Schemas))
+				schema.SortSchema();
+		}
 		public void SortTerms()
 		{
 			SortedList<string, DocTerm> sortEntity = new SortedList<string, DocTerm>();
@@ -2277,7 +2284,7 @@ namespace IfcDoc.Schema.DOC
 						}
 					}
 
-					foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnums)
+					foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnumerations)
 					{
 						AddGuid(map, docEnum);
 						foreach (DocPropertyConstant docConst in docEnum.Constants)
@@ -2319,6 +2326,8 @@ namespace IfcDoc.Schema.DOC
 		{
 			return null;
 		}
+
+
 	}
 
 	/// <summary>
@@ -5678,7 +5687,7 @@ namespace IfcDoc.Schema.DOC
 	{
 		[DataMember(Order = 0)] [XmlElement] public List<DocPoint> DiagramLine { get; protected set; } // required points
 		[DataMember(Order = 1)] [XmlElement] public List<DocLine> Tree { get; protected set; } // optional set of nested lines
-		[DataMember(Order = 2)] [XmlElement] public DocDefinition Definition { get; set; } // optional target that the line points to
+		[DataMember(Order = 2)] [XmlIgnore] public DocDefinition Definition { get; set; } // optional target that the line points to
 
 		public DocLine()
 		{
@@ -5738,6 +5747,8 @@ namespace IfcDoc.Schema.DOC
 			this.Tree = new List<DocLine>();
 			this.AttributeRefs = new List<DocAttributeRef>();
 		}
+
+		[IgnoreDataMember] public string id { get { return Name + "_" + Uuid.ToString("N"); } }
 	}
 
 	/// <summary>
@@ -5750,52 +5761,52 @@ namespace IfcDoc.Schema.DOC
 	/// <summary>
 	/// Represents Project Listings 
 	/// </summary>
-	public class DocListings : SEntity 
-	{
-		[DataMember(Order = 0)] [XmlElement] public List<DocConstant> Constants { get; protected set; }
-		[DataMember(Order = 1)] [XmlElement] public List<DocDefined> ValueTypes { get; protected set; }
-		[DataMember(Order = 2)] [XmlElement] public List<DocEnumeration> Enumerations { get; protected set; }
-		[DataMember(Order = 3)] [XmlElement] public List<DocSelect> SelectTypes { get; protected set; }
-		[DataMember(Order = 4)] [XmlElement] public List<DocEntity> Entities { get; protected set; }
-		[DataMember(Order = 5)] [XmlElement] public List<DocFunction> Functions { get; protected set; }
-		[DataMember(Order = 6)] [XmlElement] public List<DocGlobalRule> GlobalRules { get; protected set; }
-		[DataMember(Order = 7)] [XmlElement] public List<DocProperty> Properties { get; protected set; }
-		[DataMember(Order = 8)] [XmlElement] public List<DocPropertySet> PropertySets { get; protected set; }
-		[DataMember(Order = 9)] [XmlElement] public List<DocQuantity> Quantities { get; protected set; }
-		[DataMember(Order = 10)] [XmlElement] public List<DocQuantitySet> QuantitySets { get; protected set; }
+	//public class DocListings : SEntity 
+	//{
+	//	[DataMember(Order = 0)] [XmlElement] public List<DocConstant> Constants { get; protected set; }
+	//	[DataMember(Order = 1)] [XmlElement] public List<DocDefined> ValueTypes { get; protected set; }
+	//	[DataMember(Order = 2)] [XmlElement] public List<DocEnumeration> Enumerations { get; protected set; }
+	//	[DataMember(Order = 3)] [XmlElement] public List<DocSelect> SelectTypes { get; protected set; }
+	//	[DataMember(Order = 4)] [XmlElement] public List<DocEntity> Entities { get; protected set; }
+	//	[DataMember(Order = 5)] [XmlElement] public List<DocFunction> Functions { get; protected set; }
+	//	[DataMember(Order = 6)] [XmlElement] public List<DocGlobalRule> GlobalRules { get; protected set; }
+	//	[DataMember(Order = 7)] [XmlElement] public List<DocProperty> Properties { get; protected set; }
+	//	[DataMember(Order = 8)] [XmlElement] public List<DocPropertySet> PropertySets { get; protected set; }
+	//	[DataMember(Order = 9)] [XmlElement] public List<DocQuantity> Quantities { get; protected set; }
+	//	[DataMember(Order = 10)] [XmlElement] public List<DocQuantitySet> QuantitySets { get; protected set; }
 
-		//Primitives
+	//	//Primitives
 
-		public DocListings()
-		{
-			this.Constants = new List<DocConstant>();
-			this.ValueTypes = new List<DocDefined>();
-			this.Enumerations = new List<DocEnumeration>();
-			this.SelectTypes = new List<DocSelect>();
-			this.Entities = new List<DocEntity>();
-			this.Functions = new List<DocFunction>();
-			this.GlobalRules = new List<DocGlobalRule>();
-			this.Properties = new List<DocProperty>();
-			this.PropertySets = new List<DocPropertySet>();
-			this.Quantities = new List<DocQuantity>();
-			this.QuantitySets = new List<DocQuantitySet>();
-		}
+	//	public DocListings()
+	//	{
+	//		this.Constants = new List<DocConstant>();
+	//		this.ValueTypes = new List<DocDefined>();
+	//		this.Enumerations = new List<DocEnumeration>();
+	//		this.SelectTypes = new List<DocSelect>();
+	//		this.Entities = new List<DocEntity>();
+	//		this.Functions = new List<DocFunction>();
+	//		this.GlobalRules = new List<DocGlobalRule>();
+	//		this.Properties = new List<DocProperty>();
+	//		this.PropertySets = new List<DocPropertySet>();
+	//		this.Quantities = new List<DocQuantity>();
+	//		this.QuantitySets = new List<DocQuantitySet>();
+	//	}
 
-		public void SortLists()
-		{
-			DocObject.ComparerDocObject comparer = new DocObject.ComparerDocObject();
-			Constants.Sort(comparer);
-			ValueTypes.Sort(comparer);
-			Enumerations.Sort(comparer);
-			SelectTypes.Sort(comparer);
-			Entities.Sort(comparer);
-			GlobalRules.Sort(comparer);
-			Properties.Sort(comparer);
-			PropertySets.Sort(comparer);
-			Quantities.Sort(comparer);
-			QuantitySets.Sort(comparer);
-		}
-	}
+	//	public void SortLists()
+	//	{
+	//		DocObject.ComparerDocObject comparer = new DocObject.ComparerDocObject();
+	//		Constants.Sort(comparer);
+	//		ValueTypes.Sort(comparer);
+	//		Enumerations.Sort(comparer);
+	//		SelectTypes.Sort(comparer);
+	//		Entities.Sort(comparer);
+	//		GlobalRules.Sort(comparer);
+	//		Properties.Sort(comparer);
+	//		PropertySets.Sort(comparer);
+	//		Quantities.Sort(comparer);
+	//		QuantitySets.Sort(comparer);
+	//	}
+	//}
 
 	/// <summary>
 	/// Represents a Schema
@@ -5803,21 +5814,24 @@ namespace IfcDoc.Schema.DOC
 	public class DocSchema : DocObject
 	{
 		// ORDER CHANGED in V1.8
-		[DataMember(Order = 0)] [XmlElement] public List<DocAnnotation> Annotations { get; protected set; }   // 5.1.1 Definitions     // inserted in 1.8      
-		[DataMember(Order = 1)] [XmlElement] public List<DocType> Types { get; protected set; }               // 5.1.2 Types           // moved up in 1.8
-		[DataMember(Order = 2)] [XmlElement] public List<DocEntity> Entities { get; protected set; }          // 5.1.3 Entities        // moved down in 1.8
-		[DataMember(Order = 3)] [XmlElement] public List<DocFunction> Functions { get; protected set; }       // 5.1.4 Functions
-		[DataMember(Order = 4)] [XmlElement] public List<DocGlobalRule> GlobalRules { get; protected set; }   // 5.1.5 Global Rules    // inserted in 1.2
-		[DataMember(Order = 5)] [XmlElement] public List<DocPropertySet> PropertySets { get; protected set; } // 5.1.6 Property Sets
-		[DataMember(Order = 6)] [XmlElement] public List<DocQuantitySet> QuantitySets { get; protected set; } // 5.1.7 Quantity Sets
-		[DataMember(Order = 7)] [XmlElement] public List<DocPageTarget> PageTargets { get; protected set; }   // inserted in 3.5, renamed to DocPageTarget in 4.9
-		[DataMember(Order = 8)] [XmlElement] public List<DocSchemaRef> SchemaRefs { get; protected set; }     // inserted in 4.9
-		[DataMember(Order = 9)] [XmlElement] public List<DocComment> Comments { get; protected set; }         // inserted in 4.9
-		[DataMember(Order = 10)] [XmlElement] public List<DocPropertyEnumeration> PropertyEnums { get; protected set; } // inserted in 5.8
-		[DataMember(Order = 11)] [XmlElement] public List<DocPrimitive> Primitives { get; protected set; }    // inserted in 5.8
-		[DataMember(Order = 12)] [XmlAttribute] public int DiagramPagesHorz { get;
-			set; } // inserted in 5.8
+		[DataMember(Order = 0)] [XmlElement(Order = 3)] public List<DocAnnotation> Annotations { get; protected set; }   // 5.1.1 Definitions     // inserted in 1.8      
+		[DataMember(Order = 1)] [XmlElement(Order = 4)] public List<DocType> Types { get; protected set; }               // 5.1.2 Types           // moved up in 1.8
+		[DataMember(Order = 2)] [XmlElement(Order = 5)] public List<DocEntity> Entities { get; protected set; }          // 5.1.3 Entities        // moved down in 1.8
+		[DataMember(Order = 3)] [XmlElement(Order = 6)] public List<DocFunction> Functions { get; protected set; }       // 5.1.4 Functions
+		[DataMember(Order = 4)] [XmlElement(Order = 7)] public List<DocGlobalRule> GlobalRules { get; protected set; }   // 5.1.5 Global Rules    // inserted in 1.2
+		[DataMember(Order = 5)] [XmlElement(Order = 11)] public List<DocPropertySet> PropertySets { get; protected set; } // 5.1.6 Property Sets
+		[DataMember(Order = 6)] [XmlElement(Order = 13)] public List<DocQuantitySet> QuantitySets { get; protected set; } // 5.1.7 Quantity Sets
+		[DataMember(Order = 7)] [XmlElement(Order = 14)] public List<DocPageTarget> PageTargets { get; protected set; }   // inserted in 3.5, renamed to DocPageTarget in 4.9
+		[DataMember(Order = 8)] [XmlElement(Order = 0)] public List<DocSchemaRef> SchemaRefs { get; protected set; }     // inserted in 4.9
+		[DataMember(Order = 9)] [XmlElement(Order = 15)] public List<DocComment> Comments { get; protected set; }         // inserted in 4.9
+		[DataMember(Order = 10)] [XmlElement(Order = 9)] public List<DocPropertyEnumeration> PropertyEnumerations { get; protected set; } // inserted in 5.8
+		[DataMember(Order = 11)] [XmlElement(Order = 1)] public List<DocPrimitive> Primitives { get; protected set; }    // inserted in 5.8
+		[DataMember(Order = 12)] [XmlAttribute] public int DiagramPagesHorz { get; set; } // inserted in 5.8
 		[DataMember(Order = 13)] [XmlAttribute] public int DiagramPagesVert { get; set; } // inserted in 5.8
+		[DataMember(Order = 14)] [XmlElement(Order = 2)] public List<DocConstant> Constants { get; protected set; } // 12.1 
+		[DataMember(Order = 15)] [XmlElement(Order = 8)] public List<DocPropertyConstant> PropertyConstants { get; protected set; } // 12.1 
+		[DataMember(Order = 16)] [XmlElement(Order = 10)] public List<DocProperty> Properties { get; protected set; } // 12.1 
+		[DataMember(Order = 17)] [XmlElement(Order = 12)] public List<DocQuantity> Quantities { get; protected set; } // 12.1
 
 		[IgnoreDataMember] public string id { get { return Name + "_" + UniqueId; } }
 
@@ -5833,10 +5847,12 @@ namespace IfcDoc.Schema.DOC
 			this.PageTargets = new List<DocPageTarget>();
 			this.SchemaRefs = new List<DocSchemaRef>();
 			this.Comments = new List<DocComment>();
-			this.PropertyEnums = new List<DocPropertyEnumeration>();
+			this.PropertyEnumerations = new List<DocPropertyEnumeration>();
 			this.Primitives = new List<DocPrimitive>();
+			this.Constants = new List<DocConstant>();
+			this.PropertyConstants = new List<DocPropertyConstant>();
+			this.Quantities = new List<DocQuantity>();
 		}
-
 
 		/// <summary>
 		/// Creates or returns existing entity by name.
@@ -6177,9 +6193,28 @@ namespace IfcDoc.Schema.DOC
 			return null;
 		}
 
-		/// <summary>
-		/// Sorts type list according to definition type and alphabetical name
-		/// </summary>
+		public void SortSchema()
+		{
+			DocObject.ComparerDocObject comparer = new DocObject.ComparerDocObject();
+			Annotations.Sort(comparer);
+			SortTypes();
+			SortEntities();
+			Functions.Sort(comparer);
+			GlobalRules.Sort(comparer);
+			PropertySets.Sort(comparer);
+			QuantitySets.Sort(comparer);
+			PageTargets.Sort(comparer);
+			SchemaRefs.Sort(comparer);
+			Comments.Sort(comparer);
+			PropertyEnumerations.Sort(comparer);
+			Primitives.Sort(comparer);
+			Constants.Sort(comparer);
+			Properties.Sort(comparer);
+			Quantities.Sort(comparer);
+	}
+	/// <summary>
+	/// Sorts type list according to definition type and alphabetical name
+	/// </summary>
 		public void SortTypes()
 		{
 			SortedList<string, DocDefined> sortDefined = new SortedList<string, DocDefined>();
@@ -6279,13 +6314,13 @@ namespace IfcDoc.Schema.DOC
 		{
 			SortedList<string, DocPropertyEnumeration> sortEntity = new SortedList<string, DocPropertyEnumeration>();
 
-			foreach (DocPropertyEnumeration docType in this.PropertyEnums)
+			foreach (DocPropertyEnumeration docType in this.PropertyEnumerations)
 			{
 				sortEntity.Add(docType.Name, docType);
 			}
 
-			this.PropertyEnums.Clear();
-			this.PropertyEnums.AddRange(sortEntity.Values);
+			this.PropertyEnumerations.Clear();
+			this.PropertyEnumerations.AddRange(sortEntity.Values);
 		}
 
 		/// <summary>
@@ -6657,7 +6692,7 @@ namespace IfcDoc.Schema.DOC
 	public class DocAttribute : DocObject
 	{
 		[DataMember(Order = 0)] [XmlAttribute] public string DefinedType { get; set; } // the EXPRESS type (bypassing any indirection from page references, etc.)
-		[DataMember(Order = 1)] [XmlElement] public DocDefinition Definition { get; set; } // the EXPRESS-G link -- never used until 5.8 -- holds EXPRESS-G target; renamed from "ReferencedType"
+		[DataMember(Order = 1)] [XmlIgnore] public DocDefinition Definition { get; set; } // the EXPRESS-G link -- never used until 5.8 -- holds EXPRESS-G target; renamed from "ReferencedType"
 		[DataMember(Order = 2)] [XmlAttribute] public int AttributeFlags { get; set; }
 		[DataMember(Order = 3)] [XmlAttribute] public int AggregationType { get; set; } 
 		[DataMember(Order = 4)] [XmlAttribute] public int AggregationFlag { get; set; } // inserted
@@ -7089,7 +7124,7 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 2)] [XmlAttribute] public string SecondaryDataType { get; set; }
 		[DataMember(Order = 3)] [XmlElement] public List<DocProperty> Elements { get; set; } // enumerated or complex properties
 		[DataMember(Order = 4)] [XmlAttribute] public DocStateEnum AccessState { get; set; } // V10.5
-		[DataMember(Order = 5)] [XmlAttribute] public DocEnumeration Enumeration { get; set; } // V12.1
+		[DataMember(Order = 5)] [XmlAttribute] public DocPropertyEnumeration Enumeration { get; set; } // V12.1
 
 		[IgnoreDataMember] public string id { get { return Name + "_" + Uuid.ToString("N"); } }
 
@@ -7257,6 +7292,8 @@ namespace IfcDoc.Schema.DOC
 	{
 		[DataMember(Order = 0)] [XmlElement] public List<DocPropertyConstant> Constants { get; protected set; }
 
+		[IgnoreDataMember] public string id { get { return Name + "_" + Uuid.ToString("N"); } }
+
 		public DocPropertyEnumeration()
 		{
 			this.Constants = new List<DocPropertyConstant>();
@@ -7292,6 +7329,7 @@ namespace IfcDoc.Schema.DOC
 	// new in IFCDOC 5.8
 	public class DocPropertyConstant : DocObject
 	{
+		[IgnoreDataMember] public string id { get { return Name + "_" + Uuid.ToString("N"); } }
 	}
 
 	/// <summary>

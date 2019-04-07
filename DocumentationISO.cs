@@ -4700,7 +4700,7 @@ namespace IfcDoc
 			{
 				foreach (DocSchema docSchema in docSection.Schemas)
 				{
-					foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnums)
+					foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnumerations)
 					{
 						mapPropEnum.Add(docEnum.Name, docEnum);
 					}
@@ -6081,7 +6081,7 @@ namespace IfcDoc
 										}
 
 										// property sets
-										if (schema.PropertySets.Count > 0 || schema.PropertyEnums.Count > 0)
+										if (schema.PropertySets.Count > 0 || schema.PropertyEnumerations.Count > 0)
 										{
 											iSubSection++;
 
@@ -6182,7 +6182,7 @@ namespace IfcDoc
 												}
 											}
 
-											foreach (DocPropertyEnumeration entity in schema.PropertyEnums)
+											foreach (DocPropertyEnumeration entity in schema.PropertyEnumerations)
 											{
 												if (worker.CancellationPending)
 													return;
@@ -7402,7 +7402,7 @@ namespace IfcDoc
 							}
 						}
 
-						foreach (DocPropertyEnumeration docLinkObj in docLinkSchema.PropertyEnums)
+						foreach (DocPropertyEnumeration docLinkObj in docLinkSchema.PropertyEnumerations)
 						{
 							if (included == null || included.ContainsKey(docLinkObj))
 							{

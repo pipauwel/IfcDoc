@@ -492,14 +492,23 @@ namespace BuildingSmart.Serialization
 
 			PropertyInfo[] fields = type.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
 			PropertyInfo[] sorted = new PropertyInfo[fields.Length];
+			int lastIndex = fields.Length - 1;
 			foreach (PropertyInfo field in fields)
 			{
-				if (_prioritizeXmlOrder && field.IsDefined(typeof(XmlElementAttribute), false))
+				if (_prioritizeXmlOrder)
 				{
-					XmlElementAttribute attr = (XmlElementAttribute)field.GetCustomAttributes(typeof(XmlElementAttribute), false)[0];
-					if (attr.Order > -1 && attr.Order < fields.Length)
+					if (field.IsDefined(typeof(XmlElementAttribute), false))
 					{
-						sorted[attr.Order] = field;
+						XmlElementAttribute attr = (XmlElementAttribute)field.GetCustomAttributes(typeof(XmlElementAttribute), false)[0];
+						if (attr.Order > -1 && attr.Order < fields.Length)
+						{
+							sorted[attr.Order] = field;
+							continue;
+						}
+					}
+					if(field.IsDefined(typeof(XmlAttributeAttribute),false))
+					{
+						sorted[lastIndex--] = field;
 						continue;
 					}
 				}

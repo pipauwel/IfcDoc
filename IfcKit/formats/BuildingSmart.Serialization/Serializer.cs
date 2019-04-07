@@ -82,7 +82,7 @@ namespace BuildingSmart.Serialization
 		
 		protected void Initialize(object o, Type t)
 		{
-			IList<PropertyInfo> fields = GetFieldsOrdered(t);
+			IList<PropertyInfo> fields = GetFieldsAll(t);
 			foreach (PropertyInfo f in fields)
 			{
 				if (f.GetValue(o) == null)

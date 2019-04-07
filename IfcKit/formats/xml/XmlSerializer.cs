@@ -192,7 +192,7 @@ namespace BuildingSmart.Serialization.Xml
 
 							case XmlNodeType.Element:
 								bool empty = reader.IsEmptyElement;
-								ReadEntity(reader, parent, propInfo, instances, t.Name, queuedObjects, true, indent + 1);
+								ReadEntity(reader, parent, propInfo, instances, t == null ? "" : t.Name, queuedObjects, true, indent + 1);
 								hasvalue = true;
 								break;
 							case XmlNodeType.EndElement:
@@ -369,6 +369,11 @@ namespace BuildingSmart.Serialization.Xml
 								}
 
 								ReadEntity(reader, localEntity, nestedPropInfo, instances, nestedTypeName, queuedObjects, nested, indent+1);
+								while(reader.Read())
+								{
+									if (reader.NodeType == XmlNodeType.EndElement)
+										break;
+								}
 							}
 							break;
 						}

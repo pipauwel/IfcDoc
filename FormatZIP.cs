@@ -52,7 +52,7 @@ namespace IfcDoc
 			{
 				foreach (DocSchema docSchema in docSection.Schemas)
 				{
-					foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnums)
+					foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnumerations)
 					{
 						mapPropEnum.Add(docEnum.Name, docEnum);
 					}

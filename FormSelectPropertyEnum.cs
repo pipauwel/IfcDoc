@@ -35,7 +35,7 @@ namespace IfcDoc
 			{
 				foreach (DocSchema schema in section.Schemas)
 				{
-					foreach (DocPropertyEnumeration enumeration in schema.PropertyEnums)
+					foreach (DocPropertyEnumeration enumeration in schema.PropertyEnumerations)
 					{
 						list.Add(enumeration.Name, enumeration);
 					}

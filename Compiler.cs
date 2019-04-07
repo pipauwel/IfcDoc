@@ -133,7 +133,7 @@ namespace IfcDoc
 
 					if (psets)
 					{
-						foreach (DocPropertyEnumeration docPropEnum in docSchema.PropertyEnums)
+						foreach (DocPropertyEnumeration docPropEnum in docSchema.PropertyEnumerations)
 						{
 							DocEnumeration docType = docPropEnum.ToEnumeration();
 							if (!this.m_definitions.ContainsKey(docType.Name))

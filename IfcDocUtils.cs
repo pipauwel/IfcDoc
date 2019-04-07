@@ -16,6 +16,38 @@ namespace IfcDoc
 {
 	public static class IfcDocUtils
 	{
+		public static void SaveProject(DocProject project, string filePath)
+		{
+			project.SortProject();
+			string ext = System.IO.Path.GetExtension(filePath).ToLower();
+			switch (ext)
+			{
+				case ".ifcdoc":
+					using (FileStream streamDoc = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite))
+					{
+						StepSerializer formatDoc = new StepSerializer(typeof(DocProject), SchemaDOC.Types, "IFCDOC_12_0", "IfcDoc 12.0", "BuildingSmart IFC Documentation Generator");
+						formatDoc.WriteObject(streamDoc, project); // ... specify header...IFCDOC_11_8
+					}
+					break;
+
+#if MDB
+                        case ".mdb":
+                            using (FormatMDB format = new FormatMDB(this.m_file, SchemaDOC.Types, this.m_instances))
+                            {
+                                format.Save();
+                            }
+                            break;
+#endif
+				case ".ifcdocxml":
+					using (FileStream streamDoc = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite))
+					{
+						XmlSerializer formatDoc = new XmlSerializer(typeof(DocProject));
+
+						formatDoc.WriteObject(streamDoc, project); // ... specify header...IFCDOC_11_8
+					}
+					break;
+			}
+		}
 		public static DocProject LoadFile(string filePath)
 		{
 			List<object> instances = new List<object>();
@@ -57,11 +89,22 @@ namespace IfcDoc
 			}
 			if (project == null)
 				return null;
-			
 
+			double schemaVersion = 0;
+			if (!string.IsNullOrEmpty(schema))
+			{
+				string[] fields = schema.Split("_".ToCharArray());
+				int i = 0;
+				if (fields.Length > 1)
+				{
+					if (int.TryParse(fields[1], out i))
+						schemaVersion = i;
+					if (fields.Length > 2 && int.TryParse(fields[2], out i))
+						schemaVersion += i / 10.0;
+				}
+			}
 			List<SEntity> listDelete = new List<SEntity>();
 			List<DocTemplateDefinition> listTemplate = new List<DocTemplateDefinition>();
-			List<DocProperty> enumeratedPropertiesToRedefine = new List<DocProperty>();
 
 			foreach (object o in instances)
 			{
@@ -126,7 +169,12 @@ namespace IfcDoc
 						docUsage.Definition = new DocTemplateDefinition();
 					}
 				}
-
+				else if (o is DocLocalization)
+				{
+					DocLocalization localization = o as DocLocalization;
+					if(!string.IsNullOrEmpty(localization.Name))
+						localization.Name = localization.Name.Trim();
+				}
 				// ensure all objects have valid guid
 				DocObject docObject = o as DocObject;
 				if (docObject != null)
@@ -137,19 +185,22 @@ namespace IfcDoc
 					}
 					if (!string.IsNullOrEmpty(docObject.Documentation))
 						docObject.Documentation = docObject.Documentation.Trim();
-					DocProperty docProperty = docObject as DocProperty;
-					if (docProperty != null)
-					{
-						if (string.IsNullOrEmpty(docProperty.SecondaryDataType))
-							docProperty.SecondaryDataType = null;
-						else if (docProperty.PropertyType == DocPropertyTemplateTypeEnum.P_ENUMERATEDVALUE && docProperty.Enumeration == null)
-							enumeratedPropertiesToRedefine.Add(docProperty);
-					}
-					else
+					if (schemaVersion < 12.1)
 					{
 						DocChangeSet docChangeSet = docObject as DocChangeSet;
 						if (docChangeSet != null)
 							docChangeSet.ChangesEntities.RemoveAll(x => !isUnchanged(x));
+						else
+						{
+							if (schemaVersion < 12)
+							{
+								DocEntity entity = docObject as DocEntity;
+								if (entity != null)
+								{
+									entity.ClearDefaultMember();
+								}
+							}
+						}
 					}
 				}
 			}
@@ -157,55 +208,11 @@ namespace IfcDoc
 			if (project == null)
 				return null;
 
-			DocListings docListings = project.Listings;
-			if (docListings == null)
+			if(schemaVersion < 12.1)
 			{
-				docListings = project.Listings = new DocListings();
 				foreach (DocSchema docSchema in project.Sections.SelectMany(x => x.Schemas))
-					extractListings(docSchema, docListings);
+					extractListingsV12_1(docSchema);
 			}
-			foreach (DocProperty docProperty in enumeratedPropertiesToRedefine)
-			{
-				string[] fields = docProperty.SecondaryDataType.Split(":".ToCharArray());
-				if (fields.Length == 2)
-				{
-					docProperty.SecondaryDataType = null;
-					string name = fields[0];
-					foreach (DocEnumeration docEnumeration in docListings.Enumerations)
-					{
-						if (string.Compare(name, docEnumeration.Name) == 0)
-						{
-							docProperty.Enumeration = docEnumeration;
-							break;
-						}
-					}
-					if (docProperty.Enumeration == null)
-					{
-						docProperty.Enumeration = new DocEnumeration() { Name = name };
-						docListings.Enumerations.Add(docProperty.Enumeration = docProperty.Enumeration);
-						foreach (string str in fields[1].Split(",".ToCharArray()))
-						{
-							DocConstant constant = new DocConstant() { Name = str.Trim() };
-							docListings.Constants.Add(constant);
-							docProperty.Enumeration.Constants.Add(constant);
-						}
-					}
-				}
-			}
-
-			if (!string.IsNullOrEmpty(schema))
-			{
-				string[] fields = schema.Split("_".ToCharArray());
-				int ver = 0;
-				if (fields.Length > 1 && int.TryParse(fields[1], out ver) && ver < 12)
-				{
-					foreach (DocEntity entity in project.Listings.Entities)
-					{
-						entity.ClearDefaultMember();
-					}
-				}
-			}
-
 			foreach (DocModelView docModelView in project.ModelViews)
 			{
 				// sort alphabetically (V11.3+)
@@ -241,16 +248,11 @@ namespace IfcDoc
 				docContents.Delete();
 				project.Annotations.Clear();
 			}
-
-			// V11.3: sort terms, references
-			project.SortTerms();
-			project.SortAbbreviations();
-			project.SortNormativeReferences();
-			project.SortInformativeReferences();
-			docListings.SortLists();
-
+			project.SortProject();
 			return project;
 		}
+
+		
 		private static bool isUnchanged(DocChangeAction docChangeAction)
 		{
 			docChangeAction.Changes.RemoveAll(x => !isUnchanged(x));
@@ -258,57 +260,93 @@ namespace IfcDoc
 				return true;
 			return false;
 		}
-		private static void extractListings(DocSchema schema, DocListings listings)
+		private static void extractListingsV12_1(DocSchema schema)
 		{
+			foreach(DocPropertyEnumeration enumeration in schema.PropertyEnumerations)
+			{
+				foreach(DocPropertyConstant constant in enumeration.Constants)
+				{
+					constant.Name = constant.Name.Trim();
+					if (!schema.PropertyConstants.Contains(constant))
+						schema.PropertyConstants.Add(constant);
+				}
+			}
 			foreach (DocType t in schema.Types)
 			{
-				if (t is DocDefined valueType)
-					listings.ValueTypes.Add(valueType);
-				else if (t is DocEnumeration enumeration)
+				if (t is DocEnumeration enumeration)
 				{
-					listings.Enumerations.Add(enumeration);
 					foreach (DocConstant constant in enumeration.Constants)
 					{
-						if (!listings.Constants.Contains(constant))
-							listings.Constants.Add(constant);
+						if (!schema.Constants.Contains(constant)) 
+							schema.Constants.Add(constant);
 					}
 				}
-				else if (t is DocSelect selectType)
-					listings.SelectTypes.Add(selectType);
 			}
-			foreach (DocEntity entity in schema.Entities)
-				listings.Entities.Add(entity);
-			foreach (DocFunction function in schema.Functions)
-				listings.Functions.Add(function);
-			foreach (DocGlobalRule rule in schema.GlobalRules)
-				listings.GlobalRules.Add(rule);
 			foreach (DocPropertySet pset in schema.PropertySets)
-				extractListings(pset, listings);
-			foreach (DocQuantitySet qset in schema.QuantitySets)
-				extractListings(qset, listings);
+				extractListings(pset, schema); //listings
+		
+			foreach (DocQuantity quantity in schema.QuantitySets.SelectMany(x => x.Quantities))
+				schema.Quantities.Add(quantity);
 		}
 
-		private static void extractListings(DocPropertySet propertySet, DocListings listings)
+		private static void extractListings(DocPropertySet propertySet, DocSchema schema)
 		{
-			listings.PropertySets.Add(propertySet);
+			//listings.PropertySets.Add(propertySet);
 			foreach (DocProperty property in propertySet.Properties)
-				extractListings(property, listings);
-
+				extractListings(property, schema);
 		}
 
-		private static void extractListings(DocProperty property, DocListings listings)
+		private static void extractListings(DocProperty property, DocSchema schema)
 		{
-			listings.Properties.Add(property);
+			schema.Properties.Add(property);
+
+			if (string.IsNullOrEmpty(property.SecondaryDataType))
+				property.SecondaryDataType = null;
+			else if (property.PropertyType == DocPropertyTemplateTypeEnum.P_ENUMERATEDVALUE && property.Enumeration == null)
+			{
+				string[] fields = property.SecondaryDataType.Split(":".ToCharArray());
+				if (fields.Length == 2)
+				{
+					property.SecondaryDataType = null;
+					string name = fields[0];
+					foreach (DocPropertyEnumeration docEnumeration in schema.PropertyEnumerations)
+					{
+						if (string.Compare(name, docEnumeration.Name) == 0)
+						{
+							property.Enumeration = docEnumeration;
+							break;
+						}
+					}
+					if (property.Enumeration == null)
+					{
+						property.Enumeration = new DocPropertyEnumeration() { Name = name };
+						schema.PropertyEnumerations.Add(property.Enumeration = property.Enumeration);
+						foreach (string str in fields[1].Split(",".ToCharArray()))
+						{
+							string constantName = str.Trim();
+							DocPropertyConstant constant = null;
+							foreach(DocPropertyConstant docConstant in schema.PropertyConstants)
+							{
+								if(string.Compare(docConstant.Name, constantName) == 0)
+								{
+									constant = docConstant;
+									break;
+								}
+							}
+							if(constant == null)
+							{ 
+								constant = new DocPropertyConstant() { Name = constantName };
+								schema.PropertyConstants.Add(constant);
+							}
+							property.Enumeration.Constants.Add(constant);
+						}
+					}
+				}
+			}
+
 			foreach (DocProperty element in property.Elements)
-				extractListings(element, listings);
+				extractListings(element, schema);
 		}
 
-		private static void extractListings(DocQuantitySet quantitySet, DocListings listings)
-		{
-			listings.QuantitySets.Add(quantitySet);
-			foreach (DocQuantity quantity in quantitySet.Quantities)
-				listings.Quantities.Add(quantity);
-
-		}
 	}
 }
