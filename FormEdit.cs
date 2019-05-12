@@ -9668,26 +9668,29 @@ namespace IfcDoc
 
 		private void toolStripMenuItemFileSaveFolder_Click(object sender, EventArgs e)
 		{
-			using (FormSaveFolder form = new FormSaveFolder())
-			{
-				form.SelectedPath = this.folderBrowserDialog.SelectedPath;
-				if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-				{
-					//XmlFolderSerializer folderSerializer = new XmlFolderSerializer(typeof(DocProject));
-					//folderSerializer.AddFilePrefix(typeof(DocDefinition), "Ifc");
-					//folderSerializer.WriteObject(form.SelectedPath, this.m_project);
+			DialogResult res = folderBrowserDialog.ShowDialog();
+			if (res != System.Windows.Forms.DialogResult.OK)
+				return;
+			XmlFolderSerializer folderSerializer = new XmlFolderSerializer(typeof(DocProject));
+			folderSerializer.AddFilePrefix(typeof(DocDefinition), "Ifc");
+			folderSerializer.WriteObject(folderBrowserDialog.SelectedPath, this.m_project);
 
-					//return;
-					Dictionary<string, DocObject> mapEntity = new Dictionary<string, DocObject>();
-					Dictionary<string, string> mapSchema = new Dictionary<string, string>();
-					BuildMaps(mapEntity, mapSchema);
+			//using (FormSaveFolder form = new FormSaveFolder())
+			//{
+			//	form.SelectedPath = this.folderBrowserDialog.SelectedPath;
+			//	if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+			//	{
+					
+			//		Dictionary<string, DocObject> mapEntity = new Dictionary<string, DocObject>();
+			//		Dictionary<string, string> mapSchema = new Dictionary<string, string>();
+			//		BuildMaps(mapEntity, mapSchema);
 
-					// sync open folder 
-					this.folderBrowserDialog.SelectedPath = form.SelectedPath;
+			//		// sync open folder 
+			//		this.folderBrowserDialog.SelectedPath = form.SelectedPath;
 
-					FolderStorage.Save(this.m_project, form.SelectedPath, mapEntity, form.Options);
-				}
-			}
+			//		FolderStorage.Save(this.m_project, form.SelectedPath, mapEntity, form.Options);
+			//	}
+			//}
 
 		}
 

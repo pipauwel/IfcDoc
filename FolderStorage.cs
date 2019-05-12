@@ -356,7 +356,7 @@ namespace IfcDoc
 						docSchema = new DocSchema();
 						docSchema.Name = schema;
 						docSection.Schemas.Add(docSchema);
-						docSection.SortSchemas();
+						docSection.SortSection();
 					}
 
 					DocDefinition docDef = null;

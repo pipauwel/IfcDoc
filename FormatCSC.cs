@@ -150,7 +150,7 @@ namespace IfcDoc.Format.CSC
 			{
 				WriteResource(writerAssm, "IfcDoc.assemblyinfo.txt");
 
-				writerAssm.WriteLine("[assembly: AssemblyTitle(\"BuildingSmart." + schemaid.ToUpper() + "\")]");
+				writerAssm.WriteLine("[assembly: AssemblyTitle(\"buildingSMART." + schemaid.ToUpper() + "\")]");
 
 				string version = project.GetSchemaVersion();
 				if (!String.IsNullOrEmpty(version))
@@ -160,7 +160,7 @@ namespace IfcDoc.Format.CSC
 				}
 			}
 
-			using (StreamWriter writerProj = new StreamWriter(path + @"\BuildingSmart." + schemaid.ToUpper() + ".csproj", false))
+			using (StreamWriter writerProj = new StreamWriter(path + @"\buildingSMART." + schemaid.ToUpper() + ".csproj", false))
 			{
 				WriteResource(writerProj, "IfcDoc.csproj1.txt");
 				writerProj.WriteLine("    <Compile Include=\"AssemblyInfo.cs\" />");

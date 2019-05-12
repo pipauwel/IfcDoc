@@ -182,7 +182,7 @@ namespace BuildingSmart.Serialization
 		}
 		protected object LoadEntityValue(object o, PropertyInfo f, object v)
 		{
-			if (v == null)
+			if (v == null || f == null)
 				return o;
 
 			//System.Diagnostics.Debug.WriteLine(">>LoadValue: " + o.GetType().Name + "." + f.Name + " " + v.ToString());

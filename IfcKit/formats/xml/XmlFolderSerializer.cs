@@ -138,87 +138,98 @@ namespace BuildingSmart.Serialization.Xml
 				if (propertyInfo == null)
 					continue;
 				Type propertyType = propertyInfo.PropertyType;
-				if (propertyType.IsGenericType && typeof(IEnumerable).IsAssignableFrom(propertyType.GetGenericTypeDefinition()))
+				XmlArrayAttribute xmlArrayAttribute = propertyInfo.GetCustomAttribute<XmlArrayAttribute>();
+				XmlAttributeAttribute xmlAttributeAttribute = propertyInfo.GetCustomAttribute<XmlAttributeAttribute>();
+				if (xmlArrayAttribute == null && xmlAttributeAttribute == null)
 				{
-					Type genericType = propertyType.GetGenericArguments()[0];
-					PropertyInfo uniqueIdProperty = genericType.GetProperty("id", typeof(string));
-					PropertyInfo nameProp = objectType.GetProperty("Name", typeof(string));
-					if (uniqueIdProperty != null)
+					if (propertyType.IsGenericType && typeof(IEnumerable).IsAssignableFrom(propertyType.GetGenericTypeDefinition()))
 					{
-						IEnumerable enumerable = propertyInfo.GetValue(obj) as IEnumerable;
-						if (enumerable != null)
+						Type genericType = propertyType.GetGenericArguments()[0];
+						PropertyInfo uniqueIdProperty = genericType.GetProperty("id", typeof(string));
+						PropertyInfo nameProp = objectType.GetProperty("Name", typeof(string));
+						if (uniqueIdProperty != null)
 						{
-							bool allSaved = true, nestingValid = true; ;
-							int count = 0;
-							foreach (object nested in enumerable)
+							IEnumerable enumerable = propertyInfo.GetValue(obj) as IEnumerable;
+							if (enumerable != null)
 							{
-								count++;
-								if(string.IsNullOrEmpty(mObjectStore.EncounteredId(nested)))
-									allSaved = false;
-								object objId = uniqueIdProperty.GetValue(nested);
-								if (objId == null || string.IsNullOrEmpty(objId.ToString()))
-								{
-									nestingValid = false;
-									break;
-								}
-							}
-							if (nestingValid && !allSaved)
-							{
-								string nestedPath = Path.Combine(folderPath, removeInvalidFile(propertyInfo.Name));
-								Directory.CreateDirectory(nestedPath);
-								nestedProperties.Add(propertyInfo.Name);
-								if(count > 500)
-								{
-									string prefix = m_NominatedTypeFilePrefix.Count > 0 ? hasFilePrefix(genericType) : "";
-									IEnumerable<IGrouping<char, object>> groups = null;
-									if (string.IsNullOrEmpty(prefix))
-										groups = enumerable.Cast<object>().GroupBy(x => char.ToLower(uniqueIdProperty.GetValue(x).ToString()[0]));
-									else
-									{
-										int prefixLength = prefix.Length;
-										groups = enumerable.Cast<object>().GroupBy(x => char.ToLower(initialChar(uniqueIdProperty.GetValue(x).ToString(), prefix, prefixLength)));
-									}
-									if(groups.Count() > 2)
-									{
-										foreach(IGrouping<char,object> group in groups)
-										{
-											string alphaPath = Path.Combine(nestedPath, group.Key.ToString());
-											Directory.CreateDirectory(alphaPath);
-											foreach (object nested in group)
-											{
-												mObjectStore.MarkEncountered(nested, ref nextID);
-												string nestedObjectPath = Path.Combine(alphaPath, removeInvalidFile(uniqueIdProperty.GetValue(nested).ToString()));
-												Directory.CreateDirectory(nestedObjectPath);
-												queue.Enqueue(new QueueData(Path.Combine(nestedObjectPath, removeInvalidFile(nested.GetType().Name) + ".xml"), nested));
-											}
-										}
-										continue;
-									}
-								}
+								bool allSaved = true, nestingValid = true; ;
+								int count = 0;
 								foreach (object nested in enumerable)
 								{
-									mObjectStore.MarkEncountered(nested, ref nextID);
-									string nestedObjectPath = Path.Combine(nestedPath, removeInvalidFile(uniqueIdProperty.GetValue(nested).ToString()));
-									Directory.CreateDirectory(nestedObjectPath);
-									queue.Enqueue(new QueueData(Path.Combine(nestedObjectPath, uniqueIdProperty.GetValue(nested) + ".xml"), nested));
+									count++;
+									if (string.IsNullOrEmpty(mObjectStore.EncounteredId(nested)))
+										allSaved = false;
+									object objId = uniqueIdProperty.GetValue(nested);
+									if (objId == null || string.IsNullOrEmpty(objId.ToString()))
+									{
+										nestingValid = false;
+										break;
+									}
+								}
+								if (nestingValid && !allSaved)
+								{
+									string nestedPath = Path.Combine(folderPath, removeInvalidFile(propertyInfo.Name));
+									Directory.CreateDirectory(nestedPath);
+									nestedProperties.Add(propertyInfo.Name);
+									//if(count > 500)
+									//{
+									//	string prefix = m_NominatedTypeFilePrefix.Count > 0 ? hasFilePrefix(genericType) : "";
+									//	IEnumerable<IGrouping<char, object>> groups = null;
+									//	if (string.IsNullOrEmpty(prefix))
+									//		groups = enumerable.Cast<object>().GroupBy(x => char.ToLower(uniqueIdProperty.GetValue(x).ToString()[0]));
+									//	else
+									//	{
+									//		int prefixLength = prefix.Length;
+									//		groups = enumerable.Cast<object>().GroupBy(x => char.ToLower(initialChar(uniqueIdProperty.GetValue(x).ToString(), prefix, prefixLength)));
+									//	}
+									//	if(groups.Count() > 2)
+									//	{
+									//		foreach(IGrouping<char,object> group in groups)
+									//		{
+									//			string alphaPath = Path.Combine(nestedPath, group.Key.ToString());
+									//			Directory.CreateDirectory(alphaPath);
+									//			foreach (object nested in group)
+									//			{
+									//				mObjectStore.MarkEncountered(nested, ref nextID);
+									//				string nestedObjectPath = Path.Combine(alphaPath, removeInvalidFile(uniqueIdProperty.GetValue(nested).ToString()));
+									//				Directory.CreateDirectory(nestedObjectPath);
+									//				queue.Enqueue(new QueueData(Path.Combine(nestedObjectPath, removeInvalidFile(nested.GetType().Name) + ".xml"), nested));
+									//			}
+									//		}
+									//		continue;
+									//	}
+									//}
+									foreach (object nested in enumerable)
+									{
+										mObjectStore.MarkEncountered(nested, ref nextID);
+										string nestedObjectPath = Path.Combine(nestedPath, removeInvalidFile(uniqueIdProperty.GetValue(nested).ToString()));
+										Directory.CreateDirectory(nestedObjectPath);
+										queue.Enqueue(new QueueData(Path.Combine(nestedObjectPath, removeInvalidFile(propertyInfo.Name) + ".xml"), nested));
+									}
 								}
 							}
 						}
 					}
-				}
-				else
-				{
-					object propertyObject = propertyInfo.GetValue(obj);
-					if(propertyObject == null)
-					{
-						nestedProperties.Add(propertyInfo.Name);
-					}
 					else
 					{
-						DataTypeAttribute dataTypeAttribute = propertyInfo.GetCustomAttribute(typeof(DataTypeAttribute)) as DataTypeAttribute;
-						if (dataTypeAttribute != null)
+						object propertyObject = propertyInfo.GetValue(obj);
+						if (propertyObject == null)
 						{
-							if (dataTypeAttribute.DataType == DataType.Html)
+							nestedProperties.Add(propertyInfo.Name);
+						}
+						else
+						{
+							DataType dataType = DataType.Custom;
+							string fileExtension = ".txt", txt = "";
+							foreach (DataTypeAttribute dataTypeAttribute in propertyInfo.GetCustomAttributes<DataTypeAttribute>())
+							{
+								FileExtensionsAttribute fileExtensionsAttribute = dataTypeAttribute as FileExtensionsAttribute;
+								if (fileExtensionsAttribute != null && !string.IsNullOrEmpty(fileExtensionsAttribute.Extensions))
+									fileExtension = fileExtensionsAttribute.Extensions;
+								if (dataTypeAttribute.DataType != DataType.Custom)
+									dataType = dataTypeAttribute.DataType;
+							}
+							if (dataType == DataType.Html)
 							{
 								string html = propertyObject.ToString();
 								if (!string.IsNullOrEmpty(html))
@@ -229,31 +240,38 @@ namespace BuildingSmart.Serialization.Xml
 									continue;
 								}
 							}
-							else if (dataTypeAttribute.DataType == DataType.MultilineText)
+							else if (dataType == DataType.MultilineText)
 							{
-								string txt = propertyObject.ToString();
+								byte[] byteArray = propertyObject as byte[];
+								if (byteArray != null)
+								{
+									nestedProperties.Add(propertyInfo.Name);
+									txt = Encoding.ASCII.GetString(byteArray);
+								}
+								else
+									txt = propertyObject.ToString();
 								if (!string.IsNullOrEmpty(txt))
 								{
 									nestedProperties.Add(propertyInfo.Name);
-									string htmlPath = Path.Combine(folderPath, propertyInfo.Name + ".txt");
-									File.WriteAllText(htmlPath, txt);
+									string txtPath = Path.Combine(folderPath, propertyInfo.Name + fileExtension);
+									File.WriteAllText(txtPath, txt);
 									continue;
 								}
 							}
-						}
-						Type propertyObjectType = propertyObject.GetType();
-						if (!(propertyObjectType.IsValueType || propertyObjectType == stringType))
-						{
-							if (string.IsNullOrEmpty(mObjectStore.EncounteredId(obj)))
+							Type propertyObjectType = propertyObject.GetType();
+							if (!(propertyObjectType.IsValueType || propertyObjectType == stringType))
 							{
-								DataContractAttribute dataContractAttribute = propertyObjectType.GetCustomAttribute<DataContractAttribute>(true);
-								if (dataContractAttribute == null || dataContractAttribute.IsReference)
+								if (string.IsNullOrEmpty(mObjectStore.EncounteredId(obj)))
 								{
-									string nestedPath = Path.Combine(folderPath, removeInvalidFile(propertyInfo.Name));
-									Directory.CreateDirectory(nestedPath);
-									queue.Enqueue(new QueueData(Path.Combine(nestedPath, removeInvalidFile(propertyInfo.Name) + ".xml"), propertyObject));
-									nestedProperties.Add(propertyInfo.Name);
-									mObjectStore.MarkEncountered(propertyObject, ref nextID);
+									DataContractAttribute dataContractAttribute = propertyObjectType.GetCustomAttribute<DataContractAttribute>(true);
+									if (dataContractAttribute == null || dataContractAttribute.IsReference)
+									{
+										string nestedPath = Path.Combine(folderPath, removeInvalidFile(propertyInfo.Name));
+										Directory.CreateDirectory(nestedPath);
+										queue.Enqueue(new QueueData(Path.Combine(nestedPath, removeInvalidFile(propertyInfo.Name) + ".xml"), propertyObject));
+										nestedProperties.Add(propertyInfo.Name);
+										mObjectStore.MarkEncountered(propertyObject, ref nextID);
+									}
 								}
 							}
 						}
@@ -310,24 +328,28 @@ namespace BuildingSmart.Serialization.Xml
 					result = ReadEntity(reader, instances, typeName, queuedObjects);
 				}
 			}
-			foreach (string file in Directory.GetFiles(folderPath, "*.html", SearchOption.TopDirectoryOnly))
+			foreach (string file in Directory.GetFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly))
 			{
+				string extension = Path.GetExtension(file);
+				if (string.Compare(file, ".xml", true) == 0)
+					continue;
 				PropertyInfo f = GetFieldByName(detectedType == null ? nominatedType : detectedType, Path.GetFileNameWithoutExtension(file));
 				if (f != null)
 				{
-					string htmlText = File.ReadAllText(file);
-					f.SetValue(result, htmlText);
+					Type type = f.PropertyType;
+					if (type == typeof(byte[]))
+					{
+						string text = File.ReadAllText(file);
+						f.SetValue(result, Encoding.ASCII.GetBytes(text));
+					}
+					else if (type == typeof(string))
+					{
+						string text = File.ReadAllText(file);
+						f.SetValue(result, text);
+					}
 				}
 			}
-			foreach (string file in Directory.GetFiles(folderPath, "*.txt", SearchOption.TopDirectoryOnly))
-			{
-				PropertyInfo f = GetFieldByName(detectedType == null ? nominatedType : detectedType, Path.GetFileNameWithoutExtension(file));
-				if (f != null)
-				{
-					string text = File.ReadAllText(file);
-					f.SetValue(result, text);
-				}
-			}
+			
 			string[] directories = Directory.GetDirectories(folderPath, "*", SearchOption.TopDirectoryOnly);
 			foreach(string directory in directories)
 			{

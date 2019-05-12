@@ -14,6 +14,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Runtime.Serialization;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using System.Xml;
@@ -108,9 +109,18 @@ namespace BuildingSmart.Serialization.Xml
 		private object ReadEntity(XmlReader reader, object parent, PropertyInfo propInfo, IDictionary<string, object> instances, string typename, QueuedObjects queuedObjects, bool nestedElementDefinition, int indent)
 		{
 			string readerLocalName = reader.LocalName;
-			System.Diagnostics.Debug.WriteLine(new string(' ', indent) + ">>ReadEntity: " + readerLocalName + " " + (parent == null ? "" : parent.GetType().Name + "." + (propInfo == null ? "null" : propInfo.Name)));
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + ">>ReadEntity: " + readerLocalName + " " + (parent == null ? "" : parent.GetType().Name + "." + (propInfo == null ? "null" : propInfo.Name)));
 			if (string.IsNullOrEmpty(typename))
+			{
 				typename = reader.LocalName;
+				if(string.IsNullOrEmpty(typename))
+				{
+					reader.Read();
+					while (reader.NodeType == XmlNodeType.XmlDeclaration || reader.NodeType == XmlNodeType.Whitespace)
+						reader.Read();
+					typename = reader.LocalName;
+				}
+			}
 			if (typename.EndsWith("-wrapper"))
 			{
 				typename = typename.Substring(0, typename.Length - 8);
@@ -167,11 +177,11 @@ namespace BuildingSmart.Serialization.Xml
 				object value = null;
 				if (instances.TryGetValue(r, out value))
 				{
-			System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "vvReadEntity: " + readerLocalName + " " + (parent == null ? "" : parent.GetType().Name + "." + propInfo.Name));
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "vvReadEntity: " + readerLocalName + " " + (parent == null ? "" : parent.GetType().Name + "." + propInfo.Name));
 					return LoadEntityValue(parent, propInfo, value);
 				}
 				queuedObjects.Queue(r, parent, propInfo);
-			System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "AAReadEntity: " + readerLocalName + " " + (parent == null ? "" : parent.GetType().Name + "." + propInfo.Name));
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "AAReadEntity: " + readerLocalName + " " + (parent == null ? "" : parent.GetType().Name + "." + propInfo.Name));
 				return null;
 			}
 			if(t == null || t.IsValueType)
@@ -191,7 +201,6 @@ namespace BuildingSmart.Serialization.Xml
 								break;
 
 							case XmlNodeType.Element:
-								bool empty = reader.IsEmptyElement;
 								ReadEntity(reader, parent, propInfo, instances, t == null ? "" : t.Name, queuedObjects, true, indent + 1);
 								hasvalue = true;
 								break;
@@ -200,6 +209,7 @@ namespace BuildingSmart.Serialization.Xml
 								{
 									ReadValue(reader, parent, propInfo, t);
 								}
+					//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "##ReadEntity: " + readerLocalName + " " + reader.LocalName + " " + reader.NodeType);
 								return null;
 						}
 					}
@@ -227,7 +237,7 @@ namespace BuildingSmart.Serialization.Xml
 								return null;
 						}
 					}
-					System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "\\ReadEntity: " + readerLocalName + " " + reader.LocalName + " " + reader.NodeType);
+					//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "\\ReadEntity: " + readerLocalName + " " + reader.LocalName + " " + reader.NodeType);
 					return null;
 				}
 				// map instance id if used later
@@ -283,16 +293,14 @@ namespace BuildingSmart.Serialization.Xml
 						{
 							string match = reader.LocalName;
 							PropertyInfo f = GetFieldByName(t, match);
-							if (f != null)
-							{
+							if(f != null)
 								ReadValue(reader, entity, f, f.PropertyType);
-							}
 						}
 					}
 					// now read elements or end of entity
 					if (isEmpty)
 					{
-						System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "||ReadEntity " + readerLocalName + " " + reader.LocalName + " " + t.Name + " " + entity.ToString() + " " + reader.NodeType);
+						//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "||ReadEntity " + readerLocalName + " " + reader.LocalName + " " + t.Name + " " + entity.ToString() + " " + reader.NodeType);
 						return entity;
 					}
 				}
@@ -303,6 +311,11 @@ namespace BuildingSmart.Serialization.Xml
 			{
 				if (reader.NodeType == XmlNodeType.Whitespace)
 					continue; 
+				if(reader.NodeType == XmlNodeType.EndElement)
+				{
+					//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "!!ReadEntity " + readerLocalName + " " + (t == null ? "" : ": " + t.Name + ".") + reader.LocalName + " " + entity.ToString() + " " + reader.NodeType);
+					return entity;
+				}
 				string nestedReaderLocalName = reader.LocalName;
 				object localEntity = entity;
 				bool nested = useParent;
@@ -327,16 +340,12 @@ namespace BuildingSmart.Serialization.Xml
 						{
 							if (isNested)
 							{
-			System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "  Nested "+ nestedReaderLocalName);
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "  Nested "+ nestedReaderLocalName);
 								if (t == null || string.Compare(nestedReaderLocalName, t.Name) == 0)
 								{
+									
 									entity = ReadEntity(reader, parent, propInfo, instances, nestedReaderLocalName, queuedObjects, false, indent+1);
-									while(reader.Read())
-									{
-										if (reader.NodeType == XmlNodeType.EndElement)
-											break;
-									}
-			System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "<<ReadEntity: " + readerLocalName + (entity != null ? entity.GetType().Name : "null") + "." + reader.LocalName + " " + reader.NodeType);
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "<<ReadEntity: " + readerLocalName + (entity != null ? entity.GetType().Name : "null") + "." + reader.LocalName + " " + reader.NodeType);
 									return entity;
 								}
 								else
@@ -345,12 +354,7 @@ namespace BuildingSmart.Serialization.Xml
 									if (localType != null && localType.IsSubclassOf(t))
 									{
 										entity = ReadEntity(reader, parent, propInfo, instances, reader.LocalName, queuedObjects, false, indent+1);
-										while (reader.Read())
-										{
-											if (reader.NodeType == XmlNodeType.EndElement)
-												break;
-										}
-			System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "<<ReadEntity: " + readerLocalName + " " + t.Name + "." + reader.LocalName + " " + reader.NodeType);
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "<<ReadEntity: " + readerLocalName + " " + t.Name + "." + reader.LocalName + " " + reader.NodeType);
 										return entity;
 									}
 								}
@@ -369,11 +373,6 @@ namespace BuildingSmart.Serialization.Xml
 								}
 
 								ReadEntity(reader, localEntity, nestedPropInfo, instances, nestedTypeName, queuedObjects, nested, indent+1);
-								while(reader.Read())
-								{
-									if (reader.NodeType == XmlNodeType.EndElement)
-										break;
-								}
 							}
 							break;
 						}
@@ -381,14 +380,10 @@ namespace BuildingSmart.Serialization.Xml
 					case XmlNodeType.Attribute:
 						break;
 
-					case XmlNodeType.EndElement:
-						System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "!!ReadEntity " + readerLocalName + " " + (t == null ? "" : ": " + t.Name + ".") + reader.LocalName + " " + entity.ToString() + " " + reader.NodeType);
-						return entity;
+						
 				}
 			}
-			System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "<<ReadEntity: " + readerLocalName + " " + t.Name + "." + reader.LocalName  +" " + entity.ToString() + " " + reader.NodeType);
-
-
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "<<ReadEntity: " + readerLocalName + " " + t.Name + "." + reader.LocalName  +" " + entity.ToString() + " " + reader.NodeType);
 			return entity;
 		}
 		private bool isEnumerableToNest(Type type)
@@ -549,7 +544,7 @@ namespace BuildingSmart.Serialization.Xml
 			else if (typeof(String) == type)
 			{
 				// STRING
-				value = readervalue.Trim();
+				value = Regex.Replace(readervalue, "(?<!\r)\n", "\r\n"); 
 			}
 			else if (typeof(DateTime) == type)
 			{
@@ -708,7 +703,18 @@ namespace BuildingSmart.Serialization.Xml
 				this.WriteAttributeDelimiter(writer);
 			}
 			Queue<object> queue = new Queue<object>();
-			this.WriteEntityAttributes(writer, ref indent, root, propertiesToIgnore, queue, isIdPass, ref nextID);
+			bool closeelem = this.WriteEntityAttributes(writer, ref indent, root, propertiesToIgnore, queue, isIdPass, ref nextID);
+			if (!closeelem)
+			{
+				if (queue.Count == 0)
+				{
+					this.WriteCloseElementAttribute(writer, ref indent);
+					this.WriteFooter(writer);
+					writer.Flush();
+					return;
+				}
+				this.WriteOpenElement(writer);
+			}
 			indent = 1;
 			while (queue.Count > 0)
 			{
@@ -723,7 +729,6 @@ namespace BuildingSmart.Serialization.Xml
 			}
 			this.WriteEndElementEntity(writer, ref indent, typeName);
 			this.WriteFooter(writer);
-
 			writer.Flush();
 		}
 		private void WriteEntity(StreamWriter writer, ref int indent, object o, HashSet<string> propertiesToIgnore, Queue<object> queue, bool isIdPass, ref int nextID)
@@ -894,7 +899,7 @@ namespace BuildingSmart.Serialization.Xml
 			bool previousattribute = false;
 
 			// write fields as attributes
-			IList<PropertyInfo> fields = this.GetFieldsAll(t);
+			IList<PropertyInfo> fields = this.GetFieldsOrdered(t);
 			List<Tuple<PropertyInfo, DataMemberAttribute, object>> elementFields = new List<Tuple<PropertyInfo, DataMemberAttribute, object>>();
 			foreach (PropertyInfo f in fields)
 			{
@@ -921,6 +926,9 @@ namespace BuildingSmart.Serialization.Xml
 
 						if (isvaluelistlist || isvaluelist || ft.IsValueType || ft == stringType)
 						{
+							if (ft == stringType && string.IsNullOrEmpty(value.ToString()))
+								continue;
+
 							if (previousattribute)
 							{
 								this.WriteAttributeDelimiter(writer);
@@ -1445,7 +1453,6 @@ namespace BuildingSmart.Serialization.Xml
 					{
 						this.WriteType(writer, indent, vt.Name);
 					}
-
 					bool closeelem = this.WriteEntityAttributes(writer, ref indent, v, new HashSet<string>(), queue, isIdPass, ref nextID);
 
 					if (!closeelem)

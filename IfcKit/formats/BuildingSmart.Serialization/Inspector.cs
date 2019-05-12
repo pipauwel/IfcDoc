@@ -492,31 +492,38 @@ namespace BuildingSmart.Serialization
 
 			PropertyInfo[] fields = type.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
 			PropertyInfo[] sorted = new PropertyInfo[fields.Length];
-			int lastIndex = fields.Length - 1;
+			List<PropertyInfo> unorderedAttributes = new List<PropertyInfo>();
+			SortedList<int, PropertyInfo> orderedAttributes = new SortedList<int, PropertyInfo>();
 			foreach (PropertyInfo field in fields)
 			{
+				DataMemberAttribute dataMemberAttribute = field.GetCustomAttribute<DataMemberAttribute>();
 				if (_prioritizeXmlOrder)
 				{
-					if (field.IsDefined(typeof(XmlElementAttribute), false))
+					XmlElementAttribute xmlElementAttribute = field.GetCustomAttribute<XmlElementAttribute>();
+					if (xmlElementAttribute != null && xmlElementAttribute.Order > -1 && xmlElementAttribute.Order < fields.Length)
 					{
-						XmlElementAttribute attr = (XmlElementAttribute)field.GetCustomAttributes(typeof(XmlElementAttribute), false)[0];
-						if (attr.Order > -1 && attr.Order < fields.Length)
-						{
-							sorted[attr.Order] = field;
-							continue;
-						}
+						sorted[xmlElementAttribute.Order] = field;
+						continue;
 					}
-					if(field.IsDefined(typeof(XmlAttributeAttribute),false))
+					XmlAttributeAttribute xmlAttributeAttribute = field.GetCustomAttribute<XmlAttributeAttribute>();	
+					if(xmlAttributeAttribute != null)
 					{
-						sorted[lastIndex--] = field;
+						if (dataMemberAttribute != null && dataMemberAttribute.Order >= 0)
+							orderedAttributes.Add(dataMemberAttribute.Order, field);
+						else
+							unorderedAttributes.Add(field);
+						continue;
+					}
+					XmlArrayAttribute xmlArrayAttribute = field.GetCustomAttribute<XmlArrayAttribute>();
+					if(xmlArrayAttribute != null && xmlArrayAttribute.Order > -1 && xmlArrayAttribute.Order < fields.Length)
+					{
+						sorted[xmlArrayAttribute.Order] = field;
 						continue;
 					}
 				}
-				if (field.IsDefined(typeof(DataMemberAttribute), false))
+				if (dataMemberAttribute != null && dataMemberAttribute.Order < fields.Length)
 				{
-					DataMemberAttribute attr = (DataMemberAttribute)field.GetCustomAttributes(typeof(DataMemberAttribute), false)[0];
-					if(attr.Order < fields.Length)
-						sorted[attr.Order] = field;
+					sorted[dataMemberAttribute.Order] = field;
 				}
 			}
 
@@ -527,7 +534,10 @@ namespace BuildingSmart.Serialization
 					list.Add(sort);
 				}
 			}
-
+			foreach (PropertyInfo propertyInfo in orderedAttributes.Values)
+				list.Add(propertyInfo);
+			foreach (PropertyInfo propertyInfo in unorderedAttributes)
+				list.Add(propertyInfo);
 			// now inverse -- need particular order???
 			if (inverse)
 			{
