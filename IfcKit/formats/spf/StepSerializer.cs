@@ -343,25 +343,7 @@ namespace BuildingSmart.Serialization.Step
 			}
 			else if (t == typeof(byte[]))
 			{
-				byte[] vector = (byte[])o;
-				StringBuilder sb = new StringBuilder(vector.Length * 2 + 1);
-				sb.Append("\"");
-				byte b;
-				int start;
-
-				// only 8-byte multiples supported
-				sb.Append("0");
-				start = 0;
-
-				for (int i = start; i < vector.Length; i++)
-				{
-					b = vector[i];
-					sb.Append(HexChars[b / 0x10]);
-					sb.Append(HexChars[b % 0x10]);
-				}
-
-				sb.Append("\"");
-				return sb.ToString();
+				return SerializeBytes((byte[])o);
 			}
 			else if (t.IsEnum)
 			{
@@ -834,42 +816,6 @@ namespace BuildingSmart.Serialization.Step
 			return dValue;
 		}
 
-		private static byte[] ParseBinary(string strval)
-		{
-			int len = (strval.Length - 3) / 2; // subtract surrounding quotes and modulus character
-			byte[] vector = new byte[len];
-			int modulo = 0; // not used for IFC -- always byte-aligned
-
-			int offset;
-			if (strval.Length % 2 == 0)
-			{
-				modulo = Convert.ToInt32(strval[1]) + 4;
-				offset = 1;
-
-				char ch = strval[2];
-				vector[0] = (ch >= 'A' ? (byte)(ch - 'A' + 10) : (byte)ch);
-			}
-			else
-			{
-				modulo = Convert.ToInt32((strval[1] - '0')); // [0] is quote; [1] is modulo
-				offset = 0;
-			}
-
-			for (int i = offset; i < len; i++)
-			{
-				char hi = strval[i * 2 + 2 - offset];
-				char lo = strval[i * 2 + 3 - offset];
-
-				byte val = (byte)(
-					((hi >= 'A' ? +(int)(hi - 'A' + 10) : (int)(hi - '0')) << 4) +
-					((lo >= 'A' ? +(int)(lo - 'A' + 10) : (int)(lo - '0'))));
-
-				vector[i] = val;
-			}
-
-			return vector;
-		}
-
 		/// <summary>
 		/// Parses primitive if defined, otherwise null if type is not a primitive.
 		/// </summary>
@@ -1115,7 +1061,7 @@ namespace BuildingSmart.Serialization.Step
 			string strType = line.Substring(0, iParam);
 			strType = strType.Trim();
 
-			Type t = this.GetTypeByName(strType);
+			Type t = this.GetNonAbstractTypeByName(strType);
 			if (t == null)
 			{
 				throw new FormatException("Unknown type: " + line);
@@ -1254,7 +1200,7 @@ namespace BuildingSmart.Serialization.Step
 					field.ToString();
 				}
 
-				field.SetValue(instance, value);
+				LoadEntityValue(instance, field, value);
 
 				//... todo: use generated code for specialized collections to keep inverse properties in sync...
 				this.UpdateInverse(instance, field, value);
@@ -1310,7 +1256,7 @@ namespace BuildingSmart.Serialization.Step
 
 							parse = ParseSection.IsoStep;
 						}
-						else if (parsescope == ParseScope.Header)
+						else if (parsescope == ParseScope.Header ||	parsescope == ParseScope.DataInstances)
 						{
 							// process header
 							int iParam = commandline.IndexOf('(');
@@ -1322,27 +1268,26 @@ namespace BuildingSmart.Serialization.Step
 							string strType = commandline.Substring(0, iParam);
 							strType = strType.Trim();
 
-							object headertag = null;
 							switch (strType)
 							{
 								case "FILE_DESCRIPTION":
-									headertag = new FILE_DESCRIPTION(new string[] { });
+									FILE_DESCRIPTION fileDescription = new FILE_DESCRIPTION(new string[] { });
+									this.ParseFields(fileDescription, commandline, idmap);
 									break;
 
 								case "FILE_SCHEMA":
-									headertag = new FILE_SCHEMA(new string[] { });
+									FILE_SCHEMA fileSchema = new FILE_SCHEMA(new string[] { });
+									this.ParseFields(fileSchema, commandline, idmap);
+									if(fileSchema.schema.Count > 0)
+									this.Schema = fileSchema.schema[0];
 									break;
 
 								case "FILE_NAME":
-									headertag = new FILE_NAME("", "", "", "", "");
+									FILE_NAME fileName = new FILE_NAME("", "", "", "", "");
+									this.ParseFields(fileName, commandline, idmap);
 									break;
 							}
 
-							if (headertag != null)
-							{
-								this.ParseFields(headertag, commandline, idmap);
-								//m_headertags.Add(headertag);
-							}
 						}
 						break;
 
@@ -1420,14 +1365,16 @@ namespace BuildingSmart.Serialization.Step
 						string strType = strConstructor.Substring(0, iParam);
 						strType = strType.Trim();
 
-						Type t = this.GetTypeByName(strType);
+						Type t = this.GetNonAbstractTypeByName(strType);
 						if (t != null)
 						{
 							object o = FormatterServices.GetUninitializedObject(t); // works if no parameterless constructor is defined
+																					// capture project
+							if (this.RootType.IsInstanceOfType(o) && !idmap.ContainsKey(0))
+								idmap.Add(0, o);
 							idmap.Add(id, o);
-
 							// populate collections (catch case of older version where field may not be asserted)
-							IList<PropertyInfo> listProp = GetFieldsOrdered(t);
+							IList<PropertyInfo> listProp = GetFieldsAll(t);
 							foreach (PropertyInfo prop in listProp)
 							{
 								Type type = prop.PropertyType;
@@ -1439,12 +1386,6 @@ namespace BuildingSmart.Serialization.Step
 									prop.SetValue(o, colval);
 								}
 
-							}
-
-							// capture project
-							if (this.RootType.IsInstanceOfType(o) && !idmap.ContainsKey(0))
-							{
-								idmap.Add(0, o);
 							}
 						}
 					}

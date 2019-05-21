@@ -13,7 +13,7 @@ using System.IO;
 using System.Text;
 //using System.Xml.Serialization;
 
-//using BuildingSmart.IFC;
+using BuildingSmart.IFC;
 using BuildingSmart.IFC.IfcKernel;
 using BuildingSmart.IFC.IfcMeasureResource;
 using BuildingSmart.IFC.IfcUtilityResource;
@@ -57,6 +57,12 @@ namespace IfcDoc
 			}
 		}
 
+		public static IfcProjectLibrary generatePropertyLibrary(DocProject docProject, Dictionary<DocObject, bool> included)
+		{
+			IfcProjectLibrary ifcProjectLibrary = new IfcProjectLibrary(new IfcGloballyUniqueId("2OqsW47Dz0LgTmf4DAn1f4"), null, new IfcLabel("IFC Templates"), null, null, null, null, new IfcRepresentationContext[] { }, null);
+			Program.ExportIfc(ifcProjectLibrary, docProject, included);
+			return ifcProjectLibrary;
+		}
 		/// <summary>
 		/// Exports file.
 		/// </summary>
@@ -110,10 +116,9 @@ namespace IfcDoc
 					using (FileStream stream = new FileStream(filepath, FileMode.Create))
 					{
 						// export property sets and quantity sets
-						IfcProject ifcProject = new IfcProject(Program.NewGuid(), null, new IfcLabel("IFC Templates"), null, null, null, null, new IfcRepresentationContext[] { }, null);
-						Program.ExportIfc(ifcProject, docProject, included);
-						StepSerializer format = new StepSerializer(ifcProject.GetType());
-						format.WriteObject(stream, ifcProject);
+						IfcProjectLibrary ifcProjectLibrary = generatePropertyLibrary(docProject, included);
+						StepSerializer format = new StepSerializer(ifcProjectLibrary.GetType());
+						format.WriteObject(stream, ifcProjectLibrary);
 					}
 					break;
 
@@ -121,10 +126,15 @@ namespace IfcDoc
 					using (FileStream stream = new FileStream(filepath, FileMode.Create))
 					{
 						// export property sets and quantity sets
-						IfcProject ifcProject = new IfcProject(Program.NewGuid(), null, new IfcLabel("IFC Templates"), null, null, null, null, new IfcRepresentationContext[] { }, null);
-						Program.ExportIfc(ifcProject, docProject, included);
-						XmlSerializer format = new XmlSerializer(ifcProject.GetType());
-						format.WriteObject(stream, ifcProject);
+						IfcProjectLibrary ifcProjectLibrary = generatePropertyLibrary(docProject, included);
+						XmlHeader header = new XmlHeader();
+						XmlElementIfc xmlElementIfc = new XmlElementIfc(header, ifcProjectLibrary);
+						XmlSerializer format = new XmlSerializer(typeof(IfcProjectLibrary))
+						{
+							NameSpace = XmlElementIfc.NameSpace,
+							SchemaLocation = XmlElementIfc.SchemaLocation
+						};
+						format.WriteObject(stream, xmlElementIfc);
 					}
 					break;
 
@@ -4696,7 +4706,7 @@ namespace IfcDoc
 			{
 				foreach (DocSchema docSchema in docSection.Schemas)
 				{
-					foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnums)
+					foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnumerations)
 					{
 						mapPropEnum.Add(docEnum.Name, docEnum);
 					}
@@ -6077,7 +6087,7 @@ namespace IfcDoc
 										}
 
 										// property sets
-										if (schema.PropertySets.Count > 0 || schema.PropertyEnums.Count > 0)
+										if (schema.PropertySets.Count > 0 || schema.PropertyEnumerations.Count > 0)
 										{
 											iSubSection++;
 
@@ -6178,7 +6188,7 @@ namespace IfcDoc
 												}
 											}
 
-											foreach (DocPropertyEnumeration entity in schema.PropertyEnums)
+											foreach (DocPropertyEnumeration entity in schema.PropertyEnumerations)
 											{
 												if (worker.CancellationPending)
 													return;
@@ -7398,7 +7408,7 @@ namespace IfcDoc
 							}
 						}
 
-						foreach (DocPropertyEnumeration docLinkObj in docLinkSchema.PropertyEnums)
+						foreach (DocPropertyEnumeration docLinkObj in docLinkSchema.PropertyEnumerations)
 						{
 							if (included == null || included.ContainsKey(docLinkObj))
 							{

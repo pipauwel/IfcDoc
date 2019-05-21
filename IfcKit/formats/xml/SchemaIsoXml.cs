@@ -9,34 +9,34 @@ using System.Xml.Serialization;
 
 namespace BuildingSmart.Serialization.Xml
 {
-	public class header
+	public class headerData
 	{
 		[DataMember(Order = 0)]
-		[XmlElement]
+		[XmlElement(ElementName ="name")]
 		public string name { get; set; }
 
 		[DataMember(Order = 1)]
-		[XmlElement]
+		[XmlElement(ElementName = "time_stamp")]
 		public DateTime time_stamp { get; set; }
 
 		[DataMember(Order = 2)]
-		[XmlElement]
+		[XmlElement(ElementName = "author")]
 		public string author { get; set; }
 
 		[DataMember(Order = 3)]
-		[XmlElement]
+		[XmlElement(ElementName = "organization")]
 		public string organization { get; set; }
 
 		[DataMember(Order = 4)]
-		[XmlElement]
+		[XmlElement(ElementName = "preprocessor_version")]
 		public string preprocessor_version { get; set; }
 
 		[DataMember(Order = 5)]
-		[XmlElement]
+		[XmlElement(ElementName = "originating_system")]
 		public string originating_system { get; set; }
 
 		[DataMember(Order = 6)]
-		[XmlElement]
+		[XmlElement(ElementName = "authorization")]
 		public string authorization { get; set; }
 	}
 }

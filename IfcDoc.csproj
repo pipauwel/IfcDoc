@@ -214,6 +214,7 @@
     <Compile Include="FormValidateMappings.Designer.cs">
       <DependentUpon>FormValidateMappings.cs</DependentUpon>
     </Compile>
+    <Compile Include="IfcDocUtils.cs" />
     <Compile Include="SchemaSVG.cs" />
     <Compile Include="SchemaXsd.cs" />
     <Compile Include="ThemedTreeView.cs">
@@ -600,6 +601,15 @@
       <Project>{ecb9f199-28f2-48b9-82e9-b4edade8aebb}</Project>
       <Name>BuildingSmart.Utilities.Dictionary</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\ContextInsert.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\toolStripMenuItemContextInsert.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\toolStripMenuItemInsertProperty.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

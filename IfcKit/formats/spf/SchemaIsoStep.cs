@@ -5,7 +5,7 @@ using System.Runtime.Serialization;
 using System.Text;
 
 // schema known to ISO step files - includes headers only
-// IFC-specific schema defined in Constructivity.Schema.IFC
+// IFC-specific schema defined in Schema.IFC
 
 namespace BuildingSmart.Serialization.Step
 {
@@ -192,32 +192,17 @@ namespace BuildingSmart.Serialization.Step
 	/// <summary>
 	/// STEP file header for name, date, application, and authoring information
 	/// </summary>
-	[
-	DisplayName("File"),
-	DataContract, Serializable,
-	]
+	[ DisplayName("File"), DataContract, Serializable, ]
 	public class FILE_NAME
 	{
-		[DataMember(Order = 0)]
-		public string name { get; set; }
-
-		[DataMember(Order = 1)]
-		public DateTime time_stamp { get; set; }
-
-		[DataMember(Order = 2)]
-		public List<string> author { get; protected set; }
-
-		[DataMember(Order = 3)]
-		public List<string> organization { get; protected set; }
-
-		[DataMember(Order = 4)]
-		public string preprocessor_version { get; set; }
-
-		[DataMember(Order = 5)]
-		public string originating_system { get; set; }
-
-		[DataMember(Order = 6)]
-		public string authorization { get; set; }
+		[DataMember(Order = 0)] public string name { get; set; }
+		[DataMember(Order = 1)] public DateTime time_stamp { get; set; }
+		[DataMember(Order = 2)] public List<string> author { get; set; }
+		[DataMember(Order = 3)] public List<string> organization { get; set; }
+		[DataMember(Order = 4)] public string preprocessor_version { get; set; }
+		[DataMember(Order = 5)] public string originating_system { get; set; } 
+		[DataMember(Order = 6)] public string authorization { get; set; }
+		// documentation ifcxml
 
 		public FILE_NAME()
 			: this(null, null, null, null, null)
@@ -237,7 +222,6 @@ namespace BuildingSmart.Serialization.Step
 			this.authorization = "";
 		}
 
-		[DataMember(Order = 0)]
 		public string Name
 		{
 			get
@@ -250,7 +234,6 @@ namespace BuildingSmart.Serialization.Step
 			}
 		}
 
-		[DataMember(Order = 1)]
 		public DateTime Timestamp
 		{
 			get
@@ -263,7 +246,6 @@ namespace BuildingSmart.Serialization.Step
 			}
 		}
 
-		[DataMember(Order = 2)]
 		public List<string> Author
 		{
 			get
@@ -272,7 +254,6 @@ namespace BuildingSmart.Serialization.Step
 			}
 		}
 
-		[DataMember(Order = 3)]
 		public List<string> Organization
 		{
 			get
@@ -281,7 +262,6 @@ namespace BuildingSmart.Serialization.Step
 			}
 		}
 
-		[DataMember(Order = 4)]
 		public string PreprocessorVersion
 		{
 			get
@@ -294,7 +274,6 @@ namespace BuildingSmart.Serialization.Step
 			}
 		}
 
-		[DataMember(Order = 5)]
 		public string OriginatingSystem
 		{
 			get
@@ -307,7 +286,6 @@ namespace BuildingSmart.Serialization.Step
 			}
 		}
 
-		[DataMember(Order = 6)]
 		public string Authorization
 		{
 			get

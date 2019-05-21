@@ -88,7 +88,7 @@ namespace IfcDoc
 					{
 						map.Add(docQuantitySet.Name, docQuantitySet);
 					}
-					foreach (DocPropertyEnumeration docPropertyEnumeration in docSchema.PropertyEnums)
+					foreach (DocPropertyEnumeration docPropertyEnumeration in docSchema.PropertyEnumerations)
 					{
 						map.Add(docPropertyEnumeration.Name, docPropertyEnumeration);
 					}
@@ -456,7 +456,7 @@ namespace IfcDoc
 
 						if ((this.m_scope & DocDefinitionScopeEnum.PEnum) != 0)
 						{
-							foreach (DocPropertyEnumeration docPE in docSchema.PropertyEnums) //docPropertyConstant
+							foreach (DocPropertyEnumeration docPE in docSchema.PropertyEnumerations) //docPropertyConstant
 							{
 								sortlistEnum.Add(docPE.Name, docPE);
 							}

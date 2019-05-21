@@ -14,6 +14,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Runtime.Serialization;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using System.Xml;
@@ -22,9 +23,17 @@ namespace BuildingSmart.Serialization.Xml
 {
 	public class XmlSerializer : Serializer
 	{
+		protected ObjectStore _ObjectStore = new ObjectStore();
+		string _NameSpace = "";
+		string _SchemaLocation = "";
+
+		public bool UseUniqueIdReferences { get { return _ObjectStore.UseUniqueIdReferences; } set { _ObjectStore.UseUniqueIdReferences = value; } }
+		public string NameSpace { set { _NameSpace = value; } }
+		public string SchemaLocation { set { _SchemaLocation = value; } }
+
 		public XmlSerializer(Type type) : base(type)
 		{
-			// get the XML namespace
+			_XmlAttributePriority = true;
 		}
 
 		public override object ReadObject(Stream stream)
@@ -35,27 +44,8 @@ namespace BuildingSmart.Serialization.Xml
 			// pull it into a memory stream so we can make multiple passes (can't assume it's a file; could be web service)
 			//...MemoryStream memstream = new MemoryStream();
 
-			Dictionary<string, object> instances = null;
-			return ReadObject(stream, out instances);
-		}
-
-		/// <summary>
-		/// Reads an object graph and provides access to instance identifiers from file.
-		/// </summary>
-		/// <param name="stream"></param>
-		/// <param name="instances"></param>
-		/// <returns></returns>
-		public object ReadObject(Stream stream, out Dictionary<string, object> instances)
-		{
-			instances = new Dictionary<string, object>();
-
-			// first pass: read header to verify schema and model view definitions...
-
-			// second pass: read instances
-			ReadContent(stream, instances, false);
-
-			// third pass: read fields
-			ReadContent(stream, instances, true);
+			Dictionary<string, object> instances = new Dictionary<string, object>();
+			ReadObject(stream, out instances);
 
 			// stash project in empty string key
 			object root = null;
@@ -67,6 +57,19 @@ namespace BuildingSmart.Serialization.Xml
 			return null; // could not find the single project object
 		}
 
+		/// <summary>
+		/// Reads an object graph and provides access to instance identifiers from file.
+		/// </summary>
+		/// <param name="stream"></param>
+		/// <param name="instances"></param>
+		/// <returns></returns>
+		public object ReadObject(Stream stream, out Dictionary<string, object> instances)
+		{
+			System.Diagnostics.Debug.WriteLine("!! Reading XML");
+			instances = new Dictionary<string, object>();
+			
+			return ReadContent(stream, instances);
+		}
 
 		/// <summary>
 		/// 
@@ -74,10 +77,9 @@ namespace BuildingSmart.Serialization.Xml
 		/// <param name="stream"></param>
 		/// <param name="idmap"></param>
 		/// <param name="parsefields">True to populate fields; False to load instances only.</param>
-		private void ReadContent(Stream stream, Dictionary<string, object> idmap, bool parsefields)
+		private object ReadContent(Stream stream, Dictionary<string, object> instances)
 		{
-			stream.Position = 0;
-
+			QueuedObjects queuedObjects = new QueuedObjects();
 			using (XmlReader reader = XmlReader.Create(stream))
 			{
 				while (reader.Read())
@@ -89,238 +91,43 @@ namespace BuildingSmart.Serialization.Xml
 							{
 								//ReadIsoStep(reader, fixups, instances, inversemap);
 							}
-							else if (reader.LocalName.Equals("ifcXML"))
+							else// if (reader.LocalName.Equals("ifcXML"))
 							{
+								ReadEntity(reader, instances, "", queuedObjects);
 								//ReadPopulation(reader, fixups, instances, inversemap);
-
-								while (reader.Read())
-								{
-									switch (reader.NodeType)
-									{
-										case XmlNodeType.Element:
-											ReadEntity(reader, idmap, reader.LocalName, parsefields);
-											break;
-
-										case XmlNodeType.EndElement:
-											return;
-									}
-								}
 
 							}
 							break;
 					}
 				}
 			}
+			object result = null;
+			instances.TryGetValue("", out result);
+			return result;
 		}
-
-		private object ReadEntity(XmlReader reader, IDictionary<string, object> instances, string typename, bool parsefields)
+		protected object ReadEntity(XmlReader reader, IDictionary<string, object> instances, string typename, QueuedObjects queuedObjects)
 		{
-			object o = null;
-			Type t;
-			if (typename == "header")
-			{
-				t = typeof(header);
-			}
-			else
-			{
-				t = this.GetTypeByName(typename);
-			}
-
-			if (t != null)
-			{
-				// map instance id if used later
-				string sid = reader.GetAttribute("id");
-				if (!String.IsNullOrEmpty(sid) && !instances.TryGetValue(sid, out o))
-				{
-					o = FormatterServices.GetUninitializedObject(t);
-					instances.Add(sid, o);
-				}
-				else if (o == null)
-				{
-					o = FormatterServices.GetUninitializedObject(t);
-					if (!String.IsNullOrEmpty(sid))
-					{
-						instances.Add(sid, o);
-					}
-				}
-
-				// stash project using blank index
-				if (this.RootType.IsInstanceOfType(o) && !instances.ContainsKey(String.Empty))
-				{
-					instances.Add(String.Empty, o);
-				}
-
-				if (parsefields)
-				{
-					// ensure all lists/sets are instantiated
-					IList<PropertyInfo> fields = GetFieldsOrdered(t);
-					foreach (PropertyInfo f in fields)
-					{
-						Type type = f.PropertyType;
-
-						if (IsEntityCollection(type))
-						{
-							Type typeCollection = this.GetCollectionInstanceType(type);
-							object collection = Activator.CreateInstance(typeCollection);
-							f.SetValue(o, collection);
-						}
-					}
-
-					// read attribute properties
-					for (int i = 0; i < reader.AttributeCount; i++)
-					{
-						reader.MoveToAttribute(i);
-						if (!reader.LocalName.Equals("id"))
-						{
-							string match = reader.LocalName;
-							PropertyInfo f = GetFieldByName(t, match);
-							if (f != null)
-							{
-								ReadValue(reader, o, f, f.PropertyType);
-							}
-						}
-					}
-				}
-
-				reader.MoveToElement();
-
-				// now read attributes or end of entity
-				if (!reader.IsEmptyElement)
-				{
-					while (reader.Read())
-					{
-						switch (reader.NodeType)
-						{
-							case XmlNodeType.Element:
-								ReadAttribute(reader, o, instances);
-								break;
-
-							case XmlNodeType.Attribute:
-								break;
-
-							case XmlNodeType.EndElement:
-								return o;
-						}
-					}
-				}
-			}
-
-			return o;
+			return ReadEntity(reader, null, null, instances, typename, queuedObjects, false, 1);
 		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="reader"></param>
-		/// <param name="o"></param>
-		/// <param name="instances"></param>
-		private void ReadAttribute(XmlReader reader, object o, IDictionary<string, object> instances)
+		private object ReadEntity(XmlReader reader, object parent, PropertyInfo propInfo, IDictionary<string, object> instances, string typename, QueuedObjects queuedObjects, bool nestedElementDefinition, int indent)
 		{
-			if (o == null)
-				throw new ArgumentNullException("o");
-
-			System.Diagnostics.Debug.WriteLine(">>ReadAttribute: " + o.GetType().Name + "." + reader.LocalName);
-
-			// read attribute of object
-			string a = reader.LocalName;
-
-			if (a == "StyledByItem")
+			string readerLocalName = reader.LocalName;
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + ">>ReadEntity: " + readerLocalName + " " + (parent == null ? "" : parent.GetType().Name + "." + (propInfo == null ? "null" : propInfo.Name)));
+			if (string.IsNullOrEmpty(typename))
 			{
-				this.ToString();
-			}
-
-			string match = a;
-			PropertyInfo f = GetFieldByName(o.GetType(), match);
-
-			// inverse
-			if (f == null)
-			{
-				f = GetInverseByName(o.GetType(), match);
-			}
-
-			if (f == null)
-			{
-
-				//Log("IFCXML: " + o.GetType().Name + "::" + reader.LocalName + " attribute name does not exist.");
-				return;
-			}
-
-			// read attribute properties
-			string reftype = null;
-
-			if (!f.PropertyType.IsGenericType &&
-				!f.PropertyType.IsInterface &&
-				f.PropertyType != typeof(DateTime) &&
-				f.PropertyType != typeof(string))
-			{
-				reftype = f.PropertyType.Name;
-			}
-
-			// interface, e.g. IfcRepresentation.StyledByItem\IfcStyledItem
-
-			string t = reader.GetAttribute("xsi:type");
-			string r = reader.GetAttribute("href");
-			if (t != null)
-			{
-				reftype = t;
-				if (t.Contains(":"))
+				typename = reader.LocalName;
+				if(string.IsNullOrEmpty(typename))
 				{
-					string[] parts = t.Split(':');
-					if (parts.Length == 2)
-					{
-						reftype = parts[1];
-					}
+					reader.Read();
+					while (reader.NodeType == XmlNodeType.XmlDeclaration || reader.NodeType == XmlNodeType.Whitespace)
+						reader.Read();
+					typename = reader.LocalName;
 				}
 			}
-
-			if (reftype != null)
-			{
-				this.ReadReference(reader, o, f, instances, reftype);
-			}
-			else
-			{
-				// now read object(s) of attribute -- multiple indicates list
-				if (!reader.IsEmptyElement)
-				{
-					while (reader.Read())
-					{
-						switch (reader.NodeType)
-						{
-							case XmlNodeType.Element:
-								ReadReference(reader, o, f, instances, reader.LocalName);
-								break;
-
-							case XmlNodeType.Text:
-							case XmlNodeType.CDATA:
-								ReadValue(reader, o, f, null);
-								break;
-
-							case XmlNodeType.EndElement:
-								System.Diagnostics.Debug.WriteLine("!!ReadAttribute: " + o.GetType().Name + "." + reader.LocalName);
-								return;
-						}
-					}
-				}
-			}
-
-			System.Diagnostics.Debug.WriteLine("<<ReadAttribute: " + o.GetType().Name + "." + reader.LocalName);
-
-		}
-
-		/// <summary>
-		/// Reads a reference or qualified value.
-		/// </summary>
-		/// <param name="reader"></param>
-		/// <param name="o"></param>
-		/// <param name="f"></param>
-		private void ReadReference(XmlReader reader, object o, PropertyInfo f, IDictionary<string, object> instances, string typename)
-		{
 			if (typename.EndsWith("-wrapper"))
 			{
 				typename = typename.Substring(0, typename.Length - 8);
 			}
-
-			Type vt = GetTypeByName(typename);
 			if (reader.Name == "ex:double-wrapper")
 			{
 				// drill in
@@ -331,75 +138,271 @@ namespace BuildingSmart.Serialization.Xml
 						switch (reader.NodeType)
 						{
 							case XmlNodeType.Text:
-								ReadValue(reader, o, f, typeof(double));
+								ReadValue(reader, parent, propInfo, typeof(double));
 								break;
 
 							case XmlNodeType.EndElement:
-								return;
+								return null;
 						}
 					}
 				}
 			}
-			else if (vt != null)
+			if (propInfo == null && parent != null)
+				propInfo = detectPropertyInfo(parent.GetType(), readerLocalName);
+			string xsiType = reader.GetAttribute("xsi:type");
+			if (!string.IsNullOrEmpty(xsiType))
 			{
-				Type et = f.PropertyType;
-				if (typeof(IEnumerable).IsAssignableFrom(f.PropertyType))
+				if (xsiType.Contains(":"))
 				{
-					et = f.PropertyType.GetGenericArguments()[0];
-				}
-
-				if (vt.IsValueType)
-				{
-					// drill in
-					if (!reader.IsEmptyElement)
+					string[] parts = xsiType.Split(':');
+					if (parts.Length == 2)
 					{
-						bool hasvalue = false;
-						while (reader.Read())
+						typename = parts[1];
+					}
+				}
+			}
+			Type t = null;
+			if (string.Compare(typename, "header", true) == 0)
+				t = typeof(headerData);
+			else if(!string.IsNullOrEmpty(typename))
+			{
+				t = GetTypeByName(typename);
+				if (!string.IsNullOrEmpty(reader.LocalName) && string.Compare(reader.LocalName, typename) != 0)
+				{
+					Type testType = GetTypeByName(reader.LocalName);
+					if (testType != null && testType.IsSubclassOf(t))
+						t = testType;
+				}
+			}
+			string r = reader.GetAttribute("href");
+			if (!string.IsNullOrEmpty(r))
+			{
+				object value = null;
+				if (instances.TryGetValue(r, out value))
+				{
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "vvReadEntity: " + readerLocalName + " " + (parent == null ? "" : parent.GetType().Name + "." + propInfo.Name));
+					return LoadEntityValue(parent, propInfo, value);
+				}
+				queuedObjects.Queue(r, parent, propInfo);
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "AAReadEntity: " + readerLocalName + " " + (parent == null ? "" : parent.GetType().Name + "." + propInfo.Name));
+				return null;
+			}
+			if(t == null || t.IsValueType)
+			{
+				if (!reader.IsEmptyElement)
+				{
+					bool hasvalue = false;
+					while (reader.Read())
+					{
+						switch (reader.NodeType)
 						{
-							switch (reader.NodeType)
-							{
-								case XmlNodeType.Text:
-								case XmlNodeType.CDATA:
-									if (ReadValue(reader, o, f, vt))
-										return;
-									hasvalue = true;
-									break;
+							case XmlNodeType.Text:
+							case XmlNodeType.CDATA:
+								if (ReadValue(reader, parent, propInfo, t))
+									return null;
+								hasvalue = true;
+								break;
 
-								case XmlNodeType.EndElement:
-									if (!hasvalue)
-									{
-										ReadValue(reader, o, f, vt);
-									}
-									return;
-							}
+							case XmlNodeType.Element:
+								ReadEntity(reader, parent, propInfo, instances, t == null ? "" : t.Name, queuedObjects, true, indent + 1);
+								hasvalue = true;
+								break;
+							case XmlNodeType.EndElement:
+								if (!hasvalue)
+								{
+									ReadValue(reader, parent, propInfo, t);
+								}
+					//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "##ReadEntity: " + readerLocalName + " " + reader.LocalName + " " + reader.NodeType);
+								return null;
 						}
 					}
 				}
-				else
+			}
+			object entity = null;
+			bool useParent = false;
+			if (t != null)
+			{
+				if (t.IsAbstract)
 				{
-					// reference
-					string r = reader.GetAttribute("href");
-					if (r != null)
+					reader.MoveToElement();
+					while (reader.Read())
 					{
-						object value = null;
-						if (instances.TryGetValue(r, out value))
+						switch (reader.NodeType)
 						{
-							LoadEntityValue(o, f, value);
+							case XmlNodeType.Element:
+								ReadEntity(reader, parent, propInfo, instances, t.Name, queuedObjects, true, indent + 1);
+								break;
+
+							case XmlNodeType.Attribute:
+								break;
+
+							case XmlNodeType.EndElement:
+								return null;
 						}
-						else
-						{
-							//fixups.Add(new Fixup(o, f, r));
-						}
+					}
+					//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "\\ReadEntity: " + readerLocalName + " " + reader.LocalName + " " + reader.NodeType);
+					return null;
+				}
+				// map instance id if used later
+				string sid = reader.GetAttribute("id");
+				
+				if (t == this.ProjectType || t.IsSubclassOf(this.ProjectType))
+				{
+					if (!instances.TryGetValue(String.Empty, out entity))
+					{
+						entity = instances[String.Empty] = FormatterServices.GetUninitializedObject(t); // stash project using blank index
+						if (!string.IsNullOrEmpty(sid))
+							instances[sid] = entity;
+					}
+				}
+				else if (!string.IsNullOrEmpty(sid) && !instances.TryGetValue(sid, out entity))
+				{
+					entity = FormatterServices.GetUninitializedObject(t);
+					instances[sid] = entity;
+				}
+				if (entity == null)
+				{
+					if (propInfo != null && string.Compare(readerLocalName, propInfo.Name) == 0)
+					{
+						useParent = true;
+						entity = parent;
 					}
 					else
+						entity = FormatterServices.GetUninitializedObject(t);
+					if (!string.IsNullOrEmpty(sid))
+						instances[sid] = entity;
+				}
+				if (!useParent)
+				{
+					if (!string.IsNullOrEmpty(sid))
 					{
-						// embedded entity definition
-						object v = this.ReadEntity(reader, instances, typename, true);
-						LoadEntityValue(o, f, v);
+						queuedObjects.DeQueue(sid, entity);
+					}
+					// ensure all lists/sets are instantiated
+					Initialize(entity, t);
+
+					if (propInfo != null)
+					{
+						if (parent != null)
+							this.LoadEntityValue(parent, propInfo, entity);
+					}
+
+					bool isEmpty = reader.IsEmptyElement;
+					// read attribute properties
+					for (int i = 0; i < reader.AttributeCount; i++)
+					{
+						reader.MoveToAttribute(i);
+						if (!reader.LocalName.Equals("id"))
+						{
+							string match = reader.LocalName;
+							PropertyInfo f = GetFieldByName(t, match);
+							if(f != null)
+								ReadValue(reader, entity, f, f.PropertyType);
+						}
+					}
+					// now read elements or end of entity
+					if (isEmpty)
+					{
+						//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "||ReadEntity " + readerLocalName + " " + reader.LocalName + " " + t.Name + " " + entity.ToString() + " " + reader.NodeType);
+						return entity;
 					}
 				}
+				reader.MoveToElement();
 			}
+			bool isNested = (t == null || reader.AttributeCount == 0) && nestedElementDefinition;
+			while (reader.Read())
+			{
+				if (reader.NodeType == XmlNodeType.Whitespace)
+					continue; 
+				if(reader.NodeType == XmlNodeType.EndElement)
+				{
+					//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "!!ReadEntity " + readerLocalName + " " + (t == null ? "" : ": " + t.Name + ".") + reader.LocalName + " " + entity.ToString() + " " + reader.NodeType);
+					return entity;
+				}
+				string nestedReaderLocalName = reader.LocalName;
+				object localEntity = entity;
+				bool nested = useParent;
+				PropertyInfo nestedPropInfo = useParent ? propInfo :( t == null ? null : detectPropertyInfo(t, nestedReaderLocalName));
+				if(nestedPropInfo == null && parent != null)
+				{
+					nestedPropInfo = detectPropertyInfo(parent.GetType(), nestedReaderLocalName);
+					if (nestedPropInfo == null)
+						nestedPropInfo = propInfo;
+					localEntity = parent;
+					useParent = true;
+
+				}
+				switch (reader.NodeType)
+				{
+					case XmlNodeType.Text:
+					case XmlNodeType.CDATA:
+						ReadValue(reader, localEntity, nestedPropInfo, null);
+						break;
+
+					case XmlNodeType.Element:
+						{
+							if (isNested)
+							{
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "  Nested "+ nestedReaderLocalName);
+								if (t == null || string.Compare(nestedReaderLocalName, t.Name) == 0)
+								{
+									
+									entity = ReadEntity(reader, parent, propInfo, instances, nestedReaderLocalName, queuedObjects, false, indent+1);
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "<<ReadEntity: " + readerLocalName + (entity != null ? entity.GetType().Name : "null") + "." + reader.LocalName + " " + reader.NodeType);
+									return entity;
+								}
+								else
+								{
+									Type localType = this.GetNonAbstractTypeByName(nestedReaderLocalName);
+									if (localType != null && localType.IsSubclassOf(t))
+									{
+										entity = ReadEntity(reader, parent, propInfo, instances, reader.LocalName, queuedObjects, false, indent+1);
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "<<ReadEntity: " + readerLocalName + " " + t.Name + "." + reader.LocalName + " " + reader.NodeType);
+										return entity;
+									}
+								}
+							}
+							if (t == null)
+								ReadEntity(reader, null, null, instances, "", queuedObjects, false, indent+1);
+							else
+							{
+								string nestedTypeName = "";
+								if (nestedPropInfo != null)
+								{
+									Type nestedType = nestedPropInfo.PropertyType;
+									if (nestedType != typeof(byte[]) && nestedType != typeof(string) && typeof(IEnumerable).IsAssignableFrom(nestedType))
+										nestedType = nestedType.GetGenericArguments()[0];
+									nestedTypeName = nestedType.Name;
+								}
+
+								ReadEntity(reader, localEntity, nestedPropInfo, instances, nestedTypeName, queuedObjects, nested, indent+1);
+							}
+							break;
+						}
+
+					case XmlNodeType.Attribute:
+						break;
+
+						
+				}
+			}
+			//System.Diagnostics.Debug.WriteLine(new string(' ', indent) + "<<ReadEntity: " + readerLocalName + " " + t.Name + "." + reader.LocalName  +" " + entity.ToString() + " " + reader.NodeType);
+			return entity;
 		}
+		private bool isEnumerableToNest(Type type)
+		{
+			return (type != typeof(byte[]) && type != typeof(string) && typeof(IEnumerable).IsAssignableFrom(type));
+		}
+		private PropertyInfo detectPropertyInfo(Type type, string propertyInfoName)
+		{
+			PropertyInfo propertyInfo = GetFieldByName(type, propertyInfoName);
+
+			// inverse
+			if (propertyInfo == null)
+				propertyInfo = GetInverseByName(type, propertyInfoName);
+			return propertyInfo;
+		}
+		
 
 		private void LoadCollectionValue(IEnumerable list, object v)
 		{
@@ -418,101 +421,19 @@ namespace BuildingSmart.Serialization.Xml
 				// could be type that changed and is no longer compatible with schema -- try to keep going
 			}
 		}
-
-		private void LoadEntityValue(object o, PropertyInfo f, object v)
+		private object processReference(string sid, object parent, PropertyInfo f, IDictionary<string, object> instances, QueuedObjects queuedObjects)
 		{
-			if (v == null)
-				return;
-
-			if (!f.PropertyType.IsValueType &&
-				typeof(IEnumerable).IsAssignableFrom(f.PropertyType) &&
-				f.PropertyType.IsGenericType &&
-				f.PropertyType.GetGenericArguments()[0].IsInstanceOfType(v))
-			{
-				if (f.IsDefined(typeof(InversePropertyAttribute), false))//f.FieldType.GetGenericTypeDefinition() == typeof(SInverse<>))
-				{
-					InversePropertyAttribute[] attrs = (InversePropertyAttribute[])f.GetCustomAttributes(typeof(InversePropertyAttribute), false);
-
-					// set the direct field, map to inverse
-					PropertyInfo fieldDirect = GetFieldByName(v.GetType(), attrs[0].Property);
-					if (IsEntityCollection(fieldDirect.PropertyType))
-					{
-						System.Collections.IEnumerable list = fieldDirect.GetValue(v) as System.Collections.IEnumerable;
-						try
-						{
-							Type typeCollection = this.GetCollectionInstanceType(fieldDirect.PropertyType);
-							MethodInfo methodAdd = typeCollection.GetMethod("Add");
-							methodAdd.Invoke(list, new object[] { o }); // perf!!
-						}
-						catch (Exception e)
-						{
-							// could be type that changed and is no longer compatible with schema -- try to keep going
-						}
-					}
-					else
-					{
-						// single object
-						fieldDirect.SetValue(v, o);
-					}
-
-					// also add to inverse
-
-					// allocate collection as needed
-					System.Collections.IEnumerable listInv = (System.Collections.IEnumerable)f.GetValue(o);
-					if (listInv == null)
-					{
-						Type typeCollection = this.GetCollectionInstanceType(f.PropertyType);
-						listInv = (System.Collections.IEnumerable)System.Activator.CreateInstance(typeCollection);
-						f.SetValue(o, listInv);
-					}
-
-					// add to inverse collection
-					try
-					{
-						Type typeCollection = this.GetCollectionInstanceType(f.PropertyType);
-						MethodInfo methodAdd = typeCollection.GetMethod("Add");
-						methodAdd.Invoke(listInv, new object[] { v }); // perf!!
-					}
-					catch (Exception e)
-					{
-						// could be type that changed and is no longer compatible with schema -- try to keep going
-					}
-
-				}
-				else
-				{
-					// add to set/list of values
-					IEnumerable list = f.GetValue(o) as IEnumerable;
-					if (list != null)
-					{
-						try
-						{
-							Type typeCollection = this.GetCollectionInstanceType(f.PropertyType);
-							MethodInfo methodAdd = typeCollection.GetMethod("Add");
-							methodAdd.Invoke(list, new object[] { v }); // perf!!
-						}
-						catch (Exception e)
-						{
-							// could be type that changed and is no longer compatible with schema -- try to keep going
-						}
-
-						UpdateInverse(o, f, v);
-					}
-				}
-			}
+			if (string.IsNullOrEmpty(sid))
+				return null;
+			object encounteredObject = null;
+			if (instances.TryGetValue(sid, out encounteredObject))
+				return LoadEntityValue(parent, f, encounteredObject);
 			else
 			{
-				if (!f.PropertyType.IsInstanceOfType(v))
-				{
-					//this.Log("IFCXML: #" + o.OID + ": " + o.GetType().Name + "." + f.Name + ": '" + v.GetType().Name + "' type is incompatible.");
-					return;
-				}
-
-				// set value
-				f.SetValue(o, v);
-				this.UpdateInverse(o, f, v);
+				queuedObjects.Queue(sid, parent, f);
+				System.Diagnostics.Debug.WriteLine(":::QueuedEntity: " + sid +  " " + parent.GetType().ToString() + "." + f.Name);
 			}
-
+			return null;
 		}
 
 		/// <summary>
@@ -524,7 +445,7 @@ namespace BuildingSmart.Serialization.Xml
 		/// <param name="ft">Optional explicit type, or null to use field type.</param>
 		private bool ReadValue(XmlReader reader, object o, PropertyInfo f, Type ft)
 		{
-			bool endelement = false;
+			//bool endelement = false;
 
 			if (ft == null)
 			{
@@ -546,9 +467,7 @@ namespace BuildingSmart.Serialization.Xml
 					v = enumfield.GetValue(null);
 				}
 			}
-			else if (
-				ft == typeof(DateTime) ||
-				ft == typeof(string))
+			else if ( ft == typeof(DateTime) || ft == typeof(string) || ft == typeof(byte[]))
 			{
 				v = ParsePrimitive(reader.Value, ft);
 			}
@@ -562,6 +481,11 @@ namespace BuildingSmart.Serialization.Xml
 					object primval = ParsePrimitive(reader.Value, fieldValue.PropertyType);
 					v = Activator.CreateInstance(ft);
 					fieldValue.SetValue(v, primval);
+				}
+				else
+				{
+					object primval = ParsePrimitive(reader.Value, ft);
+					LoadEntityValue(o, f, primval);
 				}
 			}
 			else if (IsEntityCollection(ft))
@@ -590,8 +514,8 @@ namespace BuildingSmart.Serialization.Xml
 			}
 
 			LoadEntityValue(o, f, v);
-
-			return endelement;
+			return false;
+			//return endelement;
 		}
 
 		private static object ParsePrimitive(string readervalue, Type type)
@@ -623,7 +547,7 @@ namespace BuildingSmart.Serialization.Xml
 			else if (typeof(String) == type)
 			{
 				// STRING
-				value = readervalue.Trim();
+				value = Regex.Replace(readervalue, "(?<!\r)\n", "\r\n"); 
 			}
 			else if (typeof(DateTime) == type)
 			{
@@ -635,14 +559,7 @@ namespace BuildingSmart.Serialization.Xml
 			}
 			else if (typeof(byte[]) == type)
 			{
-				// BINARY
-				int bytecount = readervalue.Length / 2;
-				byte[] bytes = new byte[bytecount];
-				//...reader.ReadContentAsBinHex(bytes, 0, bytes.Length);
-				value = bytes;
-
-				// modulo not supported for now
-				//endelement = true;
+				value = ParseBinary(readervalue);
 			}
 
 			return value;
@@ -682,10 +599,10 @@ namespace BuildingSmart.Serialization.Xml
 		}
 
 		/// <summary>
-		/// Writes an object graph to a stream in Step Physical File (SPF) format according to ISO 10303-21.
+		/// Writes an object graph to a stream formatted xml.
 		/// </summary>
 		/// <param name="stream">The stream to write.</param>
-		/// <param name="root">The root object to write (typically IfcProject)</param>
+		/// <param name="root">The root object to write</param>
 		public override void WriteObject(Stream stream, object root)
 		{
 			if (stream == null)
@@ -696,76 +613,40 @@ namespace BuildingSmart.Serialization.Xml
 
 			// pass 1: (first time ever encountering for serialization) -- determine which entities require IDs -- use a null stream
 			int nextID = 0;
+			writeFirstPassForIds(root, new HashSet<string>(), ref nextID);
+			// pass 2: write to file -- clear save map; retain ID map
+			writeRootObject(stream, root, new HashSet<string>(), false, ref nextID);
+		}
+		internal protected void writeFirstPassForIds(object root, HashSet<string> propertiesToIgnore, ref int nextID)
+		{
 			int indent = 0;
 			StreamWriter writer = new StreamWriter(Stream.Null);
-			HashSet<object> saved = new HashSet<object>();
-			Dictionary<object, long> idmap = new Dictionary<object, long>();
 			Queue<object> queue = new Queue<object>();
 			queue.Enqueue(root);
 			while (queue.Count > 0)
 			{
 				object ent = queue.Dequeue();
-				if (!saved.Contains(ent))
+				if (string.IsNullOrEmpty(_ObjectStore.EncounteredId(ent)))
 				{
-					this.WriteEntity(writer, ref indent, ent, saved, idmap, queue, ref nextID);
+					this.WriteEntity(writer, ref indent, ent, propertiesToIgnore, queue, true, ref nextID);
 				}
 			}
-
 			// pass 2: write to file -- clear save map; retain ID map
-			saved.Clear();
-			indent = 0;
-			writer = new StreamWriter(stream);
-
-			this.WriteHeader(writer);
-
-			// writer header info
-			header h = new header();
-			h.time_stamp = DateTime.UtcNow;
-			h.preprocessor_version = this.Preprocessor;
-			h.originating_system = this.Application;
-			this.WriteEntity(writer, ref indent, h, saved, idmap, queue, ref nextID);
-
-			bool rootdelim = false;
-			queue.Enqueue(root);
-			while (queue.Count > 0)
-			{
-				// insert delimeter after first root object
-				if (rootdelim)
-				{
-					this.WriteRootDelimeter(writer);
-				}
-				rootdelim = true;
-
-				object ent = queue.Dequeue();
-				if (!saved.Contains(ent))
-				{
-					this.WriteEntity(writer, ref indent, ent, saved, idmap, queue, ref nextID);
-				}
-			}
-
-			this.WriteFooter(writer);
-
-			writer.Flush();
+			_ObjectStore.ClearEncountered();
 		}
+		internal protected void writeObject(Stream stream, object root, HashSet<string> propertiesToIgnore, ref int nextID)
+		{
+			writeRootObject(stream, root, propertiesToIgnore, false, ref nextID);
+		}
+		
 
 		protected virtual void WriteHeader(StreamWriter writer)
 		{
-			string header = "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
-
-			string schema = "<ifc:ifcXML xsi:schemaLocation=\"" + this.BaseURI + " " + this.Schema + ".xsd\" " +
-				"xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" " +
-				"xmlns:ifc=\"" + this.BaseURI + "\" " +
-				"xmlns=\"" + this.BaseURI + "\">";
-
-			writer.WriteLine(header);
-			writer.WriteLine(schema);
+			writer.WriteLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
 		}
 
 		protected virtual void WriteFooter(StreamWriter writer)
 		{
-			string footer = "</ifc:ifcXML>";
-			writer.WriteLine(footer);
-			writer.Write("\r\n\r\n");
 		}
 
 		protected virtual void WriteRootDelimeter(StreamWriter writer)
@@ -792,7 +673,66 @@ namespace BuildingSmart.Serialization.Xml
 		{
 		}
 
-		private void WriteEntity(StreamWriter writer, ref int indent, object o, HashSet<object> saved, Dictionary<object, long> idmap, Queue<object> queue, ref int nextID)
+		private void writeRootObject(Stream stream, object root, HashSet<string> propertiesToIgnore, bool isIdPass, ref int nextID)
+		{
+			int indent = 0;
+			StreamWriter writer = new StreamWriter(stream);
+
+			this.WriteHeader(writer);
+
+			Type t = root.GetType();
+			string typeName = TypeSerializeName(t);
+
+			
+			this.WriteStartElementEntity(writer, ref indent, typeName);
+			this.WriteStartAttribute(writer, indent, "xmlns:xsi");
+			writer.Write("http://www.w3.org/2001/XMLSchema-instance");
+			this.WriteEndAttribute(writer);
+			this.WriteAttributeDelimiter(writer);
+			if(!string.IsNullOrEmpty(_NameSpace))
+			{
+				this.WriteStartAttribute(writer, indent, "xmlns");
+				writer.Write(_NameSpace);
+				this.WriteEndAttribute(writer);
+				this.WriteAttributeDelimiter(writer);
+			}
+			if (!string.IsNullOrEmpty(_SchemaLocation))
+			{
+				this.WriteStartAttribute(writer, indent, "xsi:schemaLocation");
+				writer.Write(_SchemaLocation);
+				this.WriteEndAttribute(writer);
+				this.WriteAttributeDelimiter(writer);
+			}
+			Queue<object> queue = new Queue<object>();
+			bool closeelem = this.WriteEntityAttributes(writer, ref indent, root, propertiesToIgnore, queue, isIdPass, ref nextID);
+			if (!closeelem)
+			{
+				if (queue.Count == 0)
+				{
+					this.WriteCloseElementAttribute(writer, ref indent);
+					this.WriteFooter(writer);
+					writer.Flush();
+					return;
+				}
+				this.WriteOpenElement(writer);
+			}
+			indent = 1;
+			while (queue.Count > 0)
+			{
+				// insert delimeter after first root object
+				this.WriteRootDelimeter(writer);
+
+				object ent = queue.Dequeue();
+				if (string.IsNullOrEmpty(_ObjectStore.EncounteredId(ent)))
+				{
+					this.WriteEntity(writer, ref indent, ent, propertiesToIgnore, queue, isIdPass, ref nextID);
+				}
+			}
+			this.WriteEndElementEntity(writer, ref indent, typeName);
+			this.WriteFooter(writer);
+			writer.Flush();
+		}
+		private void WriteEntity(StreamWriter writer, ref int indent, object o, HashSet<string> propertiesToIgnore, Queue<object> queue, bool isIdPass, ref int nextID)
 		{
 			// sanity check
 			if (indent > 100)
@@ -804,12 +744,12 @@ namespace BuildingSmart.Serialization.Xml
 				return;
 
 			Type t = o.GetType();
-
-			this.WriteStartElementEntity(writer, ref indent, t.Name);
-			bool close = this.WriteEntityAttributes(writer, ref indent, o, saved, idmap, queue, ref nextID);
+			string typeName = TypeSerializeName(t);
+			this.WriteStartElementEntity(writer, ref indent, typeName);
+			bool close = this.WriteEntityAttributes(writer, ref indent, o, propertiesToIgnore, queue, isIdPass, ref nextID);
 			if (close)
 			{
-				this.WriteEndElementEntity(writer, ref indent, t.Name);
+				this.WriteEndElementEntity(writer, ref indent, typeName);
 			}
 			else
 			{
@@ -820,10 +760,14 @@ namespace BuildingSmart.Serialization.Xml
 		/// <summary>
 		/// Terminates the opening tag, to allow for sub-elements to be written
 		/// </summary>
-		protected virtual void WriteOpenElement(StreamWriter writer)
+		protected virtual void WriteOpenElement(StreamWriter writer) { WriteOpenElement(writer, true); }
+		protected virtual void WriteOpenElement(StreamWriter writer, bool newLine)
 		{
 			// end opening tag
-			writer.WriteLine(">");
+			if (newLine)
+				writer.WriteLine(">");
+			else
+				writer.Write(">");
 		}
 
 		/// <summary>
@@ -867,18 +811,18 @@ namespace BuildingSmart.Serialization.Xml
 			WriteEndElementEntity(writer, ref indent, name);
 		}
 
-		protected virtual void WriteIdentifier(StreamWriter writer, int indent, long oid)
+		protected virtual void WriteIdentifier(StreamWriter writer, int indent, string id)
 		{
 			// record id, and continue to write out all attributes (works properly on second pass)
-			writer.Write(" id=\"i");
-			writer.Write(oid);
+			writer.Write(" id=\"");
+			writer.Write(id);
 			writer.Write("\"");
 		}
 
-		protected virtual void WriteReference(StreamWriter writer, int indent, long oid)
+		protected virtual void WriteReference(StreamWriter writer, int indent, string id)
 		{
-			writer.Write(" xsi:nil=\"true\" href=\"i");
-			writer.Write(oid);
+			writer.Write(" xsi:nil=\"true\" href=\"");
+			writer.Write(id);
 			writer.Write("\"");
 		}
 
@@ -915,310 +859,318 @@ namespace BuildingSmart.Serialization.Xml
 		{
 		}
 
-		private static bool IsEntityCollection(Type type)
-		{
-			return (type != typeof(string) && type != typeof(byte[]) && typeof(IEnumerable).IsAssignableFrom(type));
-		}
+		
 
-		private static bool IsValueCollection(Type t)
+		protected static bool IsValueCollection(Type t)
 		{
 			return t.IsGenericType &&
 				typeof(IEnumerable).IsAssignableFrom(t.GetGenericTypeDefinition()) &&
 				t.GetGenericArguments()[0].IsValueType;
 		}
 
+		
 		/// <summary>
 		/// Returns true if any elements written (requiring closing tag); or false if not
 		/// </summary>
 		/// <param name="o"></param>
 		/// <returns></returns>
-		private bool WriteEntityAttributes(StreamWriter writer, ref int indent, object o, HashSet<object> saved, Dictionary<object, long> idmap, Queue<object> queue, ref int nextID)
+		private bool WriteEntityAttributes(StreamWriter writer, ref int indent, object o, HashSet<string> propertiesToIgnore, Queue<object> queue, bool isIdPass, ref int nextID)
 		{
-			Type t = o.GetType();
+			Type t = o.GetType(), stringType = typeof(String);
 
-			long oid = 0;
-			if (saved.Contains(o))
+			string id = _ObjectStore.EncounteredId(o);
+			if (!string.IsNullOrEmpty(id))
 			{
-				// give it an ID if needed (first pass)
-				if (!idmap.TryGetValue(o, out oid))
-				{
-					nextID++;
-					idmap[o] = nextID;
-				}
-
-				// reference existing; return
-				this.WriteReference(writer, indent, oid);
+				_ObjectStore.MarkReferenced(o, id);
+				this.WriteReference(writer, indent, id);
 				return false;
 			}
-
+			// give it an ID if needed (first pass)
 			// mark as saved
-			saved.Add(o);
+			id = _ObjectStore.IdentifyId(o, isIdPass, ref nextID);
 
-			if (idmap.TryGetValue(o, out oid))
+			if (string.IsNullOrEmpty(id))
+				_ObjectStore.MarkEncountered(o, ref nextID);
+			else
 			{
-				this.WriteIdentifier(writer, indent, oid);
+				this.WriteIdentifier(writer, indent, id);
+				_ObjectStore.MarkEncountered(o, id);
 			}
 
 			bool previousattribute = false;
 
 			// write fields as attributes
-			bool haselements = false;
-			IList<PropertyInfo> fields = this.GetFieldsAll(t);
+			IList<PropertyInfo> fields = this.GetFieldsOrdered(t);
+			List<Tuple<PropertyInfo, DataMemberAttribute, object>> elementFields = new List<Tuple<PropertyInfo, DataMemberAttribute, object>>();
 			foreach (PropertyInfo f in fields)
 			{
 				if (f != null) // derived fields are null
 				{
+					if (propertiesToIgnore.Contains(f.Name))
+						continue;
 					DocXsdFormatEnum? xsdformat = this.GetXsdFormat(f);
+					if (xsdformat == DocXsdFormatEnum.Hidden)
+						continue;
 
-					if (f.IsDefined(typeof(DataMemberAttribute)) && (xsdformat == null || (xsdformat != DocXsdFormatEnum.Element && xsdformat != DocXsdFormatEnum.Attribute)))
+					Type ft = f.PropertyType, valueType = null;
+					DataMemberAttribute dataMemberAttribute = null;
+					object value = GetSerializeValue(o, f, out dataMemberAttribute, out valueType);
+					if (value == null)
+						continue;
+					if (dataMemberAttribute != null && (xsdformat == null || xsdformat == DocXsdFormatEnum.Attribute))
 					{
 						// direct field
-
-						Type ft = f.PropertyType;
-
 						bool isvaluelist = IsValueCollection(ft);
 						bool isvaluelistlist = ft.IsGenericType && // e.g. IfcTriangulatedFaceSet.Normals
 							typeof(System.Collections.IEnumerable).IsAssignableFrom(ft.GetGenericTypeDefinition()) &&
 							IsValueCollection(ft.GetGenericArguments()[0]);
 
-						if (isvaluelistlist || isvaluelist || ft.IsValueType)
+						if (isvaluelistlist || isvaluelist || ft.IsValueType || ft == stringType)
 						{
-							object v = f.GetValue(o);
-							if (v != null)
+							if (ft == stringType && string.IsNullOrEmpty(value.ToString()))
+								continue;
+
+							if (previousattribute)
 							{
-								if (previousattribute)
-								{
-									this.WriteAttributeDelimiter(writer);
-								}
+								this.WriteAttributeDelimiter(writer);
+							}
 
-								previousattribute = true;
-								this.WriteStartAttribute(writer, indent, f.Name);
+							previousattribute = true;
+							this.WriteStartAttribute(writer, indent, f.Name);
 
-								if (isvaluelistlist)
+							if (isvaluelistlist)
+							{
+								ft = ft.GetGenericArguments()[0].GetGenericArguments()[0];
+								PropertyInfo fieldValue = ft.GetProperty("Value");
+								if (fieldValue != null)
 								{
-									ft = ft.GetGenericArguments()[0].GetGenericArguments()[0];
-									PropertyInfo fieldValue = ft.GetProperty("Value");
-									if (fieldValue != null)
+									System.Collections.IList list = (System.Collections.IList)value;
+									for (int i = 0; i < list.Count; i++)
 									{
-										System.Collections.IList list = (System.Collections.IList)v;
-										for (int i = 0; i < list.Count; i++)
+										System.Collections.IList listInner = (System.Collections.IList)list[i];
+										for (int j = 0; j < listInner.Count; j++)
 										{
-											System.Collections.IList listInner = (System.Collections.IList)list[i];
-											for (int j = 0; j < listInner.Count; j++)
+											if (i > 0 || j > 0)
 											{
-												if (i > 0 || j > 0)
-												{
-													writer.Write(" ");
-												}
+												writer.Write(" ");
+											}
 
-												object elem = listInner[j];
-												if (elem != null) // should never be null, but be safe
-												{
-													elem = fieldValue.GetValue(elem);
-													string encodedvalue = System.Security.SecurityElement.Escape(elem.ToString());
-													writer.Write(encodedvalue);
-												}
+											object elem = listInner[j];
+											if (elem != null) // should never be null, but be safe
+											{
+												elem = fieldValue.GetValue(elem);
+												string encodedvalue = System.Security.SecurityElement.Escape(elem.ToString());
+												writer.Write(encodedvalue);
 											}
 										}
 									}
+								}
+								else
+								{
+									System.Diagnostics.Debug.WriteLine("XXX Error serializing ValueListlist" + o.ToString());
+								}
+							}
+							else if (isvaluelist)
+							{
+								ft = ft.GetGenericArguments()[0];
+								PropertyInfo fieldValue = ft.GetProperty("Value");
+
+								IEnumerable list = (IEnumerable) value;
+								int i = 0;
+								foreach (object e in list)
+								{
+									if (i > 0)
+									{
+										writer.Write(" ");
+									}
+
+									if (e != null) // should never be null, but be safe
+									{
+										object elem = e;
+										if (fieldValue != null)
+										{
+											elem = fieldValue.GetValue(e);
+										}
+
+										if (elem is byte[])
+										{
+											// IfcPixelTexture.Pixels
+											writer.Write(SerializeBytes((byte[])elem));
+										}
+										else
+										{
+											string encodedvalue = System.Security.SecurityElement.Escape(elem.ToString());
+											writer.Write(encodedvalue);
+										}
+									}
+
+									i++;
+								}
+
+							}
+							else
+							{
+								if (ft.IsGenericType && ft.GetGenericTypeDefinition() == typeof(Nullable<>))
+								{
+									// special case for Nullable types
+									ft = ft.GetGenericArguments()[0];
+								}
+
+								Type typewrap = null;
+								while (ft.IsValueType && !ft.IsPrimitive)
+								{
+									PropertyInfo fieldValue = ft.GetProperty("Value");
+									if (fieldValue != null)
+									{
+										value = fieldValue.GetValue(value);
+										if (typewrap == null)
+										{
+											typewrap = ft;
+										}
+										ft = fieldValue.PropertyType;
+									}
 									else
 									{
-										this.ToString();
+										break;
 									}
 								}
-								else if (isvaluelist)
-								{
-									ft = ft.GetGenericArguments()[0];
-									PropertyInfo fieldValue = ft.GetProperty("Value");
 
-									IEnumerable list = (IEnumerable)v;
-									int i = 0;
-									foreach (object e in list)
+								if (ft.IsEnum || ft == typeof(bool))
+								{
+									value = value.ToString().ToLowerInvariant();
+								}
+
+								if (value is IList)
+								{
+									// IfcCompoundPlaneAngleMeasure
+									IList list = (IList)value;
+									for (int i = 0; i < list.Count; i++)
 									{
 										if (i > 0)
 										{
 											writer.Write(" ");
 										}
 
-										if (e != null) // should never be null, but be safe
+										object elem = list[i];
+										if (elem != null) // should never be null, but be safe
 										{
-											object elem = e;
-											if (fieldValue != null)
-											{
-												elem = fieldValue.GetValue(e);
-											}
-
-											if (elem is byte[])
-											{
-												// IfcPixelTexture.Pixels
-												byte[] bytes = (byte[])elem;
-
-												char[] s_hexchar = new char[] { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
-												StringBuilder sb = new StringBuilder(bytes.Length * 2);
-												for (int z = 0; z < bytes.Length; z++)
-												{
-													byte b = bytes[z];
-													sb.Append(s_hexchar[b / 0x10]);
-													sb.Append(s_hexchar[b % 0x10]);
-												}
-												v = sb.ToString();
-												writer.Write(v);
-											}
-											else
-											{
-												string encodedvalue = System.Security.SecurityElement.Escape(elem.ToString());
-												writer.Write(encodedvalue);
-											}
+											string encodedvalue = System.Security.SecurityElement.Escape(elem.ToString());
+											writer.Write(encodedvalue);
 										}
-
-										i++;
 									}
-
 								}
-								else
+								else if (value != null)
 								{
-									if (ft.IsGenericType && ft.GetGenericTypeDefinition() == typeof(Nullable<>))
-									{
-										// special case for Nullable types
-										ft = ft.GetGenericArguments()[0];
-									}
-
-									Type typewrap = null;
-									while (ft.IsValueType && !ft.IsPrimitive)
-									{
-										PropertyInfo fieldValue = ft.GetProperty("Value");
-										if (fieldValue != null)
-										{
-											v = fieldValue.GetValue(v);
-											if (typewrap == null)
-											{
-												typewrap = ft;
-											}
-											ft = fieldValue.PropertyType;
-										}
-										else
-										{
-											break;
-										}
-									}
-
-									if (ft.IsEnum || ft == typeof(bool))
-									{
-										v = v.ToString().ToLowerInvariant();
-									}
-
-									if (v is System.Collections.IList)
-									{
-										// IfcCompoundPlaneAngleMeasure
-										System.Collections.IList list = (System.Collections.IList)v;
-										for (int i = 0; i < list.Count; i++)
-										{
-											if (i > 0)
-											{
-												writer.Write(" ");
-											}
-
-											object elem = list[i];
-											if (elem != null) // should never be null, but be safe
-											{
-												string encodedvalue = System.Security.SecurityElement.Escape(elem.ToString());
-												writer.Write(encodedvalue);
-											}
-										}
-									}
-									else if (v != null)
-									{
-										string encodedvalue = System.Security.SecurityElement.Escape(v.ToString());
-										writer.Write(encodedvalue);
-									}
+									string encodedvalue = System.Security.SecurityElement.Escape(value.ToString());
+									writer.Write(encodedvalue);
 								}
-
-								this.WriteEndAttribute(writer);
 							}
+
+							this.WriteEndAttribute(writer);
 						}
 						else
 						{
-							haselements = true;
+							elementFields.Add(new Tuple<PropertyInfo, DataMemberAttribute, object>(f, dataMemberAttribute, value));
 						}
 					}
 					else
 					{
-						haselements = true;
+						elementFields.Add(new Tuple<PropertyInfo, DataMemberAttribute, object>(f, dataMemberAttribute, value));
 					}
 				}
 			}
 
-			if (haselements)
+			bool open = false;
+			if (elementFields.Count > 0)
 			{
-				bool open = false;
-
 				// write direct object references and lists
-				foreach (PropertyInfo f in fields)
+				foreach (Tuple<PropertyInfo, DataMemberAttribute, object> tuple in elementFields) // derived attributes are null
 				{
-					if (f != null) // derived attributes are null
+					PropertyInfo f = tuple.Item1;
+					Type ft = f.PropertyType;
+					DataMemberAttribute dataMemberAttribute = tuple.Item2;
+					object value = tuple.Item3;
+					DocXsdFormatEnum? format = GetXsdFormat(f);
+					if (format == DocXsdFormatEnum.Element)
 					{
-						DocXsdFormatEnum? format = GetXsdFormat(f);
-						if (f.IsDefined(typeof(DataMemberAttribute)) && (format == null || (format != DocXsdFormatEnum.Element && format != DocXsdFormatEnum.Attribute)))
+						bool showit = true; //...check: always include tag if Attribute (even if zero); hide if Element 
+						IEnumerable ienumerable = value as IEnumerable;
+						if (ienumerable == null)
 						{
-							Type ft = f.PropertyType;
-							bool isvaluelist = IsValueCollection(ft);
-							bool isvaluelistlist = ft.IsGenericType && // e.g. IfcTriangulatedFaceSet.Normals
-								typeof(IEnumerable).IsAssignableFrom(ft.GetGenericTypeDefinition()) &&
-								IsValueCollection(ft.GetGenericArguments()[0]);
-
-							// hide fields where inverse attribute used instead
-							if (!f.PropertyType.IsValueType && !isvaluelist && !isvaluelistlist &&
-								(format == null || (format != DocXsdFormatEnum.Hidden)))
+							string fieldName = PropertySerializeName(f), fieldTypeName = TypeSerializeName(value.GetType());
+							if (string.Compare(fieldName, fieldTypeName) == 0)
 							{
-								object value = f.GetValue(o);
-								if (value != null)
+								if (!open)
 								{
-									bool showit = true;
+									WriteOpenElement(writer);
+									open = true;
+								}
+								WriteEntity(writer, ref indent, value, propertiesToIgnore, queue, isIdPass, ref nextID);
+								continue;
+							}
+						}
+						// for collection is must be non-zero (e.g. IfcProject.IsNestedBy)
+						else // what about IfcProject.RepresentationContexts if empty? include???
+						{
+							showit = false;
+							foreach (object check in ienumerable)
+							{
+								showit = true; // has at least one element
+								break;
+							}
+						}
+						if (showit)
+						{
+							if (!open)
+							{
+								WriteOpenElement(writer);
+								open = true;
+							}
 
-									if (!f.IsDefined(typeof(System.ComponentModel.DataAnnotations.RequiredAttribute), false) && value is IEnumerable)
-									{
-										showit = false;
-										IEnumerable en = (IEnumerable)value;
-										foreach (object sub in en)
-										{
-											showit = true;
-											break;
-										}
-									}
+							if (previousattribute)
+							{
+								this.WriteAttributeDelimiter(writer);
+							}
+							previousattribute = true;
+							WriteAttribute(writer, ref indent, o, new HashSet<string>(), f, queue, isIdPass, ref nextID);
+						}
+					}
+					else if (dataMemberAttribute != null)
+					{
+						bool isvaluelist = IsValueCollection(ft);
+						bool isvaluelistlist = ft.IsGenericType && // e.g. IfcTriangulatedFaceSet.Normals
+							typeof(IEnumerable).IsAssignableFrom(ft.GetGenericTypeDefinition()) &&
+							IsValueCollection(ft.GetGenericArguments()[0]);
 
-									if (showit)
+						// hide fields where inverse attribute used instead
+						if (!ft.IsValueType && !isvaluelist && !isvaluelistlist)
+						{
+							if (value != null)
+							{
+								IEnumerable ienumerable = value as IEnumerable;
+								if (ienumerable == null)
+								{
+									string fieldName = PropertySerializeName(f), fieldTypeName = TypeSerializeName(value.GetType());
+									if (string.Compare(fieldName, fieldTypeName) == 0)
 									{
 										if (!open)
 										{
 											WriteOpenElement(writer);
 											open = true;
 										}
-
-										if (previousattribute)
-										{
-											this.WriteAttributeDelimiter(writer);
-										}
-										previousattribute = true;
-
-										WriteAttribute(writer, ref indent, o, f, saved, idmap, queue, ref nextID);
+										WriteEntity(writer, ref indent, value, propertiesToIgnore, queue, isIdPass, ref nextID);
+										continue;
 									}
+
 								}
-							}
-						}
-						else if (format != null && (format == DocXsdFormatEnum.Element || format == DocXsdFormatEnum.Attribute))
-						{
-							object value = f.GetValue(o);
-							if (value != null)
-							{
-								// for collection is must be non-zero (e.g. IfcProject.IsNestedBy)
-								bool showit = true; //...check: always include tag if Attribute (even if zero); hide if Element 
-								if (value is IEnumerable) // what about IfcProject.RepresentationContexts if empty? include???
+								bool showit = true;
+
+								if (!f.IsDefined(typeof(System.ComponentModel.DataAnnotations.RequiredAttribute), false) && ienumerable != null)
 								{
 									showit = false;
-									IEnumerable enumerate = (IEnumerable)value;
-									foreach (object check in enumerate)
+									foreach (object sub in ienumerable)
 									{
-										showit = true; // has at least one element
+										showit = true;
 										break;
 									}
 								}
@@ -1237,56 +1189,96 @@ namespace BuildingSmart.Serialization.Xml
 									}
 									previousattribute = true;
 
-									WriteAttribute(writer, ref indent, o, f, saved, idmap, queue, ref nextID);
-								}
-							}
-						}
-						else
-						{
-							object value = f.GetValue(o);
-
-							// inverse
-							// record it for downstream serialization
-							if (value is IEnumerable)
-							{
-								IEnumerable invlist = (IEnumerable)value;
-								foreach (object invobj in invlist)
-								{
-									if (!saved.Contains(invobj))
-									{
-										queue.Enqueue(invobj);
-									}
+									WriteAttribute(writer, ref indent, o, new HashSet<string>(), f, queue, isIdPass, ref nextID);
 								}
 							}
 						}
 					}
+					else
+					{
+					    // inverse
+						// record it for downstream serialization
+						if (value is IEnumerable)
+						{
+							IEnumerable invlist = (IEnumerable)value;
+							foreach (object invobj in invlist)
+							{
+								if (string.IsNullOrEmpty(_ObjectStore.EncounteredId(invobj)))
+									queue.Enqueue(invobj);
+							}
+						}
+					}
 				}
-
-				this.WriteAttributeTerminator(writer);
-				return open;
 			}
-			else
+			IEnumerable enumerable = o as IEnumerable;
+			if(enumerable != null)
+			{
+				if(!open)
+				{
+					WriteOpenElement(writer);
+					open = true;
+				}
+				foreach (object obj in enumerable)
+					WriteEntity(writer, ref indent, obj, propertiesToIgnore, queue, isIdPass, ref nextID);
+			}
+			if (!open)
 			{
 				this.WriteAttributeTerminator(writer);
 				return false;
 			}
+			return open;
 		}
 
-		private void WriteAttribute(StreamWriter writer, ref int indent, object o, PropertyInfo f, HashSet<object> saved, Dictionary<object, long> idmap, Queue<object> queue, ref int nextID)
+		private void WriteAttribute(StreamWriter writer, ref int indent, object o, HashSet<string> propertiesToIgnore, PropertyInfo f, Queue<object> queue, bool isIdPass, ref int nextID)
 		{
 			object v = f.GetValue(o);
 			if (v == null)
 				return;
+			string memberName = PropertySerializeName(f);
+			Type objectType = o.GetType();
+			string typeName = TypeSerializeName(o.GetType());
+			if(string.Compare(memberName,typeName) == 0)
+			{
+				WriteEntity(writer, ref indent, v, propertiesToIgnore, queue, isIdPass, ref nextID);
+				return;
+			}
+			this.WriteStartElementAttribute(writer, ref indent, memberName);
 
-			this.WriteStartElementAttribute(writer, ref indent, f.Name);
-
+			int zeroIndent = 0;
 			Type ft = f.PropertyType;
 			PropertyInfo fieldValue = null;
 			if (ft.IsValueType)
 			{
+				if (ft == typeof(DateTime)) // header datetime
+				{
+					this.WriteOpenElement(writer, false);
+					DateTime datetime = (DateTime)v;
+					string datetimeiso8601 = datetime.ToString("s", System.Globalization.CultureInfo.InvariantCulture);
+					writer.Write(datetimeiso8601);
+					indent--; 
+					WriteEndElementAttribute(writer, ref zeroIndent, f.Name);
+					return;
+				}
 				fieldValue = ft.GetProperty("Value"); // if it exists for value type
 			}
-
+			else if (ft == typeof(string))
+			{
+				this.WriteOpenElement(writer, false);
+				string strval = System.Security.SecurityElement.Escape((string)v);
+				writer.Write(strval);
+				indent--;
+				WriteEndElementAttribute(writer, ref zeroIndent, f.Name);
+				return;
+			}
+			else if (ft == typeof(byte[]))
+			{
+				this.WriteOpenElement(writer, false);
+				string strval = SerializeBytes((byte[])v); 
+				writer.Write(strval);
+				indent--;
+				WriteEndElementAttribute(writer, ref zeroIndent, f.Name);
+				return;
+			}
 			DocXsdFormatEnum? format = GetXsdFormat(f);
 			if (format == null || format != DocXsdFormatEnum.Attribute || f.Name.Equals("InnerCoordIndices")) //hackhack -- need to resolve...
 			{
@@ -1390,7 +1382,7 @@ namespace BuildingSmart.Serialization.Xml
 							{
 								// only one item, e.g. StyledByItem\IfcStyledItem
 								this.WriteEntityStart(writer, ref indent);
-								bool closeelem = this.WriteEntityAttributes(writer, ref indent, e, saved, idmap, queue, ref nextID);
+								bool closeelem = this.WriteEntityAttributes(writer, ref indent, e, propertiesToIgnore, queue, isIdPass, ref nextID);
 								if (!closeelem)
 								{
 									this.WriteCloseElementAttribute(writer, ref indent);
@@ -1404,7 +1396,7 @@ namespace BuildingSmart.Serialization.Xml
 							}
 							else
 							{
-								this.WriteEntity(writer, ref indent, e, saved, idmap, queue, ref nextID);
+								this.WriteEntity(writer, ref indent, e, propertiesToIgnore, queue, isIdPass, ref nextID);
 							}
 
 							needdelim = true;
@@ -1429,19 +1421,6 @@ namespace BuildingSmart.Serialization.Xml
 			else if (ft.IsInterface && v is ValueType)
 			{
 				this.WriteValueWrapper(writer, ref indent, v);
-			}
-			else if (ft == typeof(DateTime)) // header datetime
-			{
-				this.WriteOpenElement(writer);
-				DateTime datetime = (DateTime)v;
-				string datetimeiso8601 = datetime.ToString("s", System.Globalization.CultureInfo.InvariantCulture);
-				writer.Write(datetimeiso8601);
-			}
-			else if (ft == typeof(string))
-			{
-				this.WriteOpenElement(writer);
-				string strval = (string)(v);
-				writer.Write(strval);
 			}
 			else if (fieldValue != null) // must be IfcBinary -- but not DateTime or other raw primitives
 			{
@@ -1475,8 +1454,7 @@ namespace BuildingSmart.Serialization.Xml
 					{
 						this.WriteType(writer, indent, vt.Name);
 					}
-
-					bool closeelem = this.WriteEntityAttributes(writer, ref indent, v, saved, idmap, queue, ref nextID);
+					bool closeelem = this.WriteEntityAttributes(writer, ref indent, v, new HashSet<string>(), queue, isIdPass, ref nextID);
 
 					if (!closeelem)
 					{
@@ -1489,11 +1467,11 @@ namespace BuildingSmart.Serialization.Xml
 				else
 				{
 					// if rooted, then check if we need to use reference; otherwise embed
-					this.WriteEntity(writer, ref indent, v, saved, idmap, queue, ref nextID);
+					this.WriteEntity(writer, ref indent, v, new HashSet<string>(), queue, isIdPass, ref nextID);
 				}
 			}
 
-			WriteEndElementAttribute(writer, ref indent, f.Name);
+			WriteEndElementAttribute(writer, ref indent, memberName);
 		}
 
 		private void WriteValueWrapper(StreamWriter writer, ref int indent, object v)
@@ -1555,7 +1533,7 @@ namespace BuildingSmart.Serialization.Xml
 			this.WriteTypedValue(writer, ref indent, vt.Name, encodedvalue);
 		}
 
-		private DocXsdFormatEnum? GetXsdFormat(PropertyInfo field)
+		protected DocXsdFormatEnum? GetXsdFormat(PropertyInfo field)
 		{
 			// direct fields marked ignore are ignored
 			if (field.IsDefined(typeof(XmlIgnoreAttribute)))
@@ -1567,14 +1545,14 @@ namespace BuildingSmart.Serialization.Xml
 			XmlElementAttribute attrElement = field.GetCustomAttribute<XmlElementAttribute>();
 			if (attrElement != null)
 			{
-				if (!String.IsNullOrEmpty(attrElement.ElementName))
-				{
+				//if (!String.IsNullOrEmpty(attrElement.ElementName))
+				//{
 					return DocXsdFormatEnum.Element; // tag according to attribute AND element name
-				}
-				else
-				{
-					return DocXsdFormatEnum.Attribute; // tag according to attribute name
-				}
+				//}
+				//else
+				//{
+				//	return DocXsdFormatEnum.Attribute; // tag according to attribute name
+				//}
 			}
 
 			// inverse fields not marked with XmlElement are ignored
@@ -1584,11 +1562,168 @@ namespace BuildingSmart.Serialization.Xml
 			return null; //?
 		}
 
-		private enum DocXsdFormatEnum
+		protected enum DocXsdFormatEnum
 		{
 			Hidden = 1,//IfcDoc.Schema.CNF.exp_attribute.no_tag,    // for direct attribute, don't include as inverse is defined instead
 			Attribute = 2,//IfcDoc.Schema.CNF.exp_attribute.attribute_tag, // represent as attribute
 			Element = 3,//IfcDoc.Schema.CNF.exp_attribute.double_tag,   // represent as element
+		}
+
+		protected internal class QueuedObjects
+		{
+			private Dictionary<string, QueuedObject> queued = new Dictionary<string, QueuedObject>();
+
+			internal void Queue(string sid, object o, PropertyInfo propertyInfo)
+			{
+				QueuedObject queuedObject = null;
+				if (!queued.TryGetValue(sid, out queuedObject))
+					queuedObject = queued[sid] = new QueuedObject();
+				queuedObject.Queue(o, propertyInfo);
+			}
+			internal void DeQueue(string sid, object value)
+			{
+				QueuedObject queuedObject = null;
+				if(queued.TryGetValue(sid, out queuedObject))
+				{
+					queuedObject.Dequeue(value);
+					queued.Remove(sid);
+				}
+			}
+		}
+		protected internal class QueuedObject
+		{
+			private List<Tuple<object,PropertyInfo>> attributes = new List<Tuple<object,PropertyInfo>>();
+
+			internal void Queue(object o, PropertyInfo propertyInfo)
+			{
+				attributes.Add(new Tuple<object, PropertyInfo>(o, propertyInfo));
+			}
+			
+			internal void Dequeue(object value)
+			{
+				foreach (Tuple<object, PropertyInfo> tuple in attributes)
+				{
+					object obj = tuple.Item1;
+					PropertyInfo propertyInfo = tuple.Item2;
+					if(IsEntityCollection(propertyInfo.PropertyType))
+					{
+						IEnumerable list = propertyInfo.GetValue(obj) as IEnumerable;
+						Type typeCollection = list.GetType();
+						MethodInfo methodAdd = typeCollection.GetMethod("Add");
+						if (methodAdd == null)
+						{
+							throw new Exception("Unsupported collection type " + typeCollection.Name);
+						}
+						methodAdd.Invoke(list, new object[] { value });
+					}
+					else
+						propertyInfo.SetValue(obj, value);
+				}
+			}
+		}
+
+		protected internal class ObjectStore
+		{
+			internal bool UseUniqueIdReferences { get; set; } = true;
+			private Dictionary<object, string> IdMap = new Dictionary<object, string>();
+			private Dictionary<object, string> EncounteredObjects = new Dictionary<object, string>();
+			private Dictionary<object, string> ReferencedObjects = new Dictionary<object, string>();
+			
+			private string validId(string str)
+			{
+				string result = Regex.Replace(str.Trim(), @"\s+", "_");
+				result = Regex.Replace(result, @"[^0-9a-zA-Z_]+", string.Empty);
+				char c = result[0];
+				return ((char.IsDigit(c) || c == '$' || c == '-' || c == '.') ? "x" : "") + result;
+			}
+			internal string UniqueId(object o, ref int nextID)
+			{
+				if (UseUniqueIdReferences)
+				{
+					Type ot = o.GetType();
+					PropertyInfo propertyInfo = ot.GetProperty("id", typeof(string));
+					
+					if (propertyInfo != null)
+					{
+						object obj = propertyInfo.GetValue(o);
+						if (obj != null)
+						{
+							string str = obj.ToString();
+							if(!string.IsNullOrEmpty(str))
+							{
+								return validId(str);
+							}
+						}
+					}
+
+					propertyInfo = ot.GetProperty("GlobalId");
+					if(propertyInfo != null)
+					{
+						object obj = propertyInfo.GetValue(o);
+						if(obj != null)
+						{
+							string globalId = obj.ToString();
+							if(!string.IsNullOrEmpty(globalId))
+							{
+								PropertyInfo propertyInfoName = ot.GetProperty("Name");
+								if(propertyInfoName != null)
+								{
+									obj = propertyInfoName.GetValue(o);
+									if(obj != null)
+									{
+										string name = obj.ToString();
+										if (!string.IsNullOrEmpty(name))
+											return validId(name + "_" + globalId);
+									}
+								}
+								return validId(globalId);
+							}
+						}
+					}
+				}
+				nextID++;
+				return "i" + nextID;
+			}
+			internal void MarkReferenced(Object obj, string id)
+			{
+				ReferencedObjects[obj] = id;
+			}
+			internal string MarkEncountered(Object obj, string id)
+			{
+				return EncounteredObjects[obj] = id;
+			}
+			internal string MarkEncountered(Object obj, ref int nextId)
+			{
+				return MarkEncountered(obj,UniqueId(obj, ref nextId));
+			}
+			internal string EncounteredId(object obj)
+			{
+				string id = "";
+				if (EncounteredObjects.TryGetValue(obj, out id))
+					return id;
+				return null;
+			}
+			internal string IdentifyId(object obj, bool isIdPass, ref int nextId)
+			{
+				string id = "";
+				if (ReferencedObjects.TryGetValue(obj, out id))
+					return id;
+				if (isIdPass)
+				{
+					if (IdMap.TryGetValue(obj, out id))
+						return id;
+					return IdMap[obj] = UniqueId(obj, ref nextId);
+				}
+				return "";
+			}
+			internal void RemoveEncountered(object obj)
+			{
+				EncounteredObjects.Remove(obj);
+			}
+			internal void ClearEncountered()
+			{
+				EncounteredObjects.Clear();
+			}
 		}
 	}
 

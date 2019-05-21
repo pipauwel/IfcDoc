@@ -150,7 +150,7 @@ namespace IfcDoc.Format.CSC
 			{
 				WriteResource(writerAssm, "IfcDoc.assemblyinfo.txt");
 
-				writerAssm.WriteLine("[assembly: AssemblyTitle(\"BuildingSmart." + schemaid.ToUpper() + "\")]");
+				writerAssm.WriteLine("[assembly: AssemblyTitle(\"buildingSMART." + schemaid.ToUpper() + "\")]");
 
 				string version = project.GetSchemaVersion();
 				if (!String.IsNullOrEmpty(version))
@@ -160,7 +160,7 @@ namespace IfcDoc.Format.CSC
 				}
 			}
 
-			using (StreamWriter writerProj = new StreamWriter(path + @"\BuildingSmart." + schemaid.ToUpper() + ".csproj", false))
+			using (StreamWriter writerProj = new StreamWriter(path + @"\buildingSMART." + schemaid.ToUpper() + ".csproj", false))
 			{
 				WriteResource(writerProj, "IfcDoc.csproj1.txt");
 				writerProj.WriteLine("    <Compile Include=\"AssemblyInfo.cs\" />");
@@ -567,7 +567,7 @@ namespace IfcDoc.Format.CSC
 			}
 
 			// don't include our own schema
-			if (listSchema.ContainsKey(this.m_schema.Name))
+			if (this.m_schema != null && listSchema.ContainsKey(this.m_schema.Name))
 			{
 				listSchema.Remove(this.m_schema.Name);
 			}
@@ -741,7 +741,7 @@ namespace IfcDoc.Format.CSC
 								writer.WriteLine();
 							}
 
-							foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnums)
+							foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnumerations)
 							{
 								writer.WriteLine("    /// <summary>");
 								writer.WriteLine("    /// </summary>");
@@ -844,6 +844,7 @@ namespace IfcDoc.Format.CSC
 					}
 				}
 			}
+			DocSchema entitySchema = m_project.GetSchemaOfDefinition(docEntity);
 
 			foreach (DocSelect docSelect in listSelects.Values)
 			{
@@ -858,9 +859,14 @@ namespace IfcDoc.Format.CSC
 
 				// fully qualify reference inline (rather than in usings) to differentiate C# select implementation from explicit schema references in data model
 				DocSchema docSchema = this.m_project.GetSchemaOfDefinition(docSelect);
-				sb.Append("\tBuildingSmart.IFC.");
-				sb.Append(docSchema.Name);
-				sb.Append(".");
+				if (docSchema == entitySchema)
+					sb.Append("\t");
+				else
+				{
+					sb.Append("\tBuildingSmart.IFC.");
+					sb.Append(docSchema.Name);
+					sb.Append(".");
+				}
 				sb.Append(docSelect.Name);
 			}
 		}
@@ -877,20 +883,25 @@ namespace IfcDoc.Format.CSC
 
 			foreach (DocAttribute docAttr in docEntity.Attributes)
 			{
-				if (docAttr.Inverse == null && docAttr.Derived == null)
+				if (docAttr.Inverse == null && docAttr.Derived == null && !docAttr.IsOptional)
 				{
 					listAttr.Add(docAttr);
 				}
 			}
 		}
-
+		private string formatAttributeName(DocAttribute docAttribute)
+		{
+			if(string.Compare(docAttribute.Name, "Operator", true) == 0)
+				return "_operator";
+			return Char.ToLowerInvariant(docAttribute.Name[0]) + docAttribute.Name.Substring(1);
+		}
 		public string FormatEntity(DocEntity docEntity, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included)
 		{
 			StringBuilder sb = new StringBuilder();
 
 			using (CSharpCodeProvider prov = new CSharpCodeProvider())
 			{
-				// no  guidssb.AppendLine("[Guid(\"" + docEntity.Uuid.ToString() + "\")]");
+				sb.AppendLine("[Guid(\"" + docEntity.Uuid.ToString() + "\")]");
 
 				sb.Append("public ");
 				if (docEntity.IsAbstract)
@@ -1051,12 +1062,13 @@ namespace IfcDoc.Format.CSC
 								sbFields.AppendLine("\t[MaxLength(" + upper + ")]");
 							}
 
+							//sb.AppendLine("[Guid(\"" + docAttribute.Uuid.ToString() + "\")]");
 							switch (docAttribute.GetAggregation())
 							{
 								case DocAggregationEnum.SET:
-									if (docAttribute.Inverse == null)
+									if (docAttribute.Inverse == null && !docAttribute.IsOptional)
 									{
-										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = new HashSet<" + type + ">(__" + docAttribute.Name + ");");
+										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = new HashSet<" + type + ">(" + formatAttributeName(docAttribute) + ");");
 									}
 									else
 									{
@@ -1067,9 +1079,9 @@ namespace IfcDoc.Format.CSC
 									break;
 
 								case DocAggregationEnum.LIST:
-									if (docAttribute.Inverse == null)
+									if (docAttribute.Inverse == null && !docAttribute.IsOptional)
 									{
-										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = new List<" + type + ">(__" + docAttribute.Name + ");");
+										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = new List<" + type + ">(" + formatAttributeName(docAttribute) + ");");
 									}
 									else
 									{
@@ -1080,18 +1092,18 @@ namespace IfcDoc.Format.CSC
 									break;
 
 								case DocAggregationEnum.ARRAY:
-									if (docAttribute.Inverse == null)
+									if (docAttribute.Inverse == null && !docAttribute.IsOptional)
 									{
-										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = __" + docAttribute.Name + ";");
+										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = " + formatAttributeName(docAttribute) + ";");
 									}
 									sbFields.AppendLine("\tpublic " + type + "[] " + docAttribute.Name + " { get; set; }");
 									//sbProperties.AppendLine("\tpublic " + type + "[] " + docAttribute.Name + " { get { return this." + docAttribute.Name + "; } }");
 									break;
 
 								default:
-									if (docAttribute.Inverse == null)
+									if (docAttribute.Inverse == null && !docAttribute.IsOptional)
 									{
-										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = __" + docAttribute.Name + ";");
+										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = " + formatAttributeName(docAttribute) + ";");
 									}
 									sbFields.AppendLine("\tpublic " + type + optional + " " + docAttribute.Name + " { get; set; }");
 									//sbProperties.AppendLine("\tpublic " + type + optional + " " + docAttribute.Name + " { get { return this._" + docAttribute.Name + "; } set { this._" + docAttribute.Name + " = value;} }");
@@ -1190,8 +1202,8 @@ namespace IfcDoc.Format.CSC
 						sb.Append("?");
 					}
 
-					sb.Append(" __"); // avoid conflict with member fields and properties
-					sb.Append(docAttr.Name);
+					sb.Append(" " + formatAttributeName(docAttr));
+					
 				}
 				sb.AppendLine(sbConstructor.ToString() + ")");
 
@@ -1205,8 +1217,7 @@ namespace IfcDoc.Format.CSC
 							sb.Append(", ");
 						}
 
-						sb.Append("__");
-						sb.Append(docAttr.Name);
+						sb.Append(formatAttributeName(docAttr));
 					}
 
 					sb.AppendLine(")");
@@ -1344,7 +1355,7 @@ namespace IfcDoc.Format.CSC
 			StringBuilder sb = new StringBuilder();
 			using (CSharpCodeProvider prov = new CSharpCodeProvider())
 			{
-				//sb.AppendLine("[Guid(\"" + docEnumeration.Uuid.ToString() + "\")]");
+				sb.AppendLine("[Guid(\"" + docEnumeration.Uuid.ToString() + "\")]");
 				sb.AppendLine("public enum " + docEnumeration.Name);
 				sb.AppendLine("{");
 				int counter = 0;
@@ -1386,7 +1397,7 @@ namespace IfcDoc.Format.CSC
 		{
 			StringBuilder sb = new StringBuilder();
 
-			//sb.AppendLine("[Guid(\"" + docSelect.Uuid.ToString() + "\")]");
+			sb.AppendLine("[Guid(\"" + docSelect.Uuid.ToString() + "\")]");
 			sb.Append("public interface " + docSelect.Name);
 
 			BuildSelectEntries(sb, docSelect, map, included, false);
@@ -1402,7 +1413,7 @@ namespace IfcDoc.Format.CSC
 		{
 			StringBuilder sb = new StringBuilder();
 
-			//sb.AppendLine("[Guid(\"" + docDefined.Uuid.ToString() + "\")]");
+			sb.AppendLine("[Guid(\"" + docDefined.Uuid.ToString() + "\")]");
 			sb.Append("public partial struct " + docDefined.Name);
 
 			// implement any selects
@@ -1429,11 +1440,49 @@ namespace IfcDoc.Format.CSC
 			DocDefined docIndirect = this.m_project.GetDefinition(docDefined.DefinedType) as DocDefined;
 			if (docIndirect != null)
 			{
+				sb.AppendLine();
 				sb.AppendLine("\tpublic " + docDefined.Name + "(" + FormatIdentifier(docIndirect.DefinedType) + " value) : this()");
 				sb.AppendLine("\t{");
 				sb.AppendLine("\t\tthis.Value = new " + docDefined.DefinedType + "(value);");
 				sb.AppendLine("\t}");
+
 			}
+			bool stringPrimitive = (string.Compare(docDefined.DefinedType, "string", true) == 0);
+			DocPrimitive primitive = docDefined.Definition as DocPrimitive;
+			if(primitive != null)
+			{
+				sb.AppendLine();
+				sb.AppendLine("\tpublic static implicit operator " + docDefined.Name + "(" + FormatIdentifier(docDefined.DefinedType) + " value)");
+				sb.AppendLine("\t{");
+				if (stringPrimitive)
+				{
+					sb.AppendLine("\t\tif (value == null)");
+					sb.AppendLine("\t\t\treturn null;");
+					sb.AppendLine();
+				}
+				sb.AppendLine("\t\treturn new " + docDefined.Name + "(value);");
+				sb.AppendLine("\t}");
+
+				sb.AppendLine();
+				sb.AppendLine("\tpublic static implicit operator " + FormatIdentifier(docDefined.DefinedType)  + "(" + docDefined.Name + " value)");
+				sb.AppendLine("\t{");
+				if (stringPrimitive)
+				{
+					sb.AppendLine("\t\tif (value == null)");
+					sb.AppendLine("\t\t\treturn null;");
+					sb.AppendLine();
+				}
+				sb.AppendLine("\t\treturn value.Value;");
+				sb.AppendLine("\t}");
+			}
+			sb.AppendLine();
+			sb.AppendLine("\tpublic override string ToString()");
+			sb.AppendLine("\t{");
+			if(stringPrimitive)
+				sb.AppendLine("\t\treturn (Value == null ? \"\" : Value.ToString());");
+			else
+				sb.AppendLine("\t\treturn Value.ToString();");
+			sb.AppendLine("\t}");
 
 			// end of type
 			sb.AppendLine("}");

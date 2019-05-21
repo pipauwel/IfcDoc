@@ -15,7 +15,7 @@ namespace IfcDoc
 	public partial class FormSelectProperty : Form
 	{
 		DocEntity m_entity;
-		DocProject m_project;
+		protected DocProject m_project;
 		string m_portname;
 
 		Dictionary<string, DocProperty> m_sharedproperties;
@@ -120,7 +120,7 @@ namespace IfcDoc
 				}
 				//this.m_sharedproperties = duplicateProperties;
 
-				// find all duplicate properties
+				// find all duplicate properties 
 				foreach (DocSection docSection in this.m_project.Sections)
 				{
 					foreach (DocSchema docSchema in docSection.Schemas)
@@ -167,7 +167,7 @@ namespace IfcDoc
 
 		}
 
-		private void LoadPropertySets()
+		protected virtual void LoadPropertySets()
 		{
 			this.treeViewProperty.Nodes.Clear();
 
@@ -477,6 +477,35 @@ namespace IfcDoc
 			}
 
 			return value;
+		}
+	}
+
+	public class FormSelectPropertyFromSchema : FormSelectProperty
+	{
+		public FormSelectPropertyFromSchema(DocProject docProject, bool? multiselect) : base(null, docProject, multiselect) { }
+
+		protected override void LoadPropertySets()
+		{
+			IEnumerable<IGrouping<char, DocProperty>> groups = m_project.Properties.GroupBy(x => char.ToLower(x.Name[0]));
+			foreach (IGrouping<char, DocProperty> group in groups)
+			{
+				TreeNode tnChar = new TreeNode();
+				tnChar.Tag = group.Key;
+				tnChar.Text = group.Key.ToString();
+				tnChar.ImageIndex = 0;
+				tnChar.SelectedImageIndex = 0;
+				this.treeViewProperty.Nodes.Add(tnChar);
+
+				foreach (DocProperty docProp in group)
+				{
+					TreeNode tnProp = new TreeNode();
+					tnProp.Tag = docProp;
+					tnProp.Text = docProp.Name;
+					tnProp.ImageIndex = 1;
+					tnProp.SelectedImageIndex = 1;
+					tnChar.Nodes.Add(tnProp);
+				}
+			}
 		}
 	}
 }

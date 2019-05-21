@@ -85,19 +85,19 @@ namespace BuildingSmart.Serialization.Json
 			// do nothing
 		}
 
-		protected override void WriteIdentifier(StreamWriter writer, int indent, long oid)
+		protected override void WriteIdentifier(StreamWriter writer, int indent, string id)
 		{
 			this.WriteIndent(writer, indent);
 			writer.Write("\"id\": ");
-			writer.Write(oid);
+			writer.Write(id);
 			writer.WriteLine(",");
 		}
 
-		protected override void WriteReference(StreamWriter writer, int indent, long oid)
+		protected override void WriteReference(StreamWriter writer, int indent, string id)
 		{
 			this.WriteIndent(writer, indent);
 			writer.Write("\"href\": ");
-			writer.Write(oid);
+			writer.Write(id);
 			writer.WriteLine();
 		}
 

@@ -1827,7 +1827,10 @@ namespace IfcDoc.Format.PNG
 						{
 							if (docEnt.BaseDefinition != null && docEnt.BaseDefinition.Equals(docEntity.Name))
 							{
-								subtypes.Add(docEnt.Name, docEnt);
+								if (subtypes.ContainsKey(docEnt.Name))
+									System.Diagnostics.Debug.WriteLine("Duplicate subType Key " + docEnt.Name);
+								else
+									subtypes.Add(docEnt.Name, docEnt);
 							}
 						}
 					}

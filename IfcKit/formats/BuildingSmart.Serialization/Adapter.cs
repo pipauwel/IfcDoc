@@ -26,7 +26,7 @@ namespace BuildingSmart.Serialization
 
 		public Type GetType(string type)
 		{
-			return this.GetTypeByName(type);
+			return this.GetNonAbstractTypeByName(type);
 		}
 
 		public IList<PropertyInfo> GetDirectFields(Type t)
