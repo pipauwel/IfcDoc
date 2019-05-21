@@ -185,6 +185,7 @@ namespace IfcDoc
 					}
 					if (!string.IsNullOrEmpty(docObject.Documentation))
 						docObject.Documentation = docObject.Documentation.Trim();
+
 					if (schemaVersion < 12.1)
 					{
 						DocChangeSet docChangeSet = docObject as DocChangeSet;
@@ -212,7 +213,7 @@ namespace IfcDoc
 			{
 				Dictionary<string, DocPropertyEnumeration> encounteredPropertyEnumerations = new Dictionary<string, DocPropertyEnumeration>();
 				foreach (DocSchema docSchema in project.Sections.SelectMany(x => x.Schemas))
-					extractListingsV12_1(docSchema, encounteredPropertyEnumerations);
+					extractListingsV12_1(project, docSchema, encounteredPropertyEnumerations);
 			}
 			foreach (DocModelView docModelView in project.ModelViews)
 			{
@@ -261,7 +262,7 @@ namespace IfcDoc
 				return true;
 			return false;
 		}
-		private static void extractListingsV12_1(DocSchema schema, Dictionary<string, DocPropertyEnumeration> encounteredPropertyEnumerations)
+		private static void extractListingsV12_1(DocProject project, DocSchema schema, Dictionary<string, DocPropertyEnumeration> encounteredPropertyEnumerations)
 		{
 			foreach(DocPropertyEnumeration enumeration in schema.PropertyEnumerations)
 			{
@@ -271,8 +272,8 @@ namespace IfcDoc
 				foreach(DocPropertyConstant constant in enumeration.Constants)
 				{
 					constant.Name = constant.Name.Trim();
-					if (!schema.PropertyConstants.Contains(constant))
-						schema.PropertyConstants.Add(constant);
+					if (!project.PropertyConstants.Contains(constant))
+						project.PropertyConstants.Add(constant);
 				}
 			}
 			foreach (DocType t in schema.Types)
@@ -281,28 +282,27 @@ namespace IfcDoc
 				{
 					foreach (DocConstant constant in enumeration.Constants)
 					{
-						if (!schema.Constants.Contains(constant)) 
-							schema.Constants.Add(constant);
+						if (!project.Constants.Contains(constant)) 
+							project.Constants.Add(constant);
 					}
 				}
 			}
 			foreach (DocPropertySet pset in schema.PropertySets)
-				extractListings(pset, schema, encounteredPropertyEnumerations); //listings
+				extractListings(project, pset, schema, encounteredPropertyEnumerations); //listings
 		
 			foreach (DocQuantity quantity in schema.QuantitySets.SelectMany(x => x.Quantities))
-				schema.Quantities.Add(quantity);
+				project.Quantities.Add(quantity);
 		}
 
-		private static void extractListings(DocPropertySet propertySet, DocSchema schema, Dictionary<string, DocPropertyEnumeration> encounteredPropertyEnumerations)
+		private static void extractListings(DocProject project, DocPropertySet propertySet, DocSchema schema, Dictionary<string, DocPropertyEnumeration> encounteredPropertyEnumerations)
 		{
-			//listings.PropertySets.Add(propertySet);
 			foreach (DocProperty property in propertySet.Properties)
-				extractListings(property, schema, encounteredPropertyEnumerations);
+				extractListings(project, property, schema, encounteredPropertyEnumerations);
 		}
 
-		private static void extractListings(DocProperty property, DocSchema schema, Dictionary<string, DocPropertyEnumeration> encounteredPropertyEnumerations)
+		private static void extractListings(DocProject project, DocProperty property, DocSchema schema, Dictionary<string, DocPropertyEnumeration> encounteredPropertyEnumerations)
 		{
-			schema.Properties.Add(property);
+			project.Properties.Add(property);
 
 			if (string.IsNullOrEmpty(property.SecondaryDataType))
 				property.SecondaryDataType = null;
@@ -332,7 +332,7 @@ namespace IfcDoc
 							{
 								string constantName = str.Trim();
 								DocPropertyConstant constant = null;
-								foreach (DocPropertyConstant docConstant in schema.PropertyConstants)
+								foreach (DocPropertyConstant docConstant in project.PropertyConstants)
 								{
 									if (string.Compare(docConstant.Name, constantName) == 0)
 									{
@@ -343,7 +343,7 @@ namespace IfcDoc
 								if (constant == null)
 								{
 									constant = new DocPropertyConstant() { Name = constantName };
-									schema.PropertyConstants.Add(constant);
+									project.PropertyConstants.Add(constant);
 								}
 								property.Enumeration.Constants.Add(constant);
 							}
@@ -353,7 +353,7 @@ namespace IfcDoc
 			}
 
 			foreach (DocProperty element in property.Elements)
-				extractListings(element, schema, encounteredPropertyEnumerations);
+				extractListings(project, element, schema, encounteredPropertyEnumerations);
 		}
 
 	}

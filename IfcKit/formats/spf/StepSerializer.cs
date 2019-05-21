@@ -1374,7 +1374,7 @@ namespace BuildingSmart.Serialization.Step
 								idmap.Add(0, o);
 							idmap.Add(id, o);
 							// populate collections (catch case of older version where field may not be asserted)
-							IList<PropertyInfo> listProp = GetFieldsOrdered(t);
+							IList<PropertyInfo> listProp = GetFieldsAll(t);
 							foreach (PropertyInfo prop in listProp)
 							{
 								Type type = prop.PropertyType;

@@ -602,6 +602,15 @@
       <Name>BuildingSmart.Utilities.Dictionary</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\ContextInsert.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\toolStripMenuItemContextInsert.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\toolStripMenuItemInsertProperty.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

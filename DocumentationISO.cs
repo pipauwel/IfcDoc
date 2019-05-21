@@ -13,7 +13,7 @@ using System.IO;
 using System.Text;
 //using System.Xml.Serialization;
 
-//using BuildingSmart.IFC;
+using BuildingSmart.IFC;
 using BuildingSmart.IFC.IfcKernel;
 using BuildingSmart.IFC.IfcMeasureResource;
 using BuildingSmart.IFC.IfcUtilityResource;
@@ -127,8 +127,14 @@ namespace IfcDoc
 					{
 						// export property sets and quantity sets
 						IfcProjectLibrary ifcProjectLibrary = generatePropertyLibrary(docProject, included);
-						XmlSerializer format = new XmlSerializer(ifcProjectLibrary.GetType());
-						format.WriteObject(stream, ifcProjectLibrary);
+						XmlHeader header = new XmlHeader();
+						XmlElementIfc xmlElementIfc = new XmlElementIfc(header, ifcProjectLibrary);
+						XmlSerializer format = new XmlSerializer(typeof(IfcProjectLibrary))
+						{
+							NameSpace = XmlElementIfc.NameSpace,
+							SchemaLocation = XmlElementIfc.SchemaLocation
+						};
+						format.WriteObject(stream, xmlElementIfc);
 					}
 					break;
 

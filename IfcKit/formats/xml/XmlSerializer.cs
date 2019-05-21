@@ -23,14 +23,17 @@ namespace BuildingSmart.Serialization.Xml
 {
 	public class XmlSerializer : Serializer
 	{
-		protected ObjectStore mObjectStore = new ObjectStore();
+		protected ObjectStore _ObjectStore = new ObjectStore();
+		string _NameSpace = "";
+		string _SchemaLocation = "";
 
-		public bool UseUniqueIdReferences { get { return mObjectStore.UseUniqueIdReferences; } set { mObjectStore.UseUniqueIdReferences = value; } }
+		public bool UseUniqueIdReferences { get { return _ObjectStore.UseUniqueIdReferences; } set { _ObjectStore.UseUniqueIdReferences = value; } }
+		public string NameSpace { set { _NameSpace = value; } }
+		public string SchemaLocation { set { _SchemaLocation = value; } }
 
 		public XmlSerializer(Type type) : base(type)
 		{
-			_prioritizeXmlOrder = true;
-			// get the XML namespace
+			_XmlAttributePriority = true;
 		}
 
 		public override object ReadObject(Stream stream)
@@ -602,10 +605,6 @@ namespace BuildingSmart.Serialization.Xml
 		/// <param name="root">The root object to write</param>
 		public override void WriteObject(Stream stream, object root)
 		{
-			WriteObject(stream, root, "", "");
-		}
-		public void WriteObject(Stream stream, object root, string nameSpace, string schemaLocation)
-		{
 			if (stream == null)
 				throw new ArgumentNullException("stream");
 
@@ -616,7 +615,7 @@ namespace BuildingSmart.Serialization.Xml
 			int nextID = 0;
 			writeFirstPassForIds(root, new HashSet<string>(), ref nextID);
 			// pass 2: write to file -- clear save map; retain ID map
-			writeRootObject(stream, root, nameSpace, schemaLocation, new HashSet<string>(), false, ref nextID);
+			writeRootObject(stream, root, new HashSet<string>(), false, ref nextID);
 		}
 		internal protected void writeFirstPassForIds(object root, HashSet<string> propertiesToIgnore, ref int nextID)
 		{
@@ -627,17 +626,17 @@ namespace BuildingSmart.Serialization.Xml
 			while (queue.Count > 0)
 			{
 				object ent = queue.Dequeue();
-				if (string.IsNullOrEmpty(mObjectStore.EncounteredId(ent)))
+				if (string.IsNullOrEmpty(_ObjectStore.EncounteredId(ent)))
 				{
 					this.WriteEntity(writer, ref indent, ent, propertiesToIgnore, queue, true, ref nextID);
 				}
 			}
 			// pass 2: write to file -- clear save map; retain ID map
-			mObjectStore.ClearEncountered();
+			_ObjectStore.ClearEncountered();
 		}
 		internal protected void writeObject(Stream stream, object root, HashSet<string> propertiesToIgnore, ref int nextID)
 		{
-			writeRootObject(stream, root, "", "", propertiesToIgnore, false, ref nextID);
+			writeRootObject(stream, root, propertiesToIgnore, false, ref nextID);
 		}
 		
 
@@ -674,7 +673,7 @@ namespace BuildingSmart.Serialization.Xml
 		{
 		}
 
-		private void writeRootObject(Stream stream, object root, string nameSpace, string schemaLocation, HashSet<string> propertiesToIgnore, bool isIdPass, ref int nextID)
+		private void writeRootObject(Stream stream, object root, HashSet<string> propertiesToIgnore, bool isIdPass, ref int nextID)
 		{
 			int indent = 0;
 			StreamWriter writer = new StreamWriter(stream);
@@ -683,22 +682,24 @@ namespace BuildingSmart.Serialization.Xml
 
 			Type t = root.GetType();
 			string typeName = TypeSerializeName(t);
+
+			
 			this.WriteStartElementEntity(writer, ref indent, typeName);
 			this.WriteStartAttribute(writer, indent, "xmlns:xsi");
 			writer.Write("http://www.w3.org/2001/XMLSchema-instance");
 			this.WriteEndAttribute(writer);
 			this.WriteAttributeDelimiter(writer);
-			if(!string.IsNullOrEmpty(nameSpace))
+			if(!string.IsNullOrEmpty(_NameSpace))
 			{
 				this.WriteStartAttribute(writer, indent, "xmlns");
-				writer.Write(nameSpace);
+				writer.Write(_NameSpace);
 				this.WriteEndAttribute(writer);
 				this.WriteAttributeDelimiter(writer);
 			}
-			if (!string.IsNullOrEmpty(schemaLocation))
+			if (!string.IsNullOrEmpty(_SchemaLocation))
 			{
 				this.WriteStartAttribute(writer, indent, "xsi:schemaLocation");
-				writer.Write(schemaLocation);
+				writer.Write(_SchemaLocation);
 				this.WriteEndAttribute(writer);
 				this.WriteAttributeDelimiter(writer);
 			}
@@ -722,7 +723,7 @@ namespace BuildingSmart.Serialization.Xml
 				this.WriteRootDelimeter(writer);
 
 				object ent = queue.Dequeue();
-				if (string.IsNullOrEmpty(mObjectStore.EncounteredId(ent)))
+				if (string.IsNullOrEmpty(_ObjectStore.EncounteredId(ent)))
 				{
 					this.WriteEntity(writer, ref indent, ent, propertiesToIgnore, queue, isIdPass, ref nextID);
 				}
@@ -877,23 +878,23 @@ namespace BuildingSmart.Serialization.Xml
 		{
 			Type t = o.GetType(), stringType = typeof(String);
 
-			string id = mObjectStore.EncounteredId(o);
+			string id = _ObjectStore.EncounteredId(o);
 			if (!string.IsNullOrEmpty(id))
 			{
-				mObjectStore.MarkReferenced(o, id);
+				_ObjectStore.MarkReferenced(o, id);
 				this.WriteReference(writer, indent, id);
 				return false;
 			}
 			// give it an ID if needed (first pass)
 			// mark as saved
-			id = mObjectStore.IdentifyId(o, isIdPass, ref nextID);
+			id = _ObjectStore.IdentifyId(o, isIdPass, ref nextID);
 
 			if (string.IsNullOrEmpty(id))
-				mObjectStore.MarkEncountered(o, ref nextID);
+				_ObjectStore.MarkEncountered(o, ref nextID);
 			else
 			{
 				this.WriteIdentifier(writer, indent, id);
-				mObjectStore.MarkEncountered(o, id);
+				_ObjectStore.MarkEncountered(o, id);
 			}
 
 			bool previousattribute = false;
@@ -1202,7 +1203,7 @@ namespace BuildingSmart.Serialization.Xml
 							IEnumerable invlist = (IEnumerable)value;
 							foreach (object invobj in invlist)
 							{
-								if (string.IsNullOrEmpty(mObjectStore.EncounteredId(invobj)))
+								if (string.IsNullOrEmpty(_ObjectStore.EncounteredId(invobj)))
 									queue.Enqueue(invobj);
 							}
 						}
@@ -1627,9 +1628,14 @@ namespace BuildingSmart.Serialization.Xml
 			private Dictionary<object, string> IdMap = new Dictionary<object, string>();
 			private Dictionary<object, string> EncounteredObjects = new Dictionary<object, string>();
 			private Dictionary<object, string> ReferencedObjects = new Dictionary<object, string>();
-
-			internal ObjectStore() { }
-
+			
+			private string validId(string str)
+			{
+				string result = Regex.Replace(str.Trim(), @"\s+", "_");
+				result = Regex.Replace(result, @"[^0-9a-zA-Z_]+", string.Empty);
+				char c = result[0];
+				return ((char.IsDigit(c) || c == '$' || c == '-' || c == '.') ? "x" : "") + result;
+			}
 			internal string UniqueId(object o, ref int nextID)
 			{
 				if (UseUniqueIdReferences)
@@ -1645,9 +1651,32 @@ namespace BuildingSmart.Serialization.Xml
 							string str = obj.ToString();
 							if(!string.IsNullOrEmpty(str))
 							{
-								if (char.IsDigit(str[0]))
-									return "x" + str;
-								return str;
+								return validId(str);
+							}
+						}
+					}
+
+					propertyInfo = ot.GetProperty("GlobalId");
+					if(propertyInfo != null)
+					{
+						object obj = propertyInfo.GetValue(o);
+						if(obj != null)
+						{
+							string globalId = obj.ToString();
+							if(!string.IsNullOrEmpty(globalId))
+							{
+								PropertyInfo propertyInfoName = ot.GetProperty("Name");
+								if(propertyInfoName != null)
+								{
+									obj = propertyInfoName.GetValue(o);
+									if(obj != null)
+									{
+										string name = obj.ToString();
+										if (!string.IsNullOrEmpty(name))
+											return validId(name + "_" + globalId);
+									}
+								}
+								return validId(globalId);
 							}
 						}
 					}

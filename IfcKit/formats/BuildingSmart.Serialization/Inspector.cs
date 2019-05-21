@@ -35,7 +35,7 @@ namespace BuildingSmart.Serialization
 		Dictionary<int, List<PropertyInfo>> _inversemap = new Dictionary<int, List<PropertyInfo>>();
 		Dictionary<Type, MethodInfo> _deserializingmap = new Dictionary<Type, MethodInfo>(); // cached field lists in declaration order
 
-		protected bool _prioritizeXmlOrder { get; set; } = false;
+		protected bool _XmlAttributePriority { get; set; } = false;
 		/// <summary>
 		/// Creates serializer accepting all types within assembly.
 		/// </summary>
@@ -255,7 +255,7 @@ namespace BuildingSmart.Serialization
 		{
 			get
 			{
-				return "BuildingSmart IfcKit";
+				return "buildingSMART IfcKit";
 			}
 		}
 
@@ -497,33 +497,61 @@ namespace BuildingSmart.Serialization
 			foreach (PropertyInfo field in fields)
 			{
 				DataMemberAttribute dataMemberAttribute = field.GetCustomAttribute<DataMemberAttribute>();
-				if (_prioritizeXmlOrder)
+				if (_XmlAttributePriority)
 				{
 					XmlElementAttribute xmlElementAttribute = field.GetCustomAttribute<XmlElementAttribute>();
-					if (xmlElementAttribute != null && xmlElementAttribute.Order > -1 && xmlElementAttribute.Order < fields.Length)
+					if (xmlElementAttribute != null)
 					{
-						sorted[xmlElementAttribute.Order] = field;
-						continue;
+						if (xmlElementAttribute.Order > -1 && xmlElementAttribute.Order < fields.Length)
+						{
+							sorted[xmlElementAttribute.Order] = field;
+							continue;
+						}
+						if (dataMemberAttribute == null)
+						{
+							unorderedAttributes.Add(field);
+							continue;
+						}
 					}
 					XmlAttributeAttribute xmlAttributeAttribute = field.GetCustomAttribute<XmlAttributeAttribute>();	
 					if(xmlAttributeAttribute != null)
 					{
 						if (dataMemberAttribute != null && dataMemberAttribute.Order >= 0)
+						{
 							orderedAttributes.Add(dataMemberAttribute.Order, field);
-						else
+							continue;
+						}
+						if (dataMemberAttribute == null)
+						{
 							unorderedAttributes.Add(field);
-						continue;
+							continue;
+						}
 					}
 					XmlArrayAttribute xmlArrayAttribute = field.GetCustomAttribute<XmlArrayAttribute>();
-					if(xmlArrayAttribute != null && xmlArrayAttribute.Order > -1 && xmlArrayAttribute.Order < fields.Length)
+					if (xmlArrayAttribute != null)
 					{
-						sorted[xmlArrayAttribute.Order] = field;
-						continue;
+						if (xmlArrayAttribute.Order > -1 && xmlArrayAttribute.Order < fields.Length)
+						{
+							sorted[xmlArrayAttribute.Order] = field;
+							continue;
+						}
+						if (dataMemberAttribute == null)
+						{
+							unorderedAttributes.Add(field);
+							continue;
+						}
 					}
 				}
-				if (dataMemberAttribute != null && dataMemberAttribute.Order < fields.Length)
+				if (dataMemberAttribute != null)
 				{
-					sorted[dataMemberAttribute.Order] = field;
+					if (dataMemberAttribute.Order < fields.Length)
+					{
+						sorted[dataMemberAttribute.Order] = field;
+					}
+					else
+					{
+						unorderedAttributes.Add(field);
+					}
 				}
 			}
 

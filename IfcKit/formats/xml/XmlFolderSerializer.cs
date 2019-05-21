@@ -45,12 +45,12 @@ namespace BuildingSmart.Serialization.Xml
 		public XmlFolderSerializer(Type type) : base(type)
 		{
 			// get the XML namespace
-			mObjectStore.UseUniqueIdReferences = true;
+			_ObjectStore.UseUniqueIdReferences = true;
 			InvalidFileNameChars = Path.GetInvalidFileNameChars();
 		}
 		public XmlFolderSerializer(Type type, XmlFolderSerializer parent) : this(type)
 		{
-			mObjectStore = parent.mObjectStore;
+			_ObjectStore = parent._ObjectStore;
 		}
 		public void AddFilePrefix(Type type, string prefix)
 		{
@@ -157,7 +157,7 @@ namespace BuildingSmart.Serialization.Xml
 								foreach (object nested in enumerable)
 								{
 									count++;
-									if (string.IsNullOrEmpty(mObjectStore.EncounteredId(nested)))
+									if (string.IsNullOrEmpty(_ObjectStore.EncounteredId(nested)))
 										allSaved = false;
 									object objId = uniqueIdProperty.GetValue(nested);
 									if (objId == null || string.IsNullOrEmpty(objId.ToString()))
@@ -201,7 +201,7 @@ namespace BuildingSmart.Serialization.Xml
 									//}
 									foreach (object nested in enumerable)
 									{
-										mObjectStore.MarkEncountered(nested, ref nextID);
+										_ObjectStore.MarkEncountered(nested, ref nextID);
 										string nestedObjectPath = Path.Combine(nestedPath, removeInvalidFile(uniqueIdProperty.GetValue(nested).ToString()));
 										Directory.CreateDirectory(nestedObjectPath);
 										queue.Enqueue(new QueueData(Path.Combine(nestedObjectPath, removeInvalidFile(propertyInfo.Name) + ".xml"), nested));
@@ -261,7 +261,7 @@ namespace BuildingSmart.Serialization.Xml
 							Type propertyObjectType = propertyObject.GetType();
 							if (!(propertyObjectType.IsValueType || propertyObjectType == stringType))
 							{
-								if (string.IsNullOrEmpty(mObjectStore.EncounteredId(obj)))
+								if (string.IsNullOrEmpty(_ObjectStore.EncounteredId(obj)))
 								{
 									DataContractAttribute dataContractAttribute = propertyObjectType.GetCustomAttribute<DataContractAttribute>(true);
 									if (dataContractAttribute == null || dataContractAttribute.IsReference)
@@ -270,7 +270,7 @@ namespace BuildingSmart.Serialization.Xml
 										Directory.CreateDirectory(nestedPath);
 										queue.Enqueue(new QueueData(Path.Combine(nestedPath, removeInvalidFile(propertyInfo.Name) + ".xml"), propertyObject));
 										nestedProperties.Add(propertyInfo.Name);
-										mObjectStore.MarkEncountered(propertyObject, ref nextID);
+										_ObjectStore.MarkEncountered(propertyObject, ref nextID);
 									}
 								}
 							}
@@ -280,7 +280,7 @@ namespace BuildingSmart.Serialization.Xml
 			}
 			if (nestedProperties.Count < fields.Count)
 			{
-				mObjectStore.RemoveEncountered(obj);
+				_ObjectStore.RemoveEncountered(obj);
 				using (FileStream fileStream = new FileStream(dataObject.FilePath, FileMode.Create, FileAccess.Write))
 				{
 					XmlFolderSerializer serializer = new XmlFolderSerializer(objectType, this);

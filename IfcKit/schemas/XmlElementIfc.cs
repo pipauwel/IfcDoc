@@ -21,7 +21,7 @@ namespace BuildingSmart.IFC
 			base.Add(context);
 		}
 		
-		public const string NameSpace = "http://www.buildingsmart-tech.org/ifcXML/IFC4/Add1";
-		public const string SchemaLocation = "http://www.buildingsmart-tech.org/ifcXML/IFC4/Add1/IFC4_ADD1.xsd"; 
+		public const string NameSpace = "http://www.buildingsmart-tech.org/ifc/IFC4x1/final";
+		public const string SchemaLocation = "http://standards.buildingsmart.org/IFC/RELEASE/IFC4_1/FINAL/XML/IFC4x1.xsd"; 
 	}
 }

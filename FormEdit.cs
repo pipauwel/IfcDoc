@@ -2374,9 +2374,78 @@ namespace IfcDoc
 					LoadNodeSchema(tnSchema, schema);
 				}
 			}
+			TreeNode tnConstantsHeader = LoadNode(null, typeof(DocProperty), "Constants", false);
+			IEnumerable<IGrouping<char, DocObject>> groups = m_project.Constants.GroupBy(x => char.ToLower(x.Name[0]));
+			foreach (IGrouping<char, DocObject> group in groups)
+			{
+				TreeNode tnAlpha = LoadNode(tnConstantsHeader, typeof(DocConstant), group.Key.ToString(), false);
+
+				foreach (DocConstant docConstant in group)
+				{
+					TreeNode tnProp = new TreeNode();
+					tnProp.Tag = docConstant;
+					tnProp.Text = docConstant.Name;
+					tnProp.ImageIndex = 1;
+					tnProp.SelectedImageIndex = 1;
+					tnAlpha.Nodes.Add(tnProp);
+				}
+			}
+			TreeNode tnPropertyConstantsHeader = LoadNode(null, typeof(DocProperty), "PropertyConstants", false);
+			groups = m_project.PropertyConstants.GroupBy(x => char.ToLower(x.Name[0]));
+			foreach (IGrouping<char, DocObject> group in groups)
+			{
+				TreeNode tnAlpha = LoadNode(tnPropertyConstantsHeader, typeof(DocPropertyConstant), group.Key.ToString(), false);
+
+				foreach (DocPropertyConstant docConstant in group)
+				{
+					TreeNode tnProp = new TreeNode();
+					tnProp.Tag = docConstant;
+					tnProp.Text = docConstant.Name;
+					tnProp.ImageIndex = 1;
+					tnProp.SelectedImageIndex = 1;
+					tnAlpha.Nodes.Add(tnProp);
+				}
+			}
+
+			TreeNode tnPropertiesHeader = LoadNode(null, typeof(DocProperty), "Properties", false);
+			groups = m_project.Properties.GroupBy(x => char.ToLower(x.Name[0]));
+			foreach (IGrouping<char, DocObject> group in groups)
+			{
+				TreeNode tnAlpha = LoadNode(tnPropertiesHeader, typeof(DocProperty), group.Key.ToString(), false);
+
+				foreach (DocProperty docProp in group)
+				{
+					TreeNode tnProp = new TreeNode();
+					tnProp.Tag = docProp;
+					tnProp.Text = docProp.Name;
+					tnProp.ImageIndex = 1;
+					tnProp.SelectedImageIndex = 1;
+					tnAlpha.Nodes.Add(tnProp);
+				}
+			}
+			TreeNode tnQuantitiesHeader = LoadNode(null, typeof(DocQuantity), "Quantities", false);
+
+			groups = m_project.Quantities.GroupBy(x => char.ToLower(x.Name[0]));
+			foreach (IGrouping<char, DocObject> group in groups)
+			{
+				TreeNode tnAlpha = LoadNode(tnQuantitiesHeader, typeof(DocQuantity), group.Key.ToString(), false);
+
+				foreach (DocQuantity docQuantity in group)
+				{
+					TreeNode tnProp = new TreeNode();
+					tnProp.Tag = docQuantity;
+					tnProp.Text = docQuantity.Name;
+					tnProp.ImageIndex = 1;
+					tnProp.SelectedImageIndex = 1;
+					tnAlpha.Nodes.Add(tnProp);
+				}
+			}
+
 
 			foreach (DocAnnex annex in this.m_project.Annexes)
 			{
+				if (annex == null)
+					continue;
 				TreeNode tn = LoadNode(null, annex, annex.Name, false);
 
 				if (this.m_project.Annexes.IndexOf(annex) == 4 && this.m_project.Examples != null)
@@ -2648,6 +2717,10 @@ namespace IfcDoc
 			this.toolStripMenuItemContextInsertPublication.Visible = false;
 			this.toolStripMenuItemContextInsert.Visible = false;
 
+			this.toolStripMenuItemContextInclude.Visible = false;
+			this.toolStripMenuItemContextIncludeProperty.Visible = false;
+
+			this.toolStripMenuItemContextRemove.Visible = false;
 
 			this.toolStripMenuItemDiagramFormatPageRef.Enabled = (e.Node.Tag is DocDefinition);
 			this.toolStripMenuItemDiagramFormatPageRef.Checked = false;
@@ -2952,6 +3025,12 @@ namespace IfcDoc
 				this.toolStripMenuItemEditDelete.Enabled = true;
 				this.toolStripMenuItemEditRename.Enabled = true;
 			}
+			else if (e.Node.Tag == typeof(DocProperty))
+			{
+				this.toolStripMenuItemInsertPropertyset.Enabled = true;
+				this.toolStripMenuItemContextInsertProperty.Visible = true;
+				this.toolStripMenuItemContextInsert.Visible = true;
+			}
 			else if (e.Node.Tag == typeof(DocPropertySet))
 			{
 				this.toolStripMenuItemInsertPropertyset.Enabled = true;
@@ -3036,10 +3115,20 @@ namespace IfcDoc
 				else if (obj is DocConstant)
 				{
 					DocConstant docConst = (DocConstant)obj;
-					this.toolStripMenuItemEditDelete.Enabled = true;
-					DocEnumeration docEnum = (DocEnumeration)treeView.SelectedNode.Parent.Tag;
-					this.toolStripMenuItemEditMoveUp.Enabled = (docEnum.Constants.IndexOf(docConst) > 0);
-					this.toolStripMenuItemEditMoveDown.Enabled = (docEnum.Constants.IndexOf(docConst) < docEnum.Constants.Count - 1);
+					if (e.Node.Parent.Tag != typeof(DocConstant))
+					{
+						this.toolStripMenuItemContextRemove.Visible = true;
+					}
+					else
+					{
+						this.toolStripMenuItemEditDelete.Enabled = docConst.PartOfEnumeration.Count == 0;
+					}
+					DocEnumeration docEnum = treeView.SelectedNode.Parent.Tag as DocEnumeration;
+					if (docEnum != null)
+					{
+						this.toolStripMenuItemEditMoveUp.Enabled = (docEnum.Constants.IndexOf(docConst) > 0);
+						this.toolStripMenuItemEditMoveDown.Enabled = (docEnum.Constants.IndexOf(docConst) < docEnum.Constants.Count - 1);
+					}
 				}
 				else if (obj is DocEntity)
 				{
@@ -3130,34 +3219,47 @@ namespace IfcDoc
 #endif
 				else if (obj is DocPropertyConstant)
 				{
-					this.toolStripMenuItemEditDelete.Enabled = true;
 					DocPropertyConstant constant = (DocPropertyConstant)obj;
-					DocPropertyEnumeration ent = (DocPropertyEnumeration)e.Node.Parent.Tag;
-					if (ent.Constants.IndexOf(constant) > 0)
+					if(e.Node.Parent.Tag != typeof(DocPropertyConstant))
 					{
-						this.toolStripMenuItemEditMoveUp.Enabled = true;
+						this.toolStripMenuItemContextRemove.Visible = true;
 					}
-
-					if (ent.Constants.IndexOf(constant) < ent.Constants.Count - 1)
+					else
+						this.toolStripMenuItemEditDelete.Enabled = constant.PartOfEnumeration.Count == 0;
+					DocPropertyEnumeration ent = e.Node.Parent.Tag as DocPropertyEnumeration;
+					if (ent != null)
 					{
-						this.toolStripMenuItemEditMoveDown.Enabled = true;
-					}
+						if (ent.Constants.IndexOf(constant) > 0)
+						{
+							this.toolStripMenuItemEditMoveUp.Enabled = true;
+						}
 
+						if (ent.Constants.IndexOf(constant) < ent.Constants.Count - 1)
+						{
+							this.toolStripMenuItemEditMoveDown.Enabled = true;
+						}
+					}
 				}
 				else if (obj is DocPropertySet)
 				{
 					this.toolStripMenuItemEditDelete.Enabled = true;
-					this.toolStripMenuItemInsertProperty.Enabled = true;
 
-					this.toolStripMenuItemContextInsertProperty.Visible = true;
-					this.toolStripMenuItemContextInsert.Visible = true;
+					this.toolStripMenuItemContextIncludeProperty.Visible = true;
+					this.toolStripMenuItemContextInclude.Visible = true;
 
 					this.ToolStripMenuItemEditCut.Enabled = true;
 					this.toolStripMenuItemEditPaste.Enabled = (this.m_clipboard is DocProperty);
 				}
 				else if (obj is DocProperty)
 				{
-					this.toolStripMenuItemEditDelete.Enabled = true;
+					DocProperty docProperty = obj as DocProperty;
+					if (e.Node.Parent.Tag != typeof(DocProperty))
+					{
+						this.toolStripMenuItemContextRemove.Visible = true;
+					}
+					else
+						this.toolStripMenuItemEditDelete.Enabled = (docProperty.PartOfPset.Count == 0 && docProperty.PartOfComplex.Count == 0);
+
 					this.toolStripMenuItemEditCopy.Enabled = true;
 					this.ToolStripMenuItemEditCut.Enabled = true;
 					this.toolStripMenuItemInsertProperty.Enabled = true; // though only applicable if complex
@@ -3206,17 +3308,27 @@ namespace IfcDoc
 				}
 				else if (obj is DocQuantity)
 				{
-					this.toolStripMenuItemEditDelete.Enabled = true;
-
-					DocQuantitySet ent = (DocQuantitySet)e.Node.Parent.Tag;
-					if (ent.Quantities.IndexOf((DocQuantity)obj) > 0)
+					DocQuantity docQuantity = e.Node.Tag as DocQuantity;
+					if (e.Node.Parent.Tag != typeof(DocQuantity))
 					{
-						this.toolStripMenuItemEditMoveUp.Enabled = true;
+						this.toolStripMenuItemContextRemove.Visible = true;
+						DocQuantitySet ent = e.Node.Parent.Tag as DocQuantitySet;
+						if (ent != null)
+						{
+							if (ent.Quantities.IndexOf((DocQuantity)obj) > 0)
+							{
+								this.toolStripMenuItemEditMoveUp.Enabled = true;
+							}
+
+							if (ent.Quantities.IndexOf((DocQuantity)obj) < ent.Quantities.Count - 1)
+							{
+								this.toolStripMenuItemEditMoveDown.Enabled = true;
+							}
+						}
 					}
-
-					if (ent.Quantities.IndexOf((DocQuantity)obj) < ent.Quantities.Count - 1)
+					else
 					{
-						this.toolStripMenuItemEditMoveDown.Enabled = true;
+						this.toolStripMenuItemEditDelete.Enabled = docQuantity.PartOfQset.Count == 0;
 					}
 				}
 				else if (obj is DocExample)
@@ -4565,7 +4677,7 @@ namespace IfcDoc
 			this.toolStripMenuItemEditRename_Click(sender, e);
 		}
 
-		private void toolStripMenuItemInsertProperty_Click(object sender, EventArgs e)
+		private void ToolStripMenuItemInsertProperty_Click(object sender, EventArgs e)
 		{
 			DocProperty docProp = new DocProperty();
 			if (this.treeView.SelectedNode.Tag is DocPropertySet)
@@ -4582,7 +4694,92 @@ namespace IfcDoc
 			this.treeView.SelectedNode = this.LoadNode(this.treeView.SelectedNode, docProp, docProp.Name, false);
 			this.toolStripMenuItemEditRename_Click(sender, e);
 		}
-
+		private void toolStripMenuItemIncludeProperty_Click(object sender, EventArgs e)
+		{
+			using (FormSelectProperty form = new FormSelectPropertyFromSchema(this.m_project, false))
+			{
+				if (form.ShowDialog(this) == DialogResult.OK && form.SelectedProperty != null)
+				{
+					DocProperty docProp = form.SelectedProperty;
+					if (this.treeView.SelectedNode.Tag is DocPropertySet)
+					{
+						DocPropertySet docPset = (DocPropertySet)this.treeView.SelectedNode.Tag;
+						docPset.Properties.Add(docProp);
+					}
+					else if (this.treeView.SelectedNode.Tag is DocProperty)
+					{
+						DocProperty docProperty = (DocProperty)this.treeView.SelectedNode.Tag;
+						docProperty.Elements.Add(docProp);
+					}
+					this.treeView.SelectedNode = this.LoadNode(this.treeView.SelectedNode, docProp, docProp.Name, false);
+				}
+			}
+		}
+		private void toolStripMenuItemContextRemove_Click(object sender, EventArgs e)
+		{
+			object selected = this.treeView.SelectedNode.Tag;
+			object parent = this.treeView.SelectedNode.Parent.Tag;
+			
+			DocProperty docProp = selected as DocProperty;
+			if (docProp != null)
+			{
+				DocPropertySet docPset = parent as DocPropertySet;
+				if (docPset != null)
+				{
+					docPset.Properties.Remove(docProp);
+					docProp.PartOfPset.Remove(docPset);
+				}
+				else
+				{
+					DocProperty docProperty = parent as DocProperty;
+					if (docProperty != null)
+					{
+						docProperty.Elements.Remove(docProp);
+						docProp.PartOfComplex.Remove(docProperty);
+					}
+				}
+			}
+			else
+			{
+				DocQuantity docQuantity = selected as DocQuantity;
+				if (docQuantity != null)
+				{
+					DocQuantitySet docQset = parent as DocQuantitySet;
+					if (docQset != null)
+					{
+						docQset.Quantities.Remove(docQuantity);
+						docQuantity.PartOfQset.Remove(docQset);
+					}
+				}
+				else
+				{
+					DocConstant docConstant = selected as DocConstant;
+					if (docConstant != null)
+					{
+						DocEnumeration docEnumeration = parent as DocEnumeration;
+						if (docEnumeration != null)
+						{
+							docEnumeration.Constants.Remove(docConstant);
+							docConstant.PartOfEnumeration.Remove(docEnumeration);
+						}
+					}
+					else
+					{
+						DocPropertyConstant docPropertyConstant = selected as DocPropertyConstant;
+						if(docPropertyConstant != null)
+						{
+							DocPropertyEnumeration docPropertyEnumeration = parent as DocPropertyEnumeration;
+							if(docPropertyEnumeration != null)
+							{
+								docPropertyEnumeration.Constants.Remove(docPropertyConstant);
+								docPropertyConstant.PartOfEnumeration.Remove(docPropertyEnumeration);
+							}
+						}
+					}
+				}
+			}
+			this.treeView.SelectedNode.Remove();
+		}
 		private void toolStripMenuItemInsertQuantityset_Click(object sender, EventArgs e)
 		{
 			TreeNode tn = this.treeView.SelectedNode;
@@ -10014,6 +10211,8 @@ namespace IfcDoc
 
 			this.LoadTree();
 		}
+
+		
 	}
 
 }
