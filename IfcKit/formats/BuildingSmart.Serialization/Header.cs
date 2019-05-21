@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace BuildingSmart.Serialization
 {
-    public class Header
-    {
-    }
+	public class Header
+	{
+	}
 }

@@ -588,9 +588,9 @@
       <Project>{55cd2497-80a6-49b9-880b-ab0743b7deca}</Project>
       <Name>BuildingSmart.Serialization.Xml</Name>
     </ProjectReference>
-    <ProjectReference Include="IfcKit\schemas\IFC4x1\BuildingSmart.IFC4X1.csproj">
-      <Project>{442793c6-7443-4b49-9d5b-173e6cbf2b9c}</Project>
-      <Name>BuildingSmart.IFC4X1</Name>
+    <ProjectReference Include="IfcKit\schemas\BuildingSmart.IFC.csproj">
+      <Project>{2ffe04f0-b6c2-405e-92a4-d1f3b6b037bc}</Project>
+      <Name>BuildingSmart.IFC</Name>
     </ProjectReference>
     <ProjectReference Include="IfcKit\utilities\BuildingSmart.Utilities.Conversion\BuildingSmart.Utilities.Conversion.csproj">
       <Project>{048106c1-7d68-4b3c-b7b1-eb437f2c15b0}</Project>

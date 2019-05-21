@@ -17,67 +17,67 @@ using IfcDoc.Schema.DOC;
 
 namespace IfcDoc
 {
-    public partial class FormSelectPropertyEnum : Form
-    {
-        DocProject m_project;
+	public partial class FormSelectPropertyEnum : Form
+	{
+		DocProject m_project;
 
-        public FormSelectPropertyEnum()
-        {
-            InitializeComponent();
-        }
+		public FormSelectPropertyEnum()
+		{
+			InitializeComponent();
+		}
 
-        public FormSelectPropertyEnum(DocProject project, DocPropertyEnumeration selection) : this()
-        {
-            this.m_project = project;
+		public FormSelectPropertyEnum(DocProject project, DocPropertyEnumeration selection) : this()
+		{
+			this.m_project = project;
 
-            SortedList<string, DocPropertyEnumeration> list = new SortedList<string, DocPropertyEnumeration>();
-            foreach(DocSection section in project.Sections)
-            {
-                foreach(DocSchema schema in section.Schemas)
-                {
-                    foreach(DocPropertyEnumeration enumeration in schema.PropertyEnums)
-                    {
-                        list.Add(enumeration.Name, enumeration);
-                    }
-                }
-            }
+			SortedList<string, DocPropertyEnumeration> list = new SortedList<string, DocPropertyEnumeration>();
+			foreach (DocSection section in project.Sections)
+			{
+				foreach (DocSchema schema in section.Schemas)
+				{
+					foreach (DocPropertyEnumeration enumeration in schema.PropertyEnums)
+					{
+						list.Add(enumeration.Name, enumeration);
+					}
+				}
+			}
 
-            foreach (string s in list.Keys)
-            {
-                DocPropertyEnumeration enumeration = list[s];
-                ListViewItem lvi = new ListViewItem();
-                lvi.Tag = enumeration;
-                lvi.Text = enumeration.Name;
-                lvi.ImageIndex = 0;
-                this.listView.Items.Add(lvi);
+			foreach (string s in list.Keys)
+			{
+				DocPropertyEnumeration enumeration = list[s];
+				ListViewItem lvi = new ListViewItem();
+				lvi.Tag = enumeration;
+				lvi.Text = enumeration.Name;
+				lvi.ImageIndex = 0;
+				this.listView.Items.Add(lvi);
 
-                if (selection == enumeration)
-                {
-                    lvi.Selected = true;
-                }
-            }
-        }
+				if (selection == enumeration)
+				{
+					lvi.Selected = true;
+				}
+			}
+		}
 
-        protected override void OnLoad(EventArgs e)
-        {
-            base.OnLoad(e);
+		protected override void OnLoad(EventArgs e)
+		{
+			base.OnLoad(e);
 
-            if (this.listView.SelectedItems.Count == 1)
-            {
-                this.listView.SelectedItems[0].EnsureVisible();
-            }
-        }
+			if (this.listView.SelectedItems.Count == 1)
+			{
+				this.listView.SelectedItems[0].EnsureVisible();
+			}
+		}
 
-        public DocPropertyEnumeration Selection
-        {
-            get
-            {
-                if (this.listView.SelectedItems.Count == 1)
-                {
-                    return this.listView.SelectedItems[0].Tag as DocPropertyEnumeration;
-                }
-                return null;
-            }
-        }
-    }
+		public DocPropertyEnumeration Selection
+		{
+			get
+			{
+				if (this.listView.SelectedItems.Count == 1)
+				{
+					return this.listView.SelectedItems[0].Tag as DocPropertyEnumeration;
+				}
+				return null;
+			}
+		}
+	}
 }
