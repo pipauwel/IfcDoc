@@ -21,7 +21,9 @@ namespace IfcDoc.Format.JAV
 	{
 		string m_filename;
 		DocProject m_project;
+		DocSchema m_schema;
 		DocDefinition m_definition;
+		Dictionary<string, DocObject> m_map;
 
 		/// <summary>
 		/// Generates folder of definitions
@@ -78,6 +80,18 @@ namespace IfcDoc.Format.JAV
 			}
 		}
 
+		public DocSchema Schema
+		{
+			get
+			{
+				return this.m_schema;
+			}
+			set
+			{
+				this.m_schema = value;
+			}
+		}
+		
 		/// <summary>
 		/// Optional definition to save, or null for all definitions in project.
 		/// </summary>
@@ -92,6 +106,19 @@ namespace IfcDoc.Format.JAV
 				this.m_definition = value;
 			}
 		}
+
+		public Dictionary<string, DocObject> Map
+		{
+			get
+			{
+				return this.m_map;
+			}
+			set
+			{
+				this.m_map = value;
+			}
+		}
+
 
 		public void Save()
 		{

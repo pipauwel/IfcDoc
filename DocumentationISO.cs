@@ -157,6 +157,15 @@ namespace IfcDoc
 					}
 					break;
 
+				case ".java":
+					using (FormatJAV format = new FormatJAV(filepath))
+					{
+						format.Instance = docProject;
+						format.Map = mapEntity;
+						format.Save();
+					}
+					break;
+
 				case ".cs":
 					using (FormatCSC format = new FormatCSC(filepath))
 					{
