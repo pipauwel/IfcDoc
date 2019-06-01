@@ -1267,8 +1267,7 @@ namespace IfcDoc
 			else if (this.treeView.SelectedNode.Tag is DocPropertyEnumeration)
 			{
 				DocPropertyEnumeration docTarget = (DocPropertyEnumeration)this.treeView.SelectedNode.Tag;
-				DocSchema docSchema = (DocSchema)this.treeView.SelectedNode.Parent.Parent.Tag;
-				docSchema.PropertyEnumerations.Remove(docTarget);
+				this.m_project.PropertyEnumerations.Remove(docTarget);
 				this.treeView.SelectedNode.Remove();
 				docTarget.Delete();
 			}
@@ -1365,8 +1364,7 @@ namespace IfcDoc
 			else if (this.treeView.SelectedNode.Tag is DocConstant)
 			{
 				DocConstant docTarget = (DocConstant)this.treeView.SelectedNode.Tag;
-				DocEnumeration docEnum = (DocEnumeration)this.treeView.SelectedNode.Parent.Tag;
-				docEnum.Constants.Remove(docTarget);
+				this.m_project.Constants.Remove(docTarget);
 				this.treeView.SelectedNode.Remove();
 				docTarget.Delete();
 			}
@@ -1853,6 +1851,13 @@ namespace IfcDoc
 
 		private void BuildMaps(Dictionary<string, DocObject> mapEntity, Dictionary<string, string> mapSchema)
 		{
+			foreach (DocPropertyEnumeration def in this.m_project.PropertyEnumerations)
+			{
+				if (!mapEntity.ContainsKey(def.Name))
+				{
+					mapEntity.Add(def.Name, def);
+				}
+			}
 			foreach (DocSection docSection in this.m_project.Sections)
 			{
 				foreach (DocSchema docSchema in docSection.Schemas)
@@ -1917,14 +1922,7 @@ namespace IfcDoc
 							mapEntity.Add(def.Name, def);
 						}
 					}
-					foreach (DocPropertyEnumeration def in docSchema.PropertyEnumerations)
-					{
-						mapSchema.Add(def.Name, docSchema.Name);
-						if (!mapEntity.ContainsKey(def.Name))
-						{
-							mapEntity.Add(def.Name, def);
-						}
-					}
+					
 					foreach (DocQuantitySet def in docSchema.QuantitySets)
 					{
 						mapSchema.Add(def.Name, docSchema.Name);
@@ -2237,16 +2235,6 @@ namespace IfcDoc
 				}
 			}
 
-			TreeNode tnPeHeader = LoadNode(tnSchema, typeof(DocPropertyEnumeration), "Property Enumerations", false);
-			foreach (DocPropertyEnumeration en in schema.PropertyEnumerations)
-			{
-				TreeNode tnEnum = LoadNode(tnPeHeader, en, en.Name, true);
-				foreach (DocPropertyConstant docconst in en.Constants)
-				{
-					LoadNode(tnEnum, docconst, docconst.Name, false);
-				}
-			}
-
 			TreeNode tnQsetHeader = LoadNode(tnSchema, typeof(DocQuantitySet), "Quantity Sets", false);
 			if (schema.QuantitySets.Count > 0)
 			{
@@ -2374,7 +2362,7 @@ namespace IfcDoc
 					LoadNodeSchema(tnSchema, schema);
 				}
 			}
-			TreeNode tnConstantsHeader = LoadNode(null, typeof(DocProperty), "Constants", false);
+			TreeNode tnConstantsHeader = LoadNode(null, typeof(DocConstant), "Constants", false);
 			IEnumerable<IGrouping<char, DocObject>> groups = m_project.Constants.GroupBy(x => char.ToLower(x.Name[0]));
 			foreach (IGrouping<char, DocObject> group in groups)
 			{
@@ -2390,7 +2378,7 @@ namespace IfcDoc
 					tnAlpha.Nodes.Add(tnProp);
 				}
 			}
-			TreeNode tnPropertyConstantsHeader = LoadNode(null, typeof(DocProperty), "PropertyConstants", false);
+			TreeNode tnPropertyConstantsHeader = LoadNode(null, typeof(DocPropertyConstant), "PropertyConstants", false);
 			groups = m_project.PropertyConstants.GroupBy(x => char.ToLower(x.Name[0]));
 			foreach (IGrouping<char, DocObject> group in groups)
 			{
@@ -2404,6 +2392,16 @@ namespace IfcDoc
 					tnProp.ImageIndex = 1;
 					tnProp.SelectedImageIndex = 1;
 					tnAlpha.Nodes.Add(tnProp);
+				}
+			}
+
+			TreeNode tnPeHeader = LoadNode(null, typeof(DocPropertyEnumeration), "Property Enumerations", false);
+			foreach (DocPropertyEnumeration en in this.m_project.PropertyEnumerations)
+			{
+				TreeNode tnEnum = LoadNode(tnPeHeader, en, en.Name, true);
+				foreach (DocPropertyConstant docconst in en.Constants)
+				{
+					LoadNode(tnEnum, docconst, docconst.Name, false);
 				}
 			}
 
@@ -2704,6 +2702,7 @@ namespace IfcDoc
 			this.toolStripMenuItemContextInsertDefined.Visible = false;
 			this.toolStripMenuItemContextInsertSelect.Visible = false;
 			this.toolStripMenuItemContextInsertEnumeration.Visible = false;
+			this.toolStripMenuItemContextInsertConstant.Visible = false;
 			this.toolStripMenuItemContextInsertEntity.Visible = false;
 			this.toolStripMenuItemContextInsertAttribute.Visible = false;
 			this.toolStripMenuItemContextInsertPset.Visible = false;
@@ -2719,6 +2718,9 @@ namespace IfcDoc
 
 			this.toolStripMenuItemContextInclude.Visible = false;
 			this.toolStripMenuItemContextIncludeProperty.Visible = false;
+			this.toolStripMenuItemContextIncludeQuantity.Visible = false;
+			this.toolStripMenuItemContextIncludeConstant.Visible = false;
+			this.toolStripMenuItemContextIncludePropertyConstant.Visible = false;
 
 			this.toolStripMenuItemContextRemove.Visible = false;
 
@@ -3031,6 +3033,24 @@ namespace IfcDoc
 				this.toolStripMenuItemContextInsertProperty.Visible = true;
 				this.toolStripMenuItemContextInsert.Visible = true;
 			}
+			else if (e.Node.Tag == typeof(DocQuantity))
+			{
+				this.toolStripMenuItemInsertQuantity.Enabled = true;
+				this.toolStripMenuItemContextInsertQuantity.Visible = true;
+				this.toolStripMenuItemContextInsert.Visible = true;
+			}
+			else if (e.Node.Tag == typeof(DocConstant))
+			{
+				this.toolStripMenuItemInsertEnumerationConstant.Visible = true;	
+				this.toolStripMenuItemContextInsertConstant.Visible = true;
+				this.toolStripMenuItemContextInsert.Visible = true;
+			}
+			else if (e.Node.Tag == typeof(DocPropertyConstant))
+			{
+				this.toolStripMenuItemInsertPropertyConstant.Enabled = true;
+				this.toolStripMenuItemContextInsertPropertyConstant.Visible = true;
+				this.toolStripMenuItemContextInsert.Visible = true;
+			}
 			else if (e.Node.Tag == typeof(DocPropertySet))
 			{
 				this.toolStripMenuItemInsertPropertyset.Enabled = true;
@@ -3092,10 +3112,10 @@ namespace IfcDoc
 
 					if (obj is DocEnumeration)
 					{
-						toolStripMenuItemInsertEnumerationConstant.Enabled = true;
+						//toolStripMenuItemInsertEnumerationConstant.Enabled = true;
 
-						this.toolStripMenuItemContextInsertConstant.Visible = true;
-						this.toolStripMenuItemContextInsert.Visible = true;
+						this.toolStripMenuItemContextIncludeConstant.Visible = true;
+						this.toolStripMenuItemContextInclude.Visible = true;
 					}
 					else if (obj is DocSelect)
 					{
@@ -3259,6 +3279,8 @@ namespace IfcDoc
 					}
 					else
 						this.toolStripMenuItemEditDelete.Enabled = (docProperty.PartOfPset.Count == 0 && docProperty.PartOfComplex.Count == 0);
+					this.toolStripMenuItemContextIncludeProperty.Visible = true;
+					this.toolStripMenuItemContextInclude.Visible = true;
 
 					this.toolStripMenuItemEditCopy.Enabled = true;
 					this.ToolStripMenuItemEditCut.Enabled = true;
@@ -3294,17 +3316,15 @@ namespace IfcDoc
 				else if (obj is DocPropertyEnumeration)
 				{
 					this.toolStripMenuItemEditDelete.Enabled = true;
-					this.toolStripMenuItemInsertPropertyConstant.Enabled = true;
-					this.toolStripMenuItemContextInsertPropertyConstant.Visible = true;
-					this.toolStripMenuItemContextInsert.Visible = true;
+					this.toolStripMenuItemContextIncludePropertyConstant.Visible = true;
+					this.toolStripMenuItemContextInclude.Visible = true;
 				}
 				else if (obj is DocQuantitySet)
 				{
 					this.toolStripMenuItemEditDelete.Enabled = true;
-					this.toolStripMenuItemInsertQuantity.Enabled = true;
 
-					this.toolStripMenuItemContextInsertQuantity.Visible = true;
-					this.toolStripMenuItemContextInsert.Visible = true;
+					this.toolStripMenuItemContextIncludeQuantity.Visible = true;
+					this.toolStripMenuItemContextInclude.Visible = true;
 				}
 				else if (obj is DocQuantity)
 				{
@@ -3454,7 +3474,6 @@ namespace IfcDoc
 			// copy state to context menu
 			this.toolStripMenuItemContextSeparator.Visible = this.toolStripMenuItemContextInsert.Visible;
 			this.deleteToolStripMenuItem.Enabled = this.toolStripMenuItemEditDelete.Enabled;
-			this.toolStripMenuItemContextInsertConstant.Visible = toolStripMenuItemInsertEnumerationConstant.Enabled;
 
 			// copy state to toolbar
 			this.ToolStripButtonEditCut.Enabled = this.ToolStripMenuItemEditCut.Enabled;
@@ -3696,10 +3715,12 @@ namespace IfcDoc
 				TreeNode tn = this.treeView.SelectedNode;
 				while (!(tn.Tag is DocSchema))
 				{
+					if (tn.Parent == null)
+						break;
 					tn = tn.Parent;
 				}
 
-				DocSchema docSchema = (DocSchema)tn.Tag;
+				DocSchema docSchema = tn.Tag as DocSchema;
 				if (docSchema != null)
 				{
 					this.ctlExpressG.Project = this.m_project;
@@ -4465,6 +4486,7 @@ namespace IfcDoc
 						propNew.PropertyType = propOld.PropertyType;
 						propNew.PrimaryDataType = propOld.PrimaryDataType;
 						propNew.SecondaryDataType = propOld.SecondaryDataType;
+						propNew.Enumeration = propOld.Enumeration;
 						foreach (DocLocalization localOld in propOld.Localization)
 						{
 							DocLocalization localNew = new DocLocalization();
@@ -4790,7 +4812,7 @@ namespace IfcDoc
 			DocSchema docSchema = (DocSchema)tn.Tag;
 			DocQuantitySet docPset = new DocQuantitySet();
 			docSchema.QuantitySets.Add(docPset);
-			this.treeView.SelectedNode = this.LoadNode(tn.Nodes[6], docPset, docPset.Name, true);
+			this.treeView.SelectedNode = this.LoadNode(tn.Nodes[5], docPset, docPset.Name, true);
 			this.toolStripMenuItemEditRename_Click(sender, e);
 		}
 
@@ -4911,15 +4933,9 @@ namespace IfcDoc
 			if (res == DialogResult.OK)
 			{
 				Dictionary<string, DocPropertyEnumeration> mapPropEnum = new Dictionary<string, DocPropertyEnumeration>();
-				foreach (DocSection docSection in this.m_project.Sections)
+				foreach (DocPropertyEnumeration docEnum in this.m_project.PropertyEnumerations)
 				{
-					foreach (DocSchema docSchema in docSection.Schemas)
-					{
-						foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnumerations)
-						{
-							mapPropEnum.Add(docEnum.Name, docEnum);
-						}
-					}
+					mapPropEnum.Add(docEnum.Name, docEnum);
 				}
 
 				try
@@ -4958,7 +4974,18 @@ namespace IfcDoc
 				}
 			}
 		}
+		private void toolStripMenuItemCSharp_Click(object sender, EventArgs e)
+		{
+			DialogResult res = folderBrowserDialog.ShowDialog();
+			if (res != System.Windows.Forms.DialogResult.OK)
+				return;
+			System.IO.Directory.CreateDirectory(folderBrowserDialog.SelectedPath);
 
+			Dictionary<string, DocObject> mapEntity = new Dictionary<string, DocObject>();
+			Dictionary<string, string> mapSchema = new Dictionary<string, string>();
+			BuildMaps(mapEntity, mapSchema);
+			FormatCSC.GenerateCode(this.m_project, folderBrowserDialog.SelectedPath, mapEntity, DocCodeEnum.All);
+		}
 		private void toolStripMenuItemInsertExample_Click(object sender, EventArgs e)
 		{
 #if false
@@ -6886,20 +6913,13 @@ namespace IfcDoc
 
 		private void toolStripMenuItemInsertPropertyEnumeration_Click(object sender, EventArgs e)
 		{
-			TreeNode tnParent = this.treeView.SelectedNode;
+			TreeNode tn = this.treeView.SelectedNode;
 
-			TreeNode tn = tnParent;
-			if (tn.Parent.Tag is DocSchema)
+			if (tn.Tag == typeof(DocEnumeration))
 			{
-				tn = tn.Parent;
-			}
-
-			if (tn.Tag is DocSchema)
-			{
-				DocSchema docSchema = (DocSchema)tn.Tag;
 				DocPropertyEnumeration docType = new DocPropertyEnumeration();
-				docSchema.PropertyEnumerations.Add(docType);
-				this.treeView.SelectedNode = this.LoadNode(tn.Nodes[5], docType, null, true);
+				this.m_project.PropertyEnumerations.Add(docType);
+				this.treeView.SelectedNode = this.LoadNode(tn, docType, null, true);
 				toolStripMenuItemEditRename_Click(this, e);
 			}
 		}
@@ -7326,10 +7346,9 @@ namespace IfcDoc
 			TreeNode tn = this.treeView.SelectedNode;
 			DocPropertyEnumeration docEntity = (DocPropertyEnumeration)tn.Tag;
 
-			DocSchema docSchema = (DocSchema)this.treeView.SelectedNode.Parent.Parent.Tag;
-			int indexOld = docSchema.PropertyEnumerations.IndexOf(docEntity);
-			docSchema.SortPropertyEnums();
-			int indexNew = docSchema.PropertyEnumerations.IndexOf(docEntity);
+			int indexOld = this.m_project.PropertyEnumerations.IndexOf(docEntity);
+			this.m_project.SortPropertyEnums();
+			int indexNew = this.m_project.PropertyEnumerations.IndexOf(docEntity);
 			if (indexNew != indexOld)
 			{
 				TreeNode tnParent = tn.Parent;
@@ -8517,17 +8536,9 @@ namespace IfcDoc
 
 							case DocPropertyTemplateTypeEnum.P_ENUMERATEDVALUE:
 								docInnerTemplate = this.m_project.GetTemplate(DocTemplateDefinition.guidTemplatePropertyEnumerated);
-								if (docProp.SecondaryDataType != null)
+								if (docProp.Enumeration != null)
 								{
-									int indexcolon = docProp.SecondaryDataType.IndexOf(':');
-									if (indexcolon > 0)
-									{
-										suffix = "Reference=" + docProp.SecondaryDataType.Substring(0, indexcolon);
-									}
-									else
-									{
-										suffix = "Reference=" + docProp.SecondaryDataType;
-									}
+									suffix = "Reference=" + docProp.Enumeration.Name;
 								}
 								break;
 
@@ -9262,17 +9273,9 @@ namespace IfcDoc
 
 									case DocPropertyTemplateTypeEnum.P_ENUMERATEDVALUE:
 										docInnerTemplate = this.m_project.GetTemplate(DocTemplateDefinition.guidTemplatePropertyEnumerated);
-										if (docProp.SecondaryDataType != null)
+										if (docProp.Enumeration != null)
 										{
-											int indexcolon = docProp.SecondaryDataType.IndexOf(':');
-											if (indexcolon > 0)
-											{
-												suffix = "Reference=" + docProp.SecondaryDataType.Substring(0, indexcolon);
-											}
-											else
-											{
-												suffix = "Reference=" + docProp.SecondaryDataType;
-											}
+											suffix = "Reference=" + docProp.Enumeration.Name;
 										}
 										break;
 
@@ -10212,7 +10215,7 @@ namespace IfcDoc
 			this.LoadTree();
 		}
 
-		
+	
 	}
 
 }

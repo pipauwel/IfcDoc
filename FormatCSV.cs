@@ -68,6 +68,10 @@ namespace IfcDoc
 		{
 			// prepare map
 			Dictionary<string, DocObject> map = new Dictionary<string, DocObject>();
+			foreach (DocPropertyEnumeration docPropertyEnumeration in this.m_project.PropertyEnumerations)
+			{
+				map.Add(docPropertyEnumeration.Name, docPropertyEnumeration);
+			}
 			foreach (DocSection docSection in this.m_project.Sections)
 			{
 				foreach (DocSchema docSchema in docSection.Schemas)
@@ -88,10 +92,7 @@ namespace IfcDoc
 					{
 						map.Add(docQuantitySet.Name, docQuantitySet);
 					}
-					foreach (DocPropertyEnumeration docPropertyEnumeration in docSchema.PropertyEnumerations)
-					{
-						map.Add(docPropertyEnumeration.Name, docPropertyEnumeration);
-					}
+					
 				}
 			}
 
@@ -433,6 +434,13 @@ namespace IfcDoc
 				SortedList<string, DocObject> sortlistQset = new SortedList<string, DocObject>();
 				SortedList<string, DocObject> sortlistEnum = new SortedList<string, DocObject>();
 
+				if ((this.m_scope & DocDefinitionScopeEnum.PEnum) != 0)
+				{
+					foreach (DocPropertyEnumeration docPE in this.m_project.PropertyEnumerations) //docPropertyConstant
+					{
+						sortlistEnum.Add(docPE.Name, docPE);
+					}
+				}
 				// rows
 				foreach (DocSection docSection in this.m_project.Sections)
 				{
@@ -451,14 +459,6 @@ namespace IfcDoc
 							foreach (DocType docEntity in docSchema.Types) //docEnumeration docConstant
 							{
 								sortlistType.Add(docEntity.Name, docEntity);
-							}
-						}
-
-						if ((this.m_scope & DocDefinitionScopeEnum.PEnum) != 0)
-						{
-							foreach (DocPropertyEnumeration docPE in docSchema.PropertyEnumerations) //docPropertyConstant
-							{
-								sortlistEnum.Add(docPE.Name, docPE);
 							}
 						}
 

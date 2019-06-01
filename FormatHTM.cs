@@ -213,10 +213,13 @@ namespace IfcDoc.Format.HTM
 		{
 			this.m_writer.WriteLine(content);
 		}
-
 		public void WriteDefinition(string definition)
 		{
-			string format = FormatDefinition(definition, "../../");
+			WriteDefinition(definition, "../../");
+		}
+		public void WriteDefinition(string definition, string urlprefix)
+		{
+			string format = FormatDefinition(definition, urlprefix);
 			WriteLine(format);
 		}
 
@@ -1357,20 +1360,27 @@ namespace IfcDoc.Format.HTM
 			{
 				T entity = alphaEntity[key];
 
-				string schema = this.m_mapSchema[entity.Name];
-
 				string hyperlink = null;
-				if (entity is DocPropertySet)
+				if (entity is DocPropertyEnumeration)
 				{
-					hyperlink = @"../../schema/" + schema.ToLower() + @"/pset/" + entity.Name.ToLower() + ".htm";
-				}
-				else if (entity is DocQuantitySet)
-				{
-					hyperlink = @"../../schema/" + schema.ToLower() + @"/qset/" + entity.Name.ToLower() + ".htm";
+					hyperlink = @"../../penum/" + entity.Name.ToLower() + ".htm";
 				}
 				else
 				{
-					hyperlink = @"../../schema/" + schema.ToLower() + @"/lexical/" + entity.Name.ToLower() + ".htm";
+					string schema = this.m_mapSchema[entity.Name];
+
+					if (entity is DocPropertySet)
+					{
+						hyperlink = @"../../schema/" + schema.ToLower() + @"/pset/" + entity.Name.ToLower() + ".htm";
+					}
+					else if (entity is DocQuantitySet)
+					{
+						hyperlink = @"../../schema/" + schema.ToLower() + @"/qset/" + entity.Name.ToLower() + ".htm";
+					}
+					else
+					{
+						hyperlink = @"../../schema/" + schema.ToLower() + @"/lexical/" + entity.Name.ToLower() + ".htm";
+					}
 				}
 				this.WriteLine("<li><a class=\"listing-link\" href=\"" + hyperlink + "\">" + entity.Name + "</a></li>\r\n");
 			}
@@ -1979,7 +1989,16 @@ namespace IfcDoc.Format.HTM
 
 			return -1; // no closing tag
 		}
-
+		internal void WriteScriptToBlank(string path)
+		{
+			this.Write(
+				"\r\n" +
+				"<script type=\"text/javascript\">\r\n" +
+				"<!--\r\n" +
+				"    parent.index.location.replace(\"" + path + "blank.htm\");\r\n" +
+				"//-->\r\n" +
+				"</script>\r\n");
+		}
 		internal void WriteScript(int iSection, int iSchema, int iType, int iItem)
 		{
 			if (iSection < 0)
@@ -2495,22 +2514,16 @@ namespace IfcDoc.Format.HTM
 				this.WriteDefinition(docprop.PropertyType.ToString());
 				this.WriteLine("/");
 				this.WriteDefinition(datatype.Trim());
-				if (!String.IsNullOrEmpty(docprop.SecondaryDataType))
+				if (docprop.Enumeration != null)
 				{
 					this.WriteLine("/");
 
-					string[] parts = docprop.SecondaryDataType.Split(':');
-					string enumname = parts[0];
-					DocObject docObj = null;
-					string schema = null;
-					if (m_mapEntity.TryGetValue(enumname, out docObj) && m_mapSchema.TryGetValue(enumname, out schema) && docObj is DocPropertyEnumeration)
-					{
-						this.Write(" <a href=\"../../" + schema.ToLower() + "/pset/" + enumname.ToLower() + ".htm\">" + enumname + "</a>");
-					}
-					else
-					{
-						this.WriteDefinition(docprop.SecondaryDataType.Trim().Replace(",", ", ").Replace(":", ": "));
-					}
+					this.Write(" <a href=\"../../../penum/" + docprop.Enumeration.Name.ToLower() + ".htm\">" + docprop.Enumeration.Name + "</a>");
+				}
+				else if (!String.IsNullOrEmpty(docprop.SecondaryDataType))
+				{
+					this.WriteLine("/");
+					this.WriteDefinition(docprop.SecondaryDataType.Trim().Replace(",", ", ").Replace(":", ": "));
 				}
 				if (suffix != null)
 				{
@@ -2540,6 +2553,10 @@ namespace IfcDoc.Format.HTM
 			{
 				levels = 2;
 			}
+			else if (type is DocPropertyEnumeration)
+			{
+				levels = 1;
+			}
 
 			string up = "";
 			for (int i = 0; i < levels; i++)
@@ -2560,8 +2577,7 @@ namespace IfcDoc.Format.HTM
 							foreach (DocProperty docProp in docPset.Properties)
 							{
 								if (docProp.PropertyType == DocPropertyTemplateTypeEnum.P_ENUMERATEDVALUE &&
-									docProp.SecondaryDataType != null &&
-									docProp.SecondaryDataType.StartsWith(type.Name))
+									type == docProp.Enumeration)
 								{
 									listReferences.Add(docPset);
 									break;
@@ -2666,7 +2682,10 @@ namespace IfcDoc.Format.HTM
                         this.Write(", ");
                     }
 #endif
-					this.WriteDefinition(docObj.Name); // link...
+					if(type is DocPropertyEnumeration)
+						this.WriteDefinition(docObj.Name, up + "schema/");
+					else
+						this.WriteDefinition(docObj.Name, "../../"); // link...
 				}
 			}
 			this.WriteLine("</p>");
@@ -2979,8 +2998,11 @@ namespace IfcDoc.Format.HTM
 
 			this.WriteSummaryFooter(docPublication);
 		}
-
 		public void WriteLocalizationTable(DocObject entity, IList<string> locales)
+		{
+			WriteLocalizationTable(entity, locales, "../../../");
+		}
+		public void WriteLocalizationTable(DocObject entity, IList<string> locales, string path)
 		{
 			string defaultdesc = entity.Documentation;
 			bool tableopen = false;
@@ -3006,7 +3028,8 @@ namespace IfcDoc.Format.HTM
 							this.WriteLine("<table class=\"gridtable\">");
 							tableopen = true;
 						}
-						this.WriteLine("<tr><td><img src=\"../../../img/locale-" + localid + ".png\" /></td><td><b>" + localname + "</b></td><td>" + localdesc + "</td></tr>");
+
+						this.WriteLine("<tr><td><img src=\"" + path + "img/locale-" + localid + ".png\" /></td><td><b>" + localname + "</b></td><td>" + localdesc + "</td></tr>");
 						defaultdesc = null;
 					}
 				}

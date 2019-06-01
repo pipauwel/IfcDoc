@@ -31,15 +31,10 @@ namespace IfcDoc
 			this.m_project = project;
 
 			SortedList<string, DocPropertyEnumeration> list = new SortedList<string, DocPropertyEnumeration>();
-			foreach (DocSection section in project.Sections)
+			
+			foreach (DocPropertyEnumeration enumeration in project.PropertyEnumerations)
 			{
-				foreach (DocSchema schema in section.Schemas)
-				{
-					foreach (DocPropertyEnumeration enumeration in schema.PropertyEnumerations)
-					{
-						list.Add(enumeration.Name, enumeration);
-					}
-				}
+				list.Add(enumeration.Name, enumeration);
 			}
 
 			foreach (string s in list.Keys)

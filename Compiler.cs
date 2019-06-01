@@ -102,6 +102,17 @@ namespace IfcDoc
 					this.m_project.RegisterObjectsInScope(docView, included);
 				}
 			}
+			if (psets)
+			{
+				foreach (DocPropertyEnumeration docPropEnum in project.PropertyEnumerations)
+				{
+					DocEnumeration docType = docPropEnum.ToEnumeration();
+					if (!this.m_definitions.ContainsKey(docType.Name))
+					{
+						this.m_definitions.Add(docType.Name, docType);
+					}
+				}
+			}
 
 			foreach (DocSection docSection in project.Sections)
 			{
@@ -131,19 +142,6 @@ namespace IfcDoc
 						}
 					}
 
-					if (psets)
-					{
-						foreach (DocPropertyEnumeration docPropEnum in docSchema.PropertyEnumerations)
-						{
-							DocEnumeration docType = docPropEnum.ToEnumeration();
-							if (!this.m_definitions.ContainsKey(docType.Name))
-							{
-								this.m_definitions.Add(docType.Name, docType);
-								this.m_namespaces.Add(docType.Name, docSchema.Name);
-							}
-						}
-
-					}
 				}
 			}
 

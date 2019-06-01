@@ -611,6 +611,15 @@
   <ItemGroup>
     <None Include="Resources\toolStripMenuItemInsertProperty.png" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\toolStripMenuItemContextInsertConstant.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\toolStripMenuItemInsertPropertyConstant.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\toolStripMenuItemInsertQuantity.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

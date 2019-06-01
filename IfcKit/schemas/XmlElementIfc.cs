@@ -15,9 +15,14 @@ namespace BuildingSmart.IFC
 	{
 		[DataMember(Name = "header", Order = 0)] [XmlElement] public XmlHeader Header { get; set; }
 
-		public XmlElementIfc(XmlHeader header, IfcContext context)
+		public XmlElementIfc(XmlHeader header)
 		{
 			Header = header;
+		}
+
+		public XmlElementIfc(XmlHeader header, IfcContext context)
+			: this(header)
+		{
 			base.Add(context);
 		}
 		

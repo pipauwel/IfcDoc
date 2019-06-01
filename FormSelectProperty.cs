@@ -253,7 +253,7 @@ namespace IfcDoc
 				else if (docObj is DocProperty)
 				{
 					DocProperty docProp = (DocProperty)docObj;
-					this.textBoxType.Text = docProp.PropertyType + ": " + docProp.PrimaryDataType + " / " + docProp.SecondaryDataType;
+					this.textBoxType.Text = docProp.PropertyType + ": " + docProp.PrimaryDataType + " / " + (docProp.Enumeration != null ? docProp.Enumeration.Name : docProp.SecondaryDataType);
 				}
 
 				this.textBoxDescription.Text = docObj.Documentation;

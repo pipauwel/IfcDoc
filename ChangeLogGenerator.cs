@@ -94,6 +94,110 @@ namespace IfcDoc
 			docChangeSet.Name = projectPrev.GetSchemaIdentifier();
 			docChangeSet.VersionBaseline = projectPrev.Sections[0].Version;
 
+			// property enums
+			foreach (DocPropertyEnumeration docPset in docProject.PropertyEnumerations)
+			{
+				DocChangeAction docChangePset = new DocChangeAction();
+				docChangeSet.ChangesProperties.Add(docChangePset);
+				docChangePset.Name = docPset.Name;
+
+				// find equivalent pset
+				DocPropertyEnumeration docPsetBase = null;
+				foreach (DocPropertyEnumeration docEntityEach in projectPrev.PropertyEnumerations)
+				{
+					if (docEntityEach.Name.Equals(docPset.Name))
+					{
+						docPsetBase = docEntityEach;
+						break;
+					}
+				}
+
+				if (docPsetBase == null)
+				{
+					// new entity
+					docChangePset.Action = DocChangeActionEnum.ADDED;
+				}
+
+				if (docPsetBase != null)
+				{
+					foreach (DocPropertyConstant docAttribute in docPset.Constants)
+					{
+						DocChangeAction docChangeAttribute = new DocChangeAction();
+						docChangePset.Changes.Add(docChangeAttribute);
+						docChangeAttribute.Name = docAttribute.Name;
+
+						DocPropertyConstant docAttributeBase = null;
+						foreach (DocPropertyConstant docEachProperty in docPsetBase.Constants)
+						{
+							if (docEachProperty.Name.Equals(docAttribute.Name))
+							{
+								docAttributeBase = docEachProperty;
+								break;
+							}
+						}
+
+						if (docAttributeBase == null)
+						{
+							// new constant added
+							docChangeAttribute.Action = DocChangeActionEnum.ADDED;
+						}
+						else
+						{
+							// compare for changes -- no state captured for constants
+						}
+					}
+
+					// report deleted properties
+					foreach (DocPropertyConstant docAttributeBase in docPsetBase.Constants)
+					{
+						DocPropertyConstant docAttribute = null;
+						foreach (DocPropertyConstant docEachProperty in docPset.Constants)
+						{
+							if (docEachProperty.Name.Equals(docAttributeBase.Name))
+							{
+								docAttribute = docEachProperty;
+								break;
+							}
+						}
+
+						if (docAttribute == null)
+						{
+							DocChangeAction docChangeAttribute = new DocChangeAction();
+							docChangePset.Changes.Add(docChangeAttribute);
+							docChangeAttribute.Name = docAttributeBase.Name;
+							docChangeAttribute.Action = DocChangeActionEnum.DELETED;
+						}
+					}
+				}
+
+			}
+
+
+			// now find deleted property enums
+			foreach (DocPropertyEnumeration docEntityBase in projectPrev.PropertyEnumerations)
+			{
+				// find equivalent
+				DocPropertyEnumeration docEntity = null;
+				foreach (DocPropertyEnumeration docEntityEach in docProject.PropertyEnumerations)
+				{
+					if (docEntityEach.Name.Equals(docEntityBase.Name))
+					{
+						docEntity = docEntityEach;
+						break;
+					}
+				}
+
+				if (docEntity == null)
+				{
+					DocChangeAction docChangeEntity = new DocChangeAction();
+					docChangeSet.ChangesProperties.Add(docChangeEntity);
+					docChangeEntity.Name = docEntityBase.Name;
+
+					docChangeEntity.Action = DocChangeActionEnum.DELETED;
+				}
+			}
+			// end property enums
+
 			// iterate through each schema (new and old)
 			for (int iSection = 4; iSection < 8; iSection++)
 			{
@@ -919,154 +1023,6 @@ namespace IfcDoc
 						}
 						// end property sets
 
-						// property enums
-						foreach (DocPropertyEnumeration docPset in docSchema.PropertyEnumerations)
-						{
-							DocChangeAction docChangePset = new DocChangeAction();
-							docChangeSchemaProperties.Changes.Add(docChangePset);
-							docChangePset.Name = docPset.Name;
-
-							// find equivalent pset
-							DocPropertyEnumeration docPsetBase = null;
-							foreach (DocPropertyEnumeration docEntityEach in docSchemaBase.PropertyEnumerations)
-							{
-								if (docEntityEach.Name.Equals(docPset.Name))
-								{
-									docPsetBase = docEntityEach;
-									break;
-								}
-							}
-
-							if (docPsetBase == null)
-							{
-								// new entity
-								docChangePset.Action = DocChangeActionEnum.ADDED;
-
-								// check if it was moved from another schema                                
-								foreach (DocSection docOtherSection in projectPrev.Sections)
-								{
-									foreach (DocSchema docOtherSchema in docOtherSection.Schemas)
-									{
-										foreach (DocPropertyEnumeration docOtherPset in docOtherSchema.PropertyEnumerations)
-										{
-											if (docOtherPset.Name.Equals(docPset.Name))
-											{
-												docPsetBase = docOtherPset;
-
-												docChangePset.Action = DocChangeActionEnum.MOVED;
-												docChangePset.Aspects.Add(new DocChangeAspect(DocChangeAspectEnum.SCHEMA, docOtherSchema.Name.ToUpper(), docSchema.Name.ToUpper()));
-											}
-										}
-									}
-								}
-
-							}
-
-							if (docPsetBase != null)
-							{
-								foreach (DocPropertyConstant docAttribute in docPset.Constants)
-								{
-									DocChangeAction docChangeAttribute = new DocChangeAction();
-									docChangePset.Changes.Add(docChangeAttribute);
-									docChangeAttribute.Name = docAttribute.Name;
-
-									DocPropertyConstant docAttributeBase = null;
-									foreach (DocPropertyConstant docEachProperty in docPsetBase.Constants)
-									{
-										if (docEachProperty.Name.Equals(docAttribute.Name))
-										{
-											docAttributeBase = docEachProperty;
-											break;
-										}
-									}
-
-									if (docAttributeBase == null)
-									{
-										// new constant added
-										docChangeAttribute.Action = DocChangeActionEnum.ADDED;
-									}
-									else
-									{
-										// compare for changes -- no state captured for constants
-									}
-								}
-
-								// report deleted properties
-								foreach (DocPropertyConstant docAttributeBase in docPsetBase.Constants)
-								{
-									DocPropertyConstant docAttribute = null;
-									foreach (DocPropertyConstant docEachProperty in docPset.Constants)
-									{
-										if (docEachProperty.Name.Equals(docAttributeBase.Name))
-										{
-											docAttribute = docEachProperty;
-											break;
-										}
-									}
-
-									if (docAttribute == null)
-									{
-										DocChangeAction docChangeAttribute = new DocChangeAction();
-										docChangePset.Changes.Add(docChangeAttribute);
-										docChangeAttribute.Name = docAttributeBase.Name;
-										docChangeAttribute.Action = DocChangeActionEnum.DELETED;
-									}
-								}
-							}
-
-						}
-
-						// now find deleted property enums
-						foreach (DocPropertyEnumeration docEntityBase in docSchemaBase.PropertyEnumerations)
-						{
-							// find equivalent
-							DocPropertyEnumeration docEntity = null;
-							foreach (DocPropertyEnumeration docEntityEach in docSchema.PropertyEnumerations)
-							{
-								if (docEntityEach.Name.Equals(docEntityBase.Name))
-								{
-									docEntity = docEntityEach;
-									break;
-								}
-							}
-
-							if (docEntity == null)
-							{
-								// entity may have moved to other schema; check other schemas
-								DocSchema docThatSchema = null;
-								foreach (DocSection docOtherSection in docProject.Sections)
-								{
-									foreach (DocSchema docOtherSchema in docOtherSection.Schemas)
-									{
-										foreach (DocPropertyEnumeration docOtherEntity in docOtherSchema.PropertyEnumerations)
-										{
-											if (docOtherEntity.Name.Equals(docEntityBase.Name))
-											{
-												docEntity = docOtherEntity;
-												docThatSchema = docOtherSchema;
-											}
-										}
-									}
-								}
-
-								DocChangeAction docChangeEntity = new DocChangeAction();
-								docChangeSchemaProperties.Changes.Add(docChangeEntity);
-								docChangeEntity.Name = docEntityBase.Name;
-
-								if (docEntity != null)
-								{
-									// moved from another schema
-									docChangeEntity.Action = DocChangeActionEnum.MOVED;
-									docChangeEntity.Aspects.Add(new DocChangeAspect(DocChangeAspectEnum.SCHEMA, docSchema.Name.ToUpper(), docThatSchema.Name.ToUpper()));
-								}
-								else
-								{
-									// otherwise, deleted
-									docChangeEntity.Action = DocChangeActionEnum.DELETED;
-								}
-							}
-						}
-						// end property enums
 
 						// quantity sets
 						foreach (DocQuantitySet docQset in docSchema.QuantitySets)

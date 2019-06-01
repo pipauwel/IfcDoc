@@ -48,15 +48,9 @@ namespace IfcDoc
 		{
 			// build map of enumerations
 			Dictionary<string, DocPropertyEnumeration> mapPropEnum = new Dictionary<string, DocPropertyEnumeration>();
-			foreach (DocSection docSection in this.m_project.Sections)
+			foreach (DocPropertyEnumeration docEnum in this.m_project.PropertyEnumerations)
 			{
-				foreach (DocSchema docSchema in docSection.Schemas)
-				{
-					foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnumerations)
-					{
-						mapPropEnum.Add(docEnum.Name, docEnum);
-					}
-				}
+				mapPropEnum.Add(docEnum.Name, docEnum);
 			}
 
 			using (Package zip = ZipPackage.Open(this.m_stream, FileMode.Create))

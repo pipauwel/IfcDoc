@@ -1046,17 +1046,12 @@ namespace IfcDoc
 
 		internal static void ExportIfc(IfcProjectLibrary ifcProjectLibrary, DocProject docProject, Dictionary<DocObject, bool> included)
 		{
-			//IfcRelDeclares propertyEnumerations = new IfcRelDeclares(new IfcGloballyUniqueId(), null, new IfcLabel("SimpleProperties"), null, ifcProjectLibrary, propertyEnumerations.Values.OfType<IfcDefinitionSelect>().ToArray());
-			IfcRelDeclares simpleProperties = new IfcRelDeclares(new IfcGloballyUniqueId("3RyLNYXkX479wspBr_nf6n"), null, new IfcLabel("SimpleProperties"), null, ifcProjectLibrary, new IfcDefinitionSelect[] { });
-			IfcRelDeclares complexProperties = new IfcRelDeclares(new IfcGloballyUniqueId("0dJzky7sb6txqIsyVpv7iW"), null, new IfcLabel("ComplexProperties"), null, ifcProjectLibrary, new IfcDefinitionSelect[] { });
-			IfcRelDeclares propertySets = new IfcRelDeclares(new IfcGloballyUniqueId("3M4U3yWxr3_gsGvVZ3qXJS"), null, new IfcLabel("PropertySets"), null, ifcProjectLibrary, new IfcDefinitionSelect[] { });
-			IfcRelDeclares quantities = new IfcRelDeclares(new IfcGloballyUniqueId("1$c0OOaRDF_OBDoEs$xzcD"), null, new IfcLabel("Quantities"), null, ifcProjectLibrary, new IfcDefinitionSelect[] { });
-			IfcRelDeclares quantitySets = new IfcRelDeclares(new IfcGloballyUniqueId("1CpAEUB6v1Fhb57tduNMhL"), null, new IfcLabel("QuantitySets"), null, ifcProjectLibrary, new IfcDefinitionSelect[] { });
-			ifcProjectLibrary.Declares.Add(simpleProperties);
-			ifcProjectLibrary.Declares.Add(complexProperties);
-			ifcProjectLibrary.Declares.Add(propertySets);
-			ifcProjectLibrary.Declares.Add(quantities);
-			ifcProjectLibrary.Declares.Add(quantitySets);
+			//List<IfcDefinitionSelect> propertyEnumerations = new List<IfcDefinitionSelect>();  IfcPropertyEnumeration doesn't inherit from IfcDefinitionSelect
+			List<IfcDefinitionSelect> simpleProperties = new List<IfcDefinitionSelect>();
+			List<IfcDefinitionSelect> complexProperties = new List<IfcDefinitionSelect>();
+			List<IfcDefinitionSelect> propertySets = new List<IfcDefinitionSelect>();
+			List<IfcDefinitionSelect> quantities = new List<IfcDefinitionSelect>();
+			List<IfcDefinitionSelect> quantitySets = new List<IfcDefinitionSelect>();
 
 			Dictionary<string, DocPropertyEnumeration> enumerations = new Dictionary<string, DocPropertyEnumeration>();
 			Dictionary<string, DocProperty> simplePropertyDictionary = new Dictionary<string, DocProperty>();
@@ -1092,13 +1087,14 @@ namespace IfcDoc
 			DocObject.ComparerDocObject comparer = new DocObject.ComparerDocObject();
 			Dictionary<string, IfcPropertyTemplate> propertyTemplates = new Dictionary<string, IfcPropertyTemplate>();
 			Dictionary<string, IfcPropertyEnumeration> dictionaryEnumerations = new Dictionary<string, IfcPropertyEnumeration>();
-			foreach (DocPropertyEnumeration docEnumeration in enumerations.Values)
+			foreach (DocPropertyEnumeration docEnumeration in enumerations.Values.OrderBy(x=>x,comparer))
 			{
 				// cache enumerators
 				try
 				{
 					IfcPropertyEnumeration ifcProp =  new IfcPropertyEnumeration(new IfcLabel(docEnumeration.Name), new IfcValue[] { }, null);
 					dictionaryEnumerations[docEnumeration.Name] = ifcProp; //
+				//	propertyEnumerations.Add(ifcProp);
 					foreach (DocPropertyConstant docConst in docEnumeration.Constants)
 					{
 						IfcLabel label = new IfcLabel(docConst.Name);
@@ -1137,13 +1133,13 @@ namespace IfcDoc
 			foreach(DocProperty docProperty in simplePropertyDictionary.Values.OrderBy(x=> x,comparer))
 			{
 				IfcPropertyTemplate ifcProperty = convertProperty(docProperty, dictionaryEnumerations, propertyTemplates);
-				simpleProperties.RelatedDefinitions.Add(ifcProperty);
+				simpleProperties.Add(ifcProperty);
 			}
 
 			foreach (DocProperty docProperty in complexPropertyDictionary.Values.OrderBy(x => x, comparer))
 			{
 				IfcPropertyTemplate ifcProperty = convertProperty(docProperty, dictionaryEnumerations, propertyTemplates);
-				complexProperties.RelatedDefinitions.Add(ifcProperty);
+				complexProperties.Add(ifcProperty);
 			}
 			
 
@@ -1169,7 +1165,7 @@ namespace IfcDoc
 				}
 
 				ifcPset.ApplicableEntity = new IfcIdentifier(docPset.ApplicableType);
-				propertySets.RelatedDefinitions.Add(ifcPset);
+				propertySets.Add(ifcPset);
 
 				foreach (DocProperty docProp in docPset.Properties)
 					ifcPset.HasPropertyTemplates.Add(propertyTemplates[docProp.UniqueId]);	
@@ -1181,7 +1177,7 @@ namespace IfcDoc
 				ExportIfcDefinition(ifcProperty, docQuantity);
 				ifcProperty.TemplateType = (IfcSimplePropertyTemplateTypeEnum)Enum.Parse(typeof(IfcSimplePropertyTemplateTypeEnum), docQuantity.QuantityType.ToString());
 				propertyTemplates[docQuantity.UniqueId] = ifcProperty;
-				quantities.RelatedDefinitions.Add(ifcProperty);
+				quantities.Add(ifcProperty);
 			}
 			foreach (DocQuantitySet docQuantitySet in quantitySetList.OrderBy(x=>x,comparer))
 			{
@@ -1191,11 +1187,24 @@ namespace IfcDoc
 
 				ifcPset.TemplateType = IfcPropertySetTemplateTypeEnum.QTO_OCCURRENCEDRIVEN;
 				ifcPset.ApplicableEntity = new IfcIdentifier(docQuantitySet.ApplicableType);
-				quantitySets.RelatedDefinitions.Add(ifcPset);
+				quantitySets.Add(ifcPset);
 
 				foreach (DocQuantity docQuantity in docQuantitySet.Quantities)
 					ifcPset.HasPropertyTemplates.Add(propertyTemplates[docQuantity.UniqueId]);
 			}
+
+			//if (propertyEnumerations.Count > 0)
+			//	ifcProjectLibrary.Declares.Add(new IfcRelDeclares(new IfcGloballyUniqueId(), null, new IfcLabel("PropertyEnumerations"), null, ifcProjectLibrary, propertyEnumerations.ToArray()));
+			if (simpleProperties.Count > 0)
+				ifcProjectLibrary.Declares.Add(new IfcRelDeclares(new IfcGloballyUniqueId("3RyLNYXkX479wspBr_nf6n"), null, new IfcLabel("SimpleProperties"), null, ifcProjectLibrary, simpleProperties.ToArray()));
+			if(complexProperties.Count > 0)
+				ifcProjectLibrary.Declares.Add(new IfcRelDeclares(new IfcGloballyUniqueId("0dJzky7sb6txqIsyVpv7iW"), null, new IfcLabel("ComplexProperties"), null, ifcProjectLibrary, complexProperties.ToArray()));
+			if (propertySets.Count > 0)
+				ifcProjectLibrary.Declares.Add(new IfcRelDeclares(new IfcGloballyUniqueId("3M4U3yWxr3_gsGvVZ3qXJS"), null, new IfcLabel("PropertySets"), null, ifcProjectLibrary, propertySets.ToArray()));
+			if (quantities.Count > 0)
+				ifcProjectLibrary.Declares.Add(new IfcRelDeclares(new IfcGloballyUniqueId("1$c0OOaRDF_OBDoEs$xzcD"), null, new IfcLabel("Quantities"), null, ifcProjectLibrary, quantities.ToArray()));
+			if (quantitySets.Count > 0)
+				ifcProjectLibrary.Declares.Add(new IfcRelDeclares(new IfcGloballyUniqueId("1CpAEUB6v1Fhb57tduNMhL"), null, new IfcLabel("QuantitySets"), null, ifcProjectLibrary, quantitySets.ToArray()));
 		}
 		private static IfcPropertyTemplate convertProperty(DocProperty property, Dictionary<string, IfcPropertyEnumeration> mapEnums, Dictionary<string,IfcPropertyTemplate> properties)
 		{
@@ -1232,8 +1241,16 @@ namespace IfcDoc
 			else if (!simpleProperties.ContainsKey(property.UniqueId))
 			{
 				simpleProperties[property.UniqueId] = property;
-				if (property.Enumeration != null && !enumerations.ContainsKey(property.Enumeration.Name))
-					enumerations[property.Enumeration.Name] = property.Enumeration;
+				if (property.PropertyType == DocPropertyTemplateTypeEnum.P_ENUMERATEDVALUE)
+				{
+					if (property.Enumeration != null)
+					{
+						if (!enumerations.ContainsKey(property.Enumeration.Name))
+							enumerations[property.Enumeration.Name] = property.Enumeration;
+					}
+					else
+						Debug.WriteLine("XXX Missing Enumeration " + property.Name);
+				}
 			}
 		}
 		
@@ -1447,58 +1464,41 @@ namespace IfcDoc
 					prop.PropertyType.TypePropertyEnumeratedValue = new TypePropertyEnumeratedValue();
 					prop.PropertyType.TypePropertyEnumeratedValue.EnumList = new EnumList();
 					{
-						if (docProp.SecondaryDataType != null)
+						if (docProp.Enumeration != null)
 						{
-							string[] parts = docProp.SecondaryDataType.Split(':');
-							if (parts.Length == 2)
+							DocPropertyEnumeration docPropEnum = docProp.Enumeration;
+							prop.PropertyType.TypePropertyEnumeratedValue.EnumList.name = docPropEnum.Name;
+							prop.PropertyType.TypePropertyEnumeratedValue.EnumList.Items = new List<EnumItem>();
+							foreach (DocPropertyConstant constant in docPropEnum.Constants)
 							{
-								string[] enums = parts[1].Split(',');
-								prop.PropertyType.TypePropertyEnumeratedValue.EnumList.name = parts[0];
-								prop.PropertyType.TypePropertyEnumeratedValue.EnumList.Items = new List<EnumItem>();
-								foreach (string eachenum in enums)
-								{
-									EnumItem eni = new EnumItem();
-									prop.PropertyType.TypePropertyEnumeratedValue.EnumList.Items.Add(eni);
-									eni.Value = eachenum.Trim();
-								}
+								EnumItem eni = new EnumItem();
+								prop.PropertyType.TypePropertyEnumeratedValue.EnumList.Items.Add(eni);
+								eni.Value = constant.Name;
 							}
 
-							string propenum = docProp.SecondaryDataType;
-							if (propenum != null)
+							prop.PropertyType.TypePropertyEnumeratedValue.ConstantList = new ConstantList();
+							prop.PropertyType.TypePropertyEnumeratedValue.ConstantList.Items = new List<ConstantDef>();
+							foreach (DocPropertyConstant docPropConst in docPropEnum.Constants)
 							{
-								int colon = propenum.IndexOf(':');
-								if (colon > 0)
+								ConstantDef con = new ConstantDef();
+								prop.PropertyType.TypePropertyEnumeratedValue.ConstantList.Items.Add(con);
+
+								con.Name = docPropConst.Name.Trim();
+								con.Definition = docPropConst.Documentation;
+								con.NameAliases = new List<NameAlias>();
+								con.DefinitionAliases = new List<DefinitionAlias>();
+
+								foreach (DocLocalization docLocal in docPropConst.Localization)
 								{
-									propenum = propenum.Substring(0, colon);
-								}
-							}
-							DocPropertyEnumeration docPropEnum = null;
-							if (mapPropEnum.TryGetValue(propenum, out docPropEnum))
-							{
-								prop.PropertyType.TypePropertyEnumeratedValue.ConstantList = new ConstantList();
-								prop.PropertyType.TypePropertyEnumeratedValue.ConstantList.Items = new List<ConstantDef>();
-								foreach (DocPropertyConstant docPropConst in docPropEnum.Constants)
-								{
-									ConstantDef con = new ConstantDef();
-									prop.PropertyType.TypePropertyEnumeratedValue.ConstantList.Items.Add(con);
+									NameAlias na = new NameAlias();
+									con.NameAliases.Add(na);
+									na.lang = docLocal.Locale;
+									na.Value = docLocal.Name.Trim();
 
-									con.Name = docPropConst.Name.Trim();
-									con.Definition = docPropConst.Documentation;
-									con.NameAliases = new List<NameAlias>();
-									con.DefinitionAliases = new List<DefinitionAlias>();
-
-									foreach (DocLocalization docLocal in docPropConst.Localization)
-									{
-										NameAlias na = new NameAlias();
-										con.NameAliases.Add(na);
-										na.lang = docLocal.Locale;
-										na.Value = docLocal.Name.Trim();
-
-										DefinitionAlias da = new DefinitionAlias();
-										con.DefinitionAliases.Add(da);
-										da.lang = docLocal.Locale;
-										da.Value = docLocal.Documentation;
-									}
+									DefinitionAlias da = new DefinitionAlias();
+									con.DefinitionAliases.Add(da);
+									da.lang = docLocal.Locale;
+									da.Value = docLocal.Documentation;
 								}
 							}
 						}
@@ -1658,13 +1658,12 @@ namespace IfcDoc
 				//sbEnum.Append(def.PropertyType.TypePropertyEnumeratedValue.EnumList.name);
 				//sbEnum.Append(":");
 
-				DocSchema docEnumSchema = null;
-				DocPropertyEnumeration docEnum = docProject.FindPropertyEnumeration(def.PropertyType.TypePropertyEnumeratedValue.EnumList.name, out docEnumSchema);
+				DocPropertyEnumeration docEnum = docProject.FindPropertyEnumeration(def.PropertyType.TypePropertyEnumeratedValue.EnumList.name);
 				if (docEnum == null)
 				{
 					docEnum = new DocPropertyEnumeration();
 					docEnum.Name = def.PropertyType.TypePropertyEnumeratedValue.EnumList.name;
-					docSchema.PropertyEnumerations.Add(docEnum);
+					docProject.PropertyEnumerations.Add(docEnum);
 
 					foreach (EnumItem item in def.PropertyType.TypePropertyEnumeratedValue.EnumList.Items)
 					{

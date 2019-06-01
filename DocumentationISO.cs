@@ -2557,11 +2557,11 @@ namespace IfcDoc
 				}
 				else
 				{
-					docObj = docProject.FindPropertyEnumeration(fieldvalue, out docSchema);
+					docObj = docProject.FindPropertyEnumeration(fieldvalue);
 					if (docObj is DocPropertyEnumeration)
 					{
-						string relative = @"../../";
-						string hyperlink = relative + docSchema.Name.ToLowerInvariant() + @"/pset/" + docObj.Name.ToLower() + ".htm"; // case-sensitive on linux -- need to make schema all lowercase
+						string relative = @"../../../";
+						string hyperlink = relative + @"/penum/" + docObj.Name.ToLower() + ".htm";
 						string format = "<a href=\"" + hyperlink + "\">" + fieldvalue + "</a>";
 						return format;
 					}
@@ -2719,11 +2719,23 @@ namespace IfcDoc
 											if (mapFormats.TryGetValue(docFormat.FormatType, out formatext))
 											{
 												string pathRAW = path + @"\annex\annex-e\" + MakeLinkName(docExample) + "." + docFormat.ExtensionInstances;
+											
 												using (Stream stream = new FileStream(pathRAW, FileMode.Create))
 												{
 													try
 													{
-														formatext.WriteObject(stream, outerinstanceroot);
+														if (docFormat.FormatType == DocFormatSchemaEnum.XML)
+														{
+															XmlHeader header = new XmlHeader();
+															header.preprocessor_version = "buildingSMART IfcKit";
+															System.Reflection.AssemblyName assembly = System.Reflection.Assembly.GetExecutingAssembly().GetName();
+															header.originating_system = assembly.Name + " v" + assembly.Version.ToString();
+															XmlElementIfc xmlElementIfc = new XmlElementIfc(header);
+															xmlElementIfc.Add(outerinstanceroot);
+															formatext.WriteObject(stream, xmlElementIfc);
+														}
+														else
+															formatext.WriteObject(stream, outerinstanceroot);
 													}
 													catch (Exception xxx)
 													{
@@ -4643,7 +4655,7 @@ namespace IfcDoc
 			}
 
 			// compile schema and extract the IfcProject type
-			Type typeProject = Compiler.CompileProject(docProject);
+			Type typeProject = typeof(IfcContext);// Compiler.CompileProject(docProject);
 
 			// for now these are paired; in future they may be split
 			Dictionary<DocFormatSchemaEnum, IFormatExtension> mapFormatSchema = new Dictionary<DocFormatSchemaEnum, IFormatExtension>();
@@ -4676,7 +4688,29 @@ namespace IfcDoc
 
 					case DocFormatSchemaEnum.XML:
 						mapFormatSchema.Add(docFormat.FormatType, new FormatXSD(null));
-						mapFormatData.Add(docFormat.FormatType, new XmlSerializer(typeProject));
+						string version = docProject.GetSchemaVersion();
+						XmlSerializer serializer = new XmlSerializer(typeProject);
+						if(version.StartsWith("2.3.0"))
+						{
+							serializer.NameSpace = @"http://www.iai-tech.org/ifcXML/IFC2x3/FINAL";
+							serializer.SchemaLocation = @"http://standards.buildingsmart.org/IFC/RELEASE/IFC2x3/TC1/XML/IFC2X3.xsd";
+						}
+						else if(version.StartsWith("4.0.2"))
+						{
+							serializer.NameSpace = @"http://www.buildingsmart-tech.org/ifcXML/IFC4/Add2";
+							serializer.SchemaLocation = @"http://standards.buildingsmart.org/IFC/RELEASE/IFC4/ADD2/XML/IFC4_ADD2.xsd";
+						}
+						else if (version.StartsWith("4.1"))
+						{
+							serializer.NameSpace = @"http://www.buildingsmart-tech.org/ifc/IFC4x1/final";
+							serializer.SchemaLocation = @"http://standards.buildingsmart.org/IFC/RELEASE/IFC4_1/FINAL/XML/IFC4x1.xsd";
+						}
+						else if (version.StartsWith("4.2"))
+						{
+							serializer.NameSpace = @"http://www.buildingsmart-tech.org/ifc/review/IFC4x2/unspecifiedrelease";
+							serializer.SchemaLocation = @"http://standards.buildingsmart.org/IFC/DEV/IFC4_2/FINAL/XML/IFC4x2.xsd";
+						}
+						mapFormatData.Add(docFormat.FormatType, serializer);
 						break;
 
 				}
@@ -4702,15 +4736,9 @@ namespace IfcDoc
 			System.IO.Directory.CreateDirectory(path + "\\diagrams");
 
 			Dictionary<string, DocPropertyEnumeration> mapPropEnum = new Dictionary<string, DocPropertyEnumeration>();
-			foreach (DocSection docSection in docProject.Sections)
+			foreach (DocPropertyEnumeration docEnum in docProject.PropertyEnumerations)
 			{
-				foreach (DocSchema docSchema in docSection.Schemas)
-				{
-					foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnumerations)
-					{
-						mapPropEnum.Add(docEnum.Name, docEnum);
-					}
-				}
+				mapPropEnum.Add(docEnum.Name, docEnum);
 			}
 
 			Dictionary<DocObject, string> mapNumber = new Dictionary<DocObject, string>(); // map items to section (e.g. "1.1.1.1")
@@ -4944,14 +4972,7 @@ namespace IfcDoc
 			{
 				DocAnnotation docAnnotation = docPublication.Annotations[0];
 				htmSection.WriteHeader(docAnnotation.Name, 0, docPublication.Header);
-				htmSection.Write(
-					"\r\n" +
-					"<script type=\"text/javascript\">\r\n" +
-					"<!--\r\n" +
-					"    parent.index.location.replace(\"blank.htm\");\r\n" +
-					"//-->\r\n" +
-					"</script>\r\n");
-
+				htmSection.WriteScriptToBlank("");
 				htmSection.WriteLine("      <h1 class=\"std\">" + docAnnotation.Name + "</h1>");
 				htmSection.WriteLine(docAnnotation.Documentation);
 				htmSection.WriteLinkTo(docPublication, "foreword", 0);
@@ -5056,8 +5077,6 @@ namespace IfcDoc
 				}
 			}
 
-
-
 			// now format listing of properties
 			StringBuilder sbProperties = new StringBuilder();
 			foreach (string nameProp in mapProperty.Keys)
@@ -5131,6 +5150,47 @@ namespace IfcDoc
 				htmTOC.WriteLine("      <h1 class=\"std\">Contents</h1>");
 
 				htmTOC.WriteLine("<p>");
+
+				foreach (DocPropertyEnumeration entity in docProject.PropertyEnumerations)
+				{
+					if (worker.CancellationPending)
+						return;
+
+					if (included == null || included.ContainsKey(entity))
+					{
+					//	string formatnum = ??"B.1.9";
+					//	mapNumber.Add(entity, formatnum);
+
+						using (FormatHTM htmDef = new FormatHTM(path + "\\penum\\" + entity.Name.ToLower() + ".htm", mapEntity, mapSchema, included))
+						{
+							htmDef.WriteHeader(entity.Name, 1, docPublication.Header);
+							htmDef.WriteScriptToBlank("../");
+							htmDef.WriteLine("<h4 class=\"std\">" + entity.Name + "</h4>");
+
+							// english by default
+							htmDef.WriteLocalizationSection(entity, locales, docPublication);
+							htmDef.WriteChangeLog(entity, listChangeSets, docPublication);
+
+							htmDef.WriteSummaryHeader("Constants", true, docPublication);
+							htmDef.WriteLine("<table class=\"gridtable\">");
+							htmDef.WriteLine("<tr><th>Name</th><th>Description</th></tr>");
+							foreach (DocPropertyConstant docprop in entity.Constants)
+							{
+								htmDef.WriteLine("<tr><td>" + docprop.Name + "</td><td>");
+								htmDef.WriteLocalizationTable(docprop, locales, "../");
+								htmDef.WriteLine("</td></tr>");
+							}
+							htmDef.WriteLine("</table>");
+							htmDef.WriteSummaryFooter(docPublication);
+
+							// write url for incoming page link
+							htmDef.WriteLinkTo(docProject, docPublication, entity);
+
+							htmDef.WriteFooter(docPublication.Footer);
+						}
+					}
+				}
+
 
 				// each section
 				int iSection = 0;
@@ -5471,6 +5531,7 @@ namespace IfcDoc
 							htmSection.WriteFooter(docPublication.Footer);
 						}
 
+						
 						// each schema
 						int iSchema = 0;
 						foreach (DocSchema schema in section.Schemas)
@@ -6087,7 +6148,7 @@ namespace IfcDoc
 										}
 
 										// property sets
-										if (schema.PropertySets.Count > 0 || schema.PropertyEnumerations.Count > 0)
+										if (schema.PropertySets.Count > 0)
 										{
 											iSubSection++;
 
@@ -6187,52 +6248,6 @@ namespace IfcDoc
 													}
 												}
 											}
-
-											foreach (DocPropertyEnumeration entity in schema.PropertyEnumerations)
-											{
-												if (worker.CancellationPending)
-													return;
-
-												if (included == null || included.ContainsKey(entity))
-												{
-													iPset++;
-
-													string formatnum = iSection.ToString() + "." + iSchema.ToString() + "." + iSubSection.ToString() + "." + iPset.ToString();
-													mapNumber.Add(entity, formatnum);
-
-													htmTOC.WriteTOC(3, "<a class=\"listing-link\" href=\"schema/" + mapSchema[entity.Name].ToLower() + "/pset/" + entity.Name.ToLower() + ".htm\">" + formatnum + " " + entity.Name + "</a>");
-													htmSectionTOC.WriteLine("<tr class=\"std\"><td class=\"menu\"><a id=\"" + formatnum + "\">" + formatnum + "</a> <a class=\"listing-link\" href=\"" + mapSchema[entity.Name].ToLower() + "/pset/" + entity.Name.ToLower() + ".htm\" target=\"info\">" + entity.Name + "</a></td></tr>\r\n");
-
-													using (FormatHTM htmDef = new FormatHTM(pathSchema + @"\" + schema.Name.ToLower() + "\\pset\\" + entity.Name.ToLower() + ".htm", mapEntity, mapSchema, included))
-													{
-														htmDef.WriteHeader(entity.Name, iSection, iSchema, iSubSection, iPset, docPublication.Header);
-														htmDef.WriteScript(iSection, iSchema, iSubSection, iPset);
-														htmDef.WriteLine("<h4 class=\"std\">" + iSection.ToString() + "." + iSchema.ToString() + "." + iSubSection.ToString() + "." + iPset.ToString() + " " + entity.Name + "</h4>");
-
-														// english by default
-														htmDef.WriteLocalizationSection(entity, locales, docPublication);
-														htmDef.WriteChangeLog(entity, listChangeSets, docPublication);
-
-														htmDef.WriteSummaryHeader("Constants", true, docPublication);
-														htmDef.WriteLine("<table class=\"gridtable\">");
-														htmDef.WriteLine("<tr><th>Name</th><th>Description</th></tr>");
-														foreach (DocPropertyConstant docprop in entity.Constants)
-														{
-															htmDef.WriteLine("<tr><td>" + docprop.Name + "</td><td>");
-															htmDef.WriteLocalizationTable(docprop, locales);
-															htmDef.WriteLine("</td></tr>");
-														}
-														htmDef.WriteLine("</table>");
-														htmDef.WriteSummaryFooter(docPublication);
-
-														// write url for incoming page link
-														htmDef.WriteLinkTo(docProject, docPublication, entity);
-
-														htmDef.WriteFooter(docPublication.Footer);
-													}
-												}
-											}
-
 										}
 
 
@@ -6484,6 +6499,8 @@ namespace IfcDoc
 
 								htmTOC.WriteTOC(2, "<a class=\"listing-link\" href=\"annex/annex-b/alphabeticalorder_psets.htm\" >B.1.9 Individual properties</a>");
 								htmSectionTOC.WriteLine("<tr class=\"std\"><td class=\"menu\">B.1.9 <a href=\"annex-b/alphabeticalorder_properties.htm\" target=\"info\" >Individual properties</a></td></tr>");
+								htmTOC.WriteTOC(2, "<a class=\"listing-link\" href=\"annex/annex-b/alphabeticalorder_penums.htm\" >B.1.10 Property Enumerations</a>");
+								htmSectionTOC.WriteLine("<tr class=\"std\"><td class=\"menu\">B.1.10 <a href=\"annex-b/alphabeticalorder_propertyenums.htm\" target=\"info\" >Property Enumerations</a></td></tr>");
 
 								// generate alphabetical listings
 								using (FormatHTM htmAlpha1 = new FormatHTM(path + "/annex/annex-b/alphabeticalorder_definedtypes.htm", mapEntity, mapSchema, included))
@@ -6514,6 +6531,10 @@ namespace IfcDoc
 								using (FormatHTM htmAlpha1 = new FormatHTM(path + "/annex/annex-b/alphabeticalorder_psets.htm", mapEntity, mapSchema, included))
 								{
 									htmAlpha1.WriteAlphabeticalListing<DocPropertySet>("Property Sets", path, "psets", docPublication);
+								}
+								using (FormatHTM htmAlpha1 = new FormatHTM(path + "/annex/annex-b/alphabeticalorder_propertyenums.htm", mapEntity, mapSchema, included))
+								{
+									htmAlpha1.WriteAlphabeticalListing<DocPropertyEnumeration>("Property Enumerations", path, "propertyenums", docPublication);
 								}
 								using (FormatHTM htmAlpha1 = new FormatHTM(path + "/annex/annex-b/alphabeticalorder_qsets.htm", mapEntity, mapSchema, included))
 								{
@@ -7309,7 +7330,9 @@ namespace IfcDoc
 								DocObject refobj = (DocObject)mapEntity[refkey];
 								string display = refobj.Name;//refnumber; // new: use names for bSI; numbers for ISO
 
-								if (refobj is DocPropertySet || refobj is DocPropertyEnumeration)
+								if (refobj is DocPropertyEnumeration)
+									continue;
+								if (refobj is DocPropertySet)// || refobj is DocPropertyEnumeration)
 								{
 									htmIndex.Write(comma + "<a class=\"listing-link\" title=\"" + refobj.Name + "\" href=\"schema/" + mapSchema[refkey].ToLower() + "/pset/" + refobj.Name.ToLower() + ".htm\">" + display + "</a>");
 								}
@@ -7335,6 +7358,17 @@ namespace IfcDoc
 					return;
 
 				// new: incoming links
+				foreach (DocPropertyEnumeration docLinkObj in docProject.PropertyEnumerations)
+				{
+					if (included == null || included.ContainsKey(docLinkObj))
+					{
+						using (FormatHTM htmLink = new FormatHTM(path + "/link/" + MakeLinkName(docLinkObj) + ".htm", mapEntity, mapSchema, included))
+						{
+							htmLink.WriteLinkPage("../penum/" + MakeLinkName(docLinkObj) + ".htm", docPublication);
+						}
+					}
+				}
+
 				foreach (DocSection docLinkSection in docProject.Sections)
 				{
 					int iSection = docProject.Sections.IndexOf(docLinkSection) + 1;
@@ -7408,16 +7442,6 @@ namespace IfcDoc
 							}
 						}
 
-						foreach (DocPropertyEnumeration docLinkObj in docLinkSchema.PropertyEnumerations)
-						{
-							if (included == null || included.ContainsKey(docLinkObj))
-							{
-								using (FormatHTM htmLink = new FormatHTM(path + "/link/" + MakeLinkName(docLinkObj) + ".htm", mapEntity, mapSchema, included))
-								{
-									htmLink.WriteLinkPage("../schema/" + docLinkSchema.Name.ToLower() + "/pset/" + MakeLinkName(docLinkObj) + ".htm", docPublication);
-								}
-							}
-						}
 
 						foreach (DocQuantitySet docLinkObj in docLinkSchema.QuantitySets)
 						{

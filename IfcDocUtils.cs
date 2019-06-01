@@ -268,6 +268,7 @@ namespace IfcDoc
 			{
 				if (encounteredPropertyEnumerations.ContainsKey(enumeration.Name))
 					continue;
+				project.PropertyEnumerations.Add(enumeration);
 				encounteredPropertyEnumerations[enumeration.Name] = enumeration;
 				foreach(DocPropertyConstant constant in enumeration.Constants)
 				{
@@ -287,20 +288,14 @@ namespace IfcDoc
 					}
 				}
 			}
-			foreach (DocPropertySet pset in schema.PropertySets)
-				extractListings(project, pset, schema, encounteredPropertyEnumerations); //listings
+			foreach (DocProperty property in schema.PropertySets.SelectMany(x=>x.Properties))
+				extractListings(project, property, encounteredPropertyEnumerations); //listings
 		
 			foreach (DocQuantity quantity in schema.QuantitySets.SelectMany(x => x.Quantities))
 				project.Quantities.Add(quantity);
 		}
 
-		private static void extractListings(DocProject project, DocPropertySet propertySet, DocSchema schema, Dictionary<string, DocPropertyEnumeration> encounteredPropertyEnumerations)
-		{
-			foreach (DocProperty property in propertySet.Properties)
-				extractListings(project, property, schema, encounteredPropertyEnumerations);
-		}
-
-		private static void extractListings(DocProject project, DocProperty property, DocSchema schema, Dictionary<string, DocPropertyEnumeration> encounteredPropertyEnumerations)
+		private static void extractListings(DocProject project, DocProperty property, Dictionary<string, DocPropertyEnumeration> encounteredPropertyEnumerations)
 		{
 			project.Properties.Add(property);
 
@@ -309,24 +304,43 @@ namespace IfcDoc
 			else if (property.PropertyType == DocPropertyTemplateTypeEnum.P_ENUMERATEDVALUE && property.Enumeration == null)
 			{
 				string[] fields = property.SecondaryDataType.Split(":".ToCharArray());
-				if (fields.Length == 2)
+				if(fields.Length == 1)
 				{
-					property.SecondaryDataType = null;
 					string name = fields[0];
-					if (!encounteredPropertyEnumerations.ContainsKey(name))
+					foreach(DocPropertyEnumeration docEnumeration in project.PropertyEnumerations)
 					{
-						foreach (DocPropertyEnumeration docEnumeration in schema.PropertyEnumerations)
+						if(string.Compare(name, docEnumeration.Name) == 0)
+						{
+							property.Enumeration = docEnumeration;
+							property.SecondaryDataType = null;
+							break;
+						}
+					}
+				}
+				else if (fields.Length == 2)
+				{
+					string name = fields[0];
+					DocPropertyEnumeration propertyEnumeration = null;
+					if (encounteredPropertyEnumerations.TryGetValue(name, out propertyEnumeration))
+					{
+						property.SecondaryDataType = null;
+						property.Enumeration = propertyEnumeration;
+					}
+					else
+					{
+						foreach (DocPropertyEnumeration docEnumeration in project.PropertyEnumerations)
 						{
 							if (string.Compare(name, docEnumeration.Name) == 0)
 							{
 								property.Enumeration = docEnumeration;
+								property.SecondaryDataType = null;
 								break;
 							}
 						}
 						if (property.Enumeration == null)
 						{
 							property.Enumeration = new DocPropertyEnumeration() { Name = name };
-							schema.PropertyEnumerations.Add(property.Enumeration = property.Enumeration);
+							project.PropertyEnumerations.Add(property.Enumeration = property.Enumeration);
 							encounteredPropertyEnumerations[name] = property.Enumeration;
 							foreach (string str in fields[1].Split(",".ToCharArray()))
 							{
@@ -347,13 +361,14 @@ namespace IfcDoc
 								}
 								property.Enumeration.Constants.Add(constant);
 							}
+							property.SecondaryDataType = null;
 						}
 					}
 				}
 			}
 
 			foreach (DocProperty element in property.Elements)
-				extractListings(project, element, schema, encounteredPropertyEnumerations);
+				extractListings(project, element, encounteredPropertyEnumerations);
 		}
 
 	}

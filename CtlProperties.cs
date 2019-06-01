@@ -950,42 +950,50 @@ namespace IfcDoc
 			DocProperty docProperty = (DocProperty)this.m_target;
 			this.textBoxPropertyDataPrimary.Text = docProperty.PrimaryDataType;
 			this.textBoxPropertyDataSecondary.Text = docProperty.SecondaryDataType;
+			this.textBoxPropertyEnumeration.Text = docProperty.Enumeration == null ? "" : docProperty.Enumeration.Name;
 
 			switch (docProperty.PropertyType)
 			{
 				case DocPropertyTemplateTypeEnum.P_SINGLEVALUE:
 					this.buttonPropertyDataPrimary.Enabled = true;
 					this.buttonPropertyDataSecondary.Enabled = false;
+					this.buttonPropertyEnumeration.Enabled = false;
 					break;
 
 				case DocPropertyTemplateTypeEnum.P_BOUNDEDVALUE:
 					this.buttonPropertyDataPrimary.Enabled = true;
 					this.buttonPropertyDataSecondary.Enabled = false;
+					this.buttonPropertyEnumeration.Enabled = false;
 					break;
 
 				case DocPropertyTemplateTypeEnum.P_ENUMERATEDVALUE:
 					this.buttonPropertyDataPrimary.Enabled = false; // fixed to IfcLabel
-					this.buttonPropertyDataSecondary.Enabled = true;
+					this.buttonPropertyDataSecondary.Enabled = false;
+					this.buttonPropertyEnumeration.Enabled = true;
 					break;
 
 				case DocPropertyTemplateTypeEnum.P_LISTVALUE:
 					this.buttonPropertyDataPrimary.Enabled = true;
 					this.buttonPropertyDataSecondary.Enabled = false;
+					this.buttonPropertyEnumeration.Enabled = false;
 					break;
 
 				case DocPropertyTemplateTypeEnum.P_TABLEVALUE:
 					this.buttonPropertyDataPrimary.Enabled = true;
 					this.buttonPropertyDataSecondary.Enabled = true;
+					this.buttonPropertyEnumeration.Enabled = false;
 					break;
 
 				case DocPropertyTemplateTypeEnum.P_REFERENCEVALUE:
 					this.buttonPropertyDataPrimary.Enabled = true;
 					this.buttonPropertyDataSecondary.Enabled = true;
+					this.buttonPropertyEnumeration.Enabled = false;
 					break;
 
 				case DocPropertyTemplateTypeEnum.COMPLEX:
 					this.buttonPropertyDataPrimary.Enabled = false;
 					this.buttonPropertyDataSecondary.Enabled = true;
+					this.buttonPropertyEnumeration.Enabled = false;
 					break;
 			}
 		}
@@ -1017,14 +1025,17 @@ namespace IfcDoc
 			{
 				case DocPropertyTemplateTypeEnum.P_SINGLEVALUE:
 					docProperty.SecondaryDataType = String.Empty;
+					docProperty.Enumeration = null;
 					break;
 
 				case DocPropertyTemplateTypeEnum.P_BOUNDEDVALUE:
 					docProperty.SecondaryDataType = String.Empty;
+					docProperty.Enumeration = null;
 					break;
 
 				case DocPropertyTemplateTypeEnum.P_LISTVALUE:
 					docProperty.SecondaryDataType = String.Empty;
+					docProperty.Enumeration = null;
 					break;
 
 				case DocPropertyTemplateTypeEnum.P_TABLEVALUE:
@@ -1032,21 +1043,24 @@ namespace IfcDoc
 					{
 						docProperty.SecondaryDataType = "IfcReal";
 					}
+					docProperty.Enumeration = null;
 					break;
 
 				case DocPropertyTemplateTypeEnum.P_ENUMERATEDVALUE: // add/remove enum values
 					docProperty.PrimaryDataType = "IfcLabel";
-					docProperty.SecondaryDataType = String.Empty; // must select
+					docProperty.SecondaryDataType = String.Empty; 
 					break;
 
 				case DocPropertyTemplateTypeEnum.P_REFERENCEVALUE:
 					docProperty.PrimaryDataType = "IfcTimeSeries";
 					docProperty.SecondaryDataType = "IfcReal";
+					docProperty.Enumeration = null;
 					break;
 
 				case DocPropertyTemplateTypeEnum.COMPLEX:
 					docProperty.PrimaryDataType = String.Empty;
 					docProperty.SecondaryDataType = String.Empty;
+					docProperty.Enumeration = null;
 					break;
 			}
 
@@ -1091,13 +1105,10 @@ namespace IfcDoc
 				}
 			}
 		}
-
-		private void buttonPropertyDataSecondary_Click(object sender, EventArgs e)
+		private void buttonPropertyEnumeration_Click(object sender, EventArgs e)
 		{
 			DocProperty docTemplate = (DocProperty)this.m_target;
-
-			DocSchema docSchema = null;
-			DocPropertyEnumeration docEnum = this.m_project.FindPropertyEnumeration(docTemplate.SecondaryDataType, out docSchema);
+			DocPropertyEnumeration docEnum = docTemplate.Enumeration;
 
 			if (docTemplate.PropertyType == DocPropertyTemplateTypeEnum.P_ENUMERATEDVALUE)
 			{
@@ -1109,20 +1120,25 @@ namespace IfcDoc
 						if (form.Selection != null)
 						{
 							docTemplate.PrimaryDataType = "IfcLabel";
-							docTemplate.SecondaryDataType = form.Selection.Name;
+							docTemplate.Enumeration = form.Selection;
+							this.textBoxPropertyEnumeration.Text = form.Selection.Name;
 						}
 						else
 						{
 							docTemplate.PrimaryDataType = "IfcLabel";
-							docTemplate.SecondaryDataType = String.Empty;
+							docTemplate.Enumeration = null;
+							this.textBoxPropertyEnumeration.Text = "";
 						}
 						this.textBoxPropertyDataPrimary.Text = docTemplate.PrimaryDataType;
-						this.textBoxPropertyDataSecondary.Text = docTemplate.SecondaryDataType;
 					}
 				}
 				return;
 			}
-			else if (docTemplate.PropertyType == DocPropertyTemplateTypeEnum.COMPLEX)
+		}
+		private void buttonPropertyDataSecondary_Click(object sender, EventArgs e)
+		{
+			DocProperty docTemplate = (DocProperty)this.m_target;
+			if (docTemplate.PropertyType == DocPropertyTemplateTypeEnum.COMPLEX)
 			{
 				using (FormSelectProperty form = new FormSelectProperty(null, this.m_project, false))
 				{
@@ -2947,5 +2963,6 @@ namespace IfcDoc
 			}
 		}
 
+		
 	}
 }

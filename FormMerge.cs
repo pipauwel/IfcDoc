@@ -41,6 +41,91 @@ namespace IfcDoc
 			// add nodes for everything, then delete ones that haven't changed or don't have any children
 
 			// iterate and find changes in documentation
+			foreach (DocPropertyEnumeration docChangePset in docChange.PropertyEnumerations)
+			{
+				DocObject docOriginalPset = null;
+				if (mapOriginal.TryGetValue(docChangePset.Uuid, out docOriginalPset))
+				{
+					TreeNode tnPset = null;
+					if (!String.Equals(docOriginalPset.Documentation, docChangePset.Documentation))
+					{
+						tnPset = this.AddNode(null, new ChangeInfo(docOriginalPset.Name, docOriginalPset, docChangePset));
+					}
+
+					foreach (DocPropertyConstant docChangeProp in docChangePset.Constants)
+					{
+						DocObject docOriginalProp = ((DocPropertyEnumeration)docOriginalPset).GetConstant(docChangeProp.Name);
+						if (docOriginalProp != null)
+						{
+							TreeNode tnProperty = null;
+							if (!String.Equals(docOriginalProp.Documentation, docChangeProp.Documentation))
+							{
+								if (tnPset == null)
+								{
+									tnPset = this.AddNode(null, new ChangeInfo(docOriginalPset.Name, docOriginalPset, docChangePset));
+								}
+
+								tnProperty = this.AddNode(tnPset, new ChangeInfo(docOriginalPset.Name + "." + docOriginalProp.Name, docOriginalProp, docChangeProp));
+							}
+
+							// localization
+							foreach (DocLocalization docChangeLocal in docChangeProp.Localization)
+							{
+								DocLocalization docOriginalLocal = docOriginalProp.GetLocalization(docChangeLocal.Locale);
+								if (docOriginalLocal != null)
+								{
+									if (!String.Equals(docOriginalLocal.Documentation, docChangeLocal.Documentation))
+									{
+										if (tnPset == null)
+										{
+											tnPset = this.AddNode(null, new ChangeInfo(docOriginalPset.Name, docOriginalPset, docChangePset));
+										}
+
+										if (tnProperty == null)
+										{
+											tnProperty = this.AddNode(tnPset, new ChangeInfo(docOriginalPset.Name + "." + docOriginalProp.Name, docOriginalProp, docChangeProp));
+										}
+
+										this.AddNode(tnProperty, new ChangeInfo(docChangeLocal.Locale, docOriginalLocal, docChangeLocal));
+									}
+								}
+								else
+								{
+									if (tnPset == null)
+									{
+										tnPset = this.AddNode(null, new ChangeInfo(docOriginalPset.Name, docOriginalPset, docChangePset));
+									}
+
+									if (tnProperty == null)
+									{
+										tnProperty = this.AddNode(tnPset, new ChangeInfo(docOriginalPset.Name + "." + docOriginalProp.Name, docOriginalProp, docChangeProp));
+									}
+
+									// new localization
+									this.AddNode(tnProperty, new ChangeInfo(docChangeLocal.Locale, docOriginalLocal, docChangeLocal));
+								}
+							}
+						}
+						else
+						{
+							if (tnPset == null)
+							{
+								tnPset = this.AddNode(null, new ChangeInfo(docOriginalPset.Name, docOriginalPset, docChangePset));
+							}
+
+							// NEW:
+							this.AddNode(tnPset, new ChangeInfo(docChangePset.Name + "." + docChangeProp.Name, null, docChangeProp));
+						}
+					}
+				}
+				else
+				{
+					// NEW:
+					this.AddNode(null, new ChangeInfo(docChangePset.Name, null, docChangePset));
+				}
+
+			}
+
 			foreach (DocSection docChangeSection in docChange.Sections)
 			{
 				DocObject docOriginalSection = null;
@@ -252,91 +337,6 @@ namespace IfcDoc
 									foreach (DocProperty docChangeProp in docChangePset.Properties)
 									{
 										DocObject docOriginalProp = ((DocPropertySet)docOriginalPset).GetProperty(docChangeProp.Name);
-										if (docOriginalProp != null)
-										{
-											TreeNode tnProperty = null;
-											if (!String.Equals(docOriginalProp.Documentation, docChangeProp.Documentation))
-											{
-												if (tnPset == null)
-												{
-													tnPset = this.AddNode(tnSchema, new ChangeInfo(docOriginalSchema.Name + "." + docOriginalPset.Name, docOriginalPset, docChangePset));
-												}
-
-												tnProperty = this.AddNode(tnPset, new ChangeInfo(docOriginalSchema.Name + "." + docOriginalPset.Name + "." + docOriginalProp.Name, docOriginalProp, docChangeProp));
-											}
-
-											// localization
-											foreach (DocLocalization docChangeLocal in docChangeProp.Localization)
-											{
-												DocLocalization docOriginalLocal = docOriginalProp.GetLocalization(docChangeLocal.Locale);
-												if (docOriginalLocal != null)
-												{
-													if (!String.Equals(docOriginalLocal.Documentation, docChangeLocal.Documentation))
-													{
-														if (tnPset == null)
-														{
-															tnPset = this.AddNode(tnSchema, new ChangeInfo(docOriginalSchema.Name + "." + docOriginalPset.Name, docOriginalPset, docChangePset));
-														}
-
-														if (tnProperty == null)
-														{
-															tnProperty = this.AddNode(tnPset, new ChangeInfo(docOriginalSchema.Name + "." + docOriginalPset.Name + "." + docOriginalProp.Name, docOriginalProp, docChangeProp));
-														}
-
-														this.AddNode(tnProperty, new ChangeInfo(docChangeLocal.Locale, docOriginalLocal, docChangeLocal));
-													}
-												}
-												else
-												{
-													if (tnPset == null)
-													{
-														tnPset = this.AddNode(tnSchema, new ChangeInfo(docOriginalSchema.Name + "." + docOriginalPset.Name, docOriginalPset, docChangePset));
-													}
-
-													if (tnProperty == null)
-													{
-														tnProperty = this.AddNode(tnPset, new ChangeInfo(docOriginalSchema.Name + "." + docOriginalPset.Name + "." + docOriginalProp.Name, docOriginalProp, docChangeProp));
-													}
-
-													// new localization
-													this.AddNode(tnProperty, new ChangeInfo(docChangeLocal.Locale, docOriginalLocal, docChangeLocal));
-												}
-											}
-										}
-										else
-										{
-											if (tnPset == null)
-											{
-												tnPset = this.AddNode(tnSchema, new ChangeInfo(docOriginalSchema.Name + "." + docOriginalPset.Name, docOriginalPset, docChangePset));
-											}
-
-											// NEW:
-											this.AddNode(tnPset, new ChangeInfo(docChangeSchema.Name + "." + docChangePset.Name + "." + docChangeProp.Name, null, docChangeProp));
-										}
-									}
-								}
-								else
-								{
-									// NEW:
-									this.AddNode(tnSchema, new ChangeInfo(docChangeSchema.Name + "." + docChangePset.Name, null, docChangePset));
-								}
-
-							}
-
-							foreach (DocPropertyEnumeration docChangePset in docChangeSchema.PropertyEnumerations)
-							{
-								DocObject docOriginalPset = null;
-								if (mapOriginal.TryGetValue(docChangePset.Uuid, out docOriginalPset))
-								{
-									TreeNode tnPset = null;
-									if (!String.Equals(docOriginalPset.Documentation, docChangePset.Documentation))
-									{
-										tnPset = this.AddNode(tnSchema, new ChangeInfo(docOriginalSchema.Name + "." + docOriginalPset.Name, docOriginalPset, docChangePset));
-									}
-
-									foreach (DocPropertyConstant docChangeProp in docChangePset.Constants)
-									{
-										DocObject docOriginalProp = ((DocPropertyEnumeration)docOriginalPset).GetConstant(docChangeProp.Name);
 										if (docOriginalProp != null)
 										{
 											TreeNode tnProperty = null;

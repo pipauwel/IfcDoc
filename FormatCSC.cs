@@ -659,6 +659,51 @@ namespace IfcDoc.Format.CSC
 					writer.WriteLine("{");
 					writer.WriteLine();
 
+					foreach (DocPropertyEnumeration docEnum in this.m_project.PropertyEnumerations)
+					{
+						writer.WriteLine("    /// <summary>");
+						writer.WriteLine("    /// </summary>");
+						writer.WriteLine("    public enum " + docEnum.Name);
+						writer.WriteLine("    {");
+
+						int counter = 0;
+						foreach (DocPropertyConstant docConst in docEnum.Constants)
+						{
+							int num = 0;
+							string id = docConst.Name.ToUpper().Trim('.').Replace('-', '_');
+							switch (id)
+							{
+								case "OTHER":
+									num = -1;
+									break;
+
+								case "NOTKNOWN":
+									num = -2;
+									break;
+
+								case "UNSET":
+									num = 0;
+									break;
+
+								default:
+									counter++;
+									num = counter;
+									break;
+							}
+
+							if (id[0] >= '0' && id[0] <= '9')
+							{
+								id = "_" + id; // avoid numbers
+							}
+
+							writer.WriteLine("        /// <summary></summary>");
+							writer.WriteLine("        " + docConst.Name + " = " + num + ",");
+						}
+
+						writer.WriteLine("    }");
+						writer.WriteLine();
+					}
+
 					foreach (DocSection docSection in this.m_project.Sections)
 					{
 						foreach (DocSchema docSchema in docSection.Schemas)
@@ -692,17 +737,7 @@ namespace IfcDoc.Format.CSC
 
 										case DocPropertyTemplateTypeEnum.P_ENUMERATEDVALUE:
 											{
-												string typename = docProperty.SecondaryDataType;
-												if (typename == null)
-												{
-													typename = docProperty.PrimaryDataType; // older version
-												}
-												int colon = typename.IndexOf(':');
-												if (colon > 0)
-												{
-													// backwards compatibility
-													typename = typename.Substring(0, colon);
-												}
+												string typename = docProperty.Enumeration.Name;
 												writer.WriteLine("        public " + typename + " " + docProperty.Name + " { get { return this.GetValue<" + typename + ">(\"" + docProperty.Name + "\"); } set { this.SetValue<" + typename + ">(\"" + docProperty.Name + "\", value); } }");
 											}
 											break;
@@ -741,50 +776,7 @@ namespace IfcDoc.Format.CSC
 								writer.WriteLine();
 							}
 
-							foreach (DocPropertyEnumeration docEnum in docSchema.PropertyEnumerations)
-							{
-								writer.WriteLine("    /// <summary>");
-								writer.WriteLine("    /// </summary>");
-								writer.WriteLine("    public enum " + docEnum.Name);
-								writer.WriteLine("    {");
-
-								int counter = 0;
-								foreach (DocPropertyConstant docConst in docEnum.Constants)
-								{
-									int num = 0;
-									string id = docConst.Name.ToUpper().Trim('.').Replace('-', '_');
-									switch (id)
-									{
-										case "OTHER":
-											num = -1;
-											break;
-
-										case "NOTKNOWN":
-											num = -2;
-											break;
-
-										case "UNSET":
-											num = 0;
-											break;
-
-										default:
-											counter++;
-											num = counter;
-											break;
-									}
-
-									if (id[0] >= '0' && id[0] <= '9')
-									{
-										id = "_" + id; // avoid numbers
-									}
-
-									writer.WriteLine("        /// <summary></summary>");
-									writer.WriteLine("        " + docConst.Name + " = " + num + ",");
-								}
-
-								writer.WriteLine("    }");
-								writer.WriteLine();
-							}
+							
 						}
 					}
 				}

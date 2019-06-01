@@ -1370,7 +1370,7 @@ namespace BuildingSmart.Serialization.Step
 						{
 							object o = FormatterServices.GetUninitializedObject(t); // works if no parameterless constructor is defined
 																					// capture project
-							if (this.RootType.IsInstanceOfType(o) && !idmap.ContainsKey(0))
+							if (this.ProjectType != null && this.ProjectType.IsInstanceOfType(o) && !idmap.ContainsKey(0))
 								idmap.Add(0, o);
 							idmap.Add(id, o);
 							// populate collections (catch case of older version where field may not be asserted)

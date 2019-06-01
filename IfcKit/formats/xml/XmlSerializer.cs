@@ -628,7 +628,7 @@ namespace BuildingSmart.Serialization.Xml
 				object ent = queue.Dequeue();
 				if (string.IsNullOrEmpty(_ObjectStore.EncounteredId(ent)))
 				{
-					this.WriteEntity(writer, ref indent, ent, propertiesToIgnore, queue, true, ref nextID);
+					this.WriteEntity(writer, ref indent, ent, propertiesToIgnore, queue, true, ref nextID, "", "");
 				}
 			}
 			// pass 2: write to file -- clear save map; retain ID map
@@ -725,14 +725,14 @@ namespace BuildingSmart.Serialization.Xml
 				object ent = queue.Dequeue();
 				if (string.IsNullOrEmpty(_ObjectStore.EncounteredId(ent)))
 				{
-					this.WriteEntity(writer, ref indent, ent, propertiesToIgnore, queue, isIdPass, ref nextID);
+					this.WriteEntity(writer, ref indent, ent, propertiesToIgnore, queue, isIdPass, ref nextID, "", "");
 				}
 			}
 			this.WriteEndElementEntity(writer, ref indent, typeName);
 			this.WriteFooter(writer);
 			writer.Flush();
 		}
-		private void WriteEntity(StreamWriter writer, ref int indent, object o, HashSet<string> propertiesToIgnore, Queue<object> queue, bool isIdPass, ref int nextID)
+		private void WriteEntity(StreamWriter writer, ref int indent, object o, HashSet<string> propertiesToIgnore, Queue<object> queue, bool isIdPass, ref int nextID, string elementName, string elementTypeName)
 		{
 			// sanity check
 			if (indent > 100)
@@ -745,11 +745,29 @@ namespace BuildingSmart.Serialization.Xml
 
 			Type t = o.GetType();
 			string typeName = TypeSerializeName(t);
-			this.WriteStartElementEntity(writer, ref indent, typeName);
+			string name = string.IsNullOrEmpty(elementName) ? typeName : elementName;
+			this.WriteStartElementEntity(writer, ref indent, name);
+			if (!isIdPass)
+			{
+				if (string.IsNullOrEmpty(elementTypeName))
+				{
+					if (string.Compare(typeName, elementName) != 0)
+					{
+						WriteType(writer, indent, typeName);
+					}
+				}
+				else
+				{
+					if (string.Compare(typeName, elementTypeName) != 0)
+					{
+						WriteType(writer, indent, typeName);
+					}
+				}
+			}
 			bool close = this.WriteEntityAttributes(writer, ref indent, o, propertiesToIgnore, queue, isIdPass, ref nextID);
 			if (close)
 			{
-				this.WriteEndElementEntity(writer, ref indent, typeName);
+				this.WriteEndElementEntity(writer, ref indent, name);
 			}
 			else
 			{
@@ -1088,6 +1106,10 @@ namespace BuildingSmart.Serialization.Xml
 				{
 					PropertyInfo f = tuple.Item1;
 					Type ft = f.PropertyType;
+					bool isvaluelist = IsValueCollection(ft);
+					bool isvaluelistlist = ft.IsGenericType && // e.g. IfcTriangulatedFaceSet.Normals
+						typeof(IEnumerable).IsAssignableFrom(ft.GetGenericTypeDefinition()) &&
+						IsValueCollection(ft.GetGenericArguments()[0]);
 					DataMemberAttribute dataMemberAttribute = tuple.Item2;
 					object value = tuple.Item3;
 					DocXsdFormatEnum? format = GetXsdFormat(f);
@@ -1097,16 +1119,17 @@ namespace BuildingSmart.Serialization.Xml
 						IEnumerable ienumerable = value as IEnumerable;
 						if (ienumerable == null)
 						{
-							string fieldName = PropertySerializeName(f), fieldTypeName = TypeSerializeName(value.GetType());
-							if (string.Compare(fieldName, fieldTypeName) == 0)
+							if (!ft.IsValueType && !isvaluelist && !isvaluelistlist)
 							{
+								string fieldName = PropertySerializeName(f), fieldTypeName = TypeSerializeName(ft);
 								if (!open)
 								{
 									WriteOpenElement(writer);
 									open = true;
 								}
-								WriteEntity(writer, ref indent, value, propertiesToIgnore, queue, isIdPass, ref nextID);
+								WriteEntity(writer, ref indent, value, propertiesToIgnore, queue, isIdPass, ref nextID, fieldName, fieldTypeName);
 								continue;
+
 							}
 						}
 						// for collection is must be non-zero (e.g. IfcProject.IsNestedBy)
@@ -1137,11 +1160,6 @@ namespace BuildingSmart.Serialization.Xml
 					}
 					else if (dataMemberAttribute != null)
 					{
-						bool isvaluelist = IsValueCollection(ft);
-						bool isvaluelistlist = ft.IsGenericType && // e.g. IfcTriangulatedFaceSet.Normals
-							typeof(IEnumerable).IsAssignableFrom(ft.GetGenericTypeDefinition()) &&
-							IsValueCollection(ft.GetGenericArguments()[0]);
-
 						// hide fields where inverse attribute used instead
 						if (!ft.IsValueType && !isvaluelist && !isvaluelistlist)
 						{
@@ -1150,7 +1168,7 @@ namespace BuildingSmart.Serialization.Xml
 								IEnumerable ienumerable = value as IEnumerable;
 								if (ienumerable == null)
 								{
-									string fieldName = PropertySerializeName(f), fieldTypeName = TypeSerializeName(value.GetType());
+									string fieldName = PropertySerializeName(f), fieldTypeName = TypeSerializeName(ft);
 									if (string.Compare(fieldName, fieldTypeName) == 0)
 									{
 										if (!open)
@@ -1158,7 +1176,7 @@ namespace BuildingSmart.Serialization.Xml
 											WriteOpenElement(writer);
 											open = true;
 										}
-										WriteEntity(writer, ref indent, value, propertiesToIgnore, queue, isIdPass, ref nextID);
+										WriteEntity(writer, ref indent, value, propertiesToIgnore, queue, isIdPass, ref nextID, fieldName, fieldTypeName);
 										continue;
 									}
 
@@ -1219,7 +1237,7 @@ namespace BuildingSmart.Serialization.Xml
 					open = true;
 				}
 				foreach (object obj in enumerable)
-					WriteEntity(writer, ref indent, obj, propertiesToIgnore, queue, isIdPass, ref nextID);
+					WriteEntity(writer, ref indent, obj, propertiesToIgnore, queue, isIdPass, ref nextID, "", "");
 			}
 			if (!open)
 			{
@@ -1237,9 +1255,9 @@ namespace BuildingSmart.Serialization.Xml
 			string memberName = PropertySerializeName(f);
 			Type objectType = o.GetType();
 			string typeName = TypeSerializeName(o.GetType());
-			if(string.Compare(memberName,typeName) == 0)
+			if(string.Compare(memberName, typeName) == 0)
 			{
-				WriteEntity(writer, ref indent, v, propertiesToIgnore, queue, isIdPass, ref nextID);
+				WriteEntity(writer, ref indent, v, propertiesToIgnore, queue, isIdPass, ref nextID, memberName, typeName);
 				return;
 			}
 			this.WriteStartElementAttribute(writer, ref indent, memberName);
@@ -1396,7 +1414,7 @@ namespace BuildingSmart.Serialization.Xml
 							}
 							else
 							{
-								this.WriteEntity(writer, ref indent, e, propertiesToIgnore, queue, isIdPass, ref nextID);
+								this.WriteEntity(writer, ref indent, e, propertiesToIgnore, queue, isIdPass, ref nextID, "", "");
 							}
 
 							needdelim = true;
@@ -1467,7 +1485,7 @@ namespace BuildingSmart.Serialization.Xml
 				else
 				{
 					// if rooted, then check if we need to use reference; otherwise embed
-					this.WriteEntity(writer, ref indent, v, new HashSet<string>(), queue, isIdPass, ref nextID);
+					this.WriteEntity(writer, ref indent, v, new HashSet<string>(), queue, isIdPass, ref nextID, "", "");
 				}
 			}
 

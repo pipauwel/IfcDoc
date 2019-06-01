@@ -73,9 +73,39 @@ namespace IfcDoc.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap toolStripMenuItemInsertConstant {
+            get {
+                object obj = ResourceManager.GetObject("toolStripMenuItemInsertConstant", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap toolStripMenuItemInsertProperty {
             get {
                 object obj = ResourceManager.GetObject("toolStripMenuItemInsertProperty", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap toolStripMenuItemInsertPropertyConstant {
+            get {
+                object obj = ResourceManager.GetObject("toolStripMenuItemInsertPropertyConstant", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap toolStripMenuItemInsertQuantity {
+            get {
+                object obj = ResourceManager.GetObject("toolStripMenuItemInsertQuantity", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
