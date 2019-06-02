@@ -5906,12 +5906,12 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 2)] [XmlElement(Order = 4)] public List<DocEntity> Entities { get; protected set; }          // 5.1.3 Entities        // moved down in 1.8
 		[DataMember(Order = 3)] [XmlElement(Order = 5)] public List<DocFunction> Functions { get; protected set; }       // 5.1.4 Functions
 		[DataMember(Order = 4)] [XmlElement(Order = 6)] public List<DocGlobalRule> GlobalRules { get; protected set; }   // 5.1.5 Global Rules    // inserted in 1.2
-		[DataMember(Order = 5)] [XmlElement(Order = 8)] public List<DocPropertySet> PropertySets { get; protected set; } // 5.1.6 Property Sets
-		[DataMember(Order = 6)] [XmlElement(Order = 9)] public List<DocQuantitySet> QuantitySets { get; protected set; } // 5.1.7 Quantity Sets
-		[DataMember(Order = 7)] [XmlArray(Order = 10)] public List<DocPageTarget> PageTargets { get; protected set; }   // inserted in 3.5, renamed to DocPageTarget in 4.9
+		[DataMember(Order = 5)] [XmlElement(Order = 7)] public List<DocPropertySet> PropertySets { get; protected set; } // 5.1.6 Property Sets
+		[DataMember(Order = 6)] [XmlElement(Order = 8)] public List<DocQuantitySet> QuantitySets { get; protected set; } // 5.1.7 Quantity Sets
+		[DataMember(Order = 7)] [XmlArray(Order = 9)] public List<DocPageTarget> PageTargets { get; protected set; }   // inserted in 3.5, renamed to DocPageTarget in 4.9
 		[DataMember(Order = 8)] [XmlArray(Order = 0)] public List<DocSchemaRef> SchemaRefs { get; protected set; }     // inserted in 4.9
-		[DataMember(Order = 9)] [XmlArray(Order = 11)] public List<DocComment> Comments { get; protected set; }         // inserted in 4.9
-		[DataMember(Order = 10)] [Obsolete] [XmlIgnore] public List<DocPropertyEnumeration> PropertyEnumerations { get; protected set; } // inserted in 5.8, relocated to DocProject 12.1
+		[DataMember(Order = 9)] [XmlArray(Order = 10)] public List<DocComment> Comments { get; protected set; }         // inserted in 4.9
+		[DataMember(Order = 10)] [Obsolete] [XmlElement(Order = 11)] public List<DocPropertyEnumeration> PropertyEnumerations { get; protected set; } // inserted in 5.8, relocated to DocProject 12.1
 		[DataMember(Order = 11)] [XmlElement(Order = 1)] public List<DocPrimitive> Primitives { get; protected set; }    // inserted in 5.8
 		[DataMember(Order = 12)] [XmlAttribute] public int DiagramPagesHorz { get; set; } // inserted in 5.8
 		[DataMember(Order = 13)] [XmlAttribute] public int DiagramPagesVert { get; set; } // inserted in 5.8

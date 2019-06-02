@@ -160,6 +160,8 @@ namespace BuildingSmart.Serialization.Xml
 						typename = parts[1];
 					}
 				}
+				else
+					typename = xsiType;
 			}
 			Type t = null;
 			if (string.Compare(typename, "header", true) == 0)
@@ -262,7 +264,7 @@ namespace BuildingSmart.Serialization.Xml
 				}
 				if (entity == null)
 				{
-					if (propInfo != null && string.Compare(readerLocalName, propInfo.Name) == 0)
+					if (propInfo != null && string.Compare(readerLocalName, propInfo.Name) == 0 && typeof(IEnumerable).IsAssignableFrom(propInfo.PropertyType) && reader.AttributeCount == 0)
 					{
 						useParent = true;
 						entity = parent;
@@ -367,7 +369,7 @@ namespace BuildingSmart.Serialization.Xml
 							else
 							{
 								string nestedTypeName = "";
-								if (nestedPropInfo != null)
+								if (!nestedElementDefinition && nestedPropInfo != null)
 								{
 									Type nestedType = nestedPropInfo.PropertyType;
 									if (nestedType != typeof(byte[]) && nestedType != typeof(string) && typeof(IEnumerable).IsAssignableFrom(nestedType))
@@ -751,14 +753,14 @@ namespace BuildingSmart.Serialization.Xml
 			{
 				if (string.IsNullOrEmpty(elementTypeName))
 				{
-					if (string.Compare(typeName, elementName) != 0)
+					if (string.Compare(typeName, name) != 0)
 					{
 						WriteType(writer, indent, typeName);
 					}
 				}
 				else
 				{
-					if (string.Compare(typeName, elementTypeName) != 0)
+					if (string.Compare(name, elementTypeName) != 0 || string.Compare(name, typeName) != 0)
 					{
 						WriteType(writer, indent, typeName);
 					}
