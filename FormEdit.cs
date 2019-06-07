@@ -3998,21 +3998,21 @@ namespace IfcDoc
 			if (res != DialogResult.OK)
 				return;
 
-			try
-			{
-				using (FileStream streamChange = new FileStream(this.openFileDialogChanges.FileName, FileMode.Open))
-				{
-					StepSerializer formatChange = new StepSerializer(typeof(DocProject), SchemaDOC.Types);
-					DocProject docProjectBase = (DocProject)formatChange.ReadObject(streamChange);
-					DocPublication docPub = this.treeView.SelectedNode.Tag as DocPublication; // if publication selected, then change log is specific to publication
-					ChangeLogGenerator.Generate(docProjectBase, this.m_project, docPub);
-				}
-			}
-			catch (Exception x)
-			{
-				MessageBox.Show(x.Message);
-				return;
-			}
+            try
+            {
+                using (FileStream streamChange = new FileStream(this.openFileDialogChanges.FileName, FileMode.Open))
+                {
+                    StepSerializer formatChange = new StepSerializer(typeof(DocProject), SchemaDOC.Types);
+                    DocProject docProjectBase = (DocProject)formatChange.ReadObject(streamChange);
+                    DocPublication docPub = this.treeView.SelectedNode.Tag as DocPublication; // if publication selected, then change log is specific to publication
+                    ChangeLogGenerator.Generate(docProjectBase, this.m_project, docPub);
+                }
+            }
+            catch (Exception x)
+            {
+                MessageBox.Show(x.Message + System.Environment.NewLine + x.StackTrace);
+                return;
+            }
 
 			this.LoadTree();
 		}

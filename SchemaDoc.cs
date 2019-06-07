@@ -20,6 +20,7 @@ using System.Text;
 
 using System.Xml.Serialization;
 
+using System.Text.RegularExpressions;
 using BuildingSmart.Utilities.Conversion;
 using BuildingSmart.Serialization;
 
@@ -1581,13 +1582,18 @@ namespace IfcDoc.Schema.DOC
 
 			foreach (DocConceptRoot docRoot in docView.ConceptRoots)
 			{
+				string docRootName = docRoot.ToString();
+				if (docRootName == "IfcBridge")
+				{
+					Console.WriteLine("Stop");
+				}
 				if (docRoot.ApplicableEntity != null)
 				{
 					RegisterEntity(included, docRoot.ApplicableEntity);
 
 					foreach (DocTemplateUsage docUsage in docRoot.Concepts)
 					{
-						RegisterConcept(docUsage, included, mapVirtualAttributes);
+						RegisterConcept(docUsage, included, mapVirtualAttributes, docRoot.ApplicableEntity);
 					}
 				}
 			}
@@ -1779,7 +1785,7 @@ namespace IfcDoc.Schema.DOC
 			}
 		}
 
-		private void RegisterConcept(DocTemplateUsage docUsage, Dictionary<DocObject, bool> included, Dictionary<DocModelRuleAttribute, DocEntity> mapVirtualAttributes)
+		private void RegisterConcept(DocTemplateUsage docUsage, Dictionary<DocObject, bool> included, Dictionary<DocModelRuleAttribute, DocEntity> mapVirtualAttributes, DocEntity applicableEntity)
 		{
 			if (docUsage.Definition != null)
 			{
@@ -1841,12 +1847,52 @@ namespace IfcDoc.Schema.DOC
 								}
 							}
 						}
+						else
+						{
+							DocModelRule[] paramRules = docUsage.Definition.GetParameterRules();
+							string parameterName = "";
+
+							for (int i = 0; i < paramRules.Length - 1; i++)
+							{
+								if (paramRules[i].Identification == param)
+								{
+									parameterName = paramRules[i].Name;
+								}
+							}
+							DocAttribute attributeParameter = GetEntityAttribute(applicableEntity, parameterName);
+							if (attributeParameter != null)
+							{
+								if (!included.ContainsKey(attributeParameter)) included[attributeParameter] = true;
+
+								DocDefinition docAttrType = this.GetDefinition(attributeParameter.DefinedType);
+
+								if (docAttrType is DocEntity)
+								{
+									DocEntity docRefEntity = (DocEntity)docAttrType;
+									RegisterEntity(included, docRefEntity);
+								}
+								else if (docAttrType is DocType) // otherwise native EXPRESS type
+								{
+									included[docAttrType] = true;
+
+									if (docAttrType is DocDefined)
+									{
+										DocDefined docDefined = (DocDefined)docAttrType;
+										DocDefinition docDefRef = this.GetDefinition(docDefined.DefinedType);
+										if (docDefRef != null)
+										{
+											included[docDefRef] = true;
+										}
+									}
+								}
+							}
+						}
 					}
 
 					// recurse
 					foreach (DocTemplateUsage docSub in docItem.Concepts)
 					{
-						RegisterConcept(docSub, included, mapVirtualAttributes);
+						RegisterConcept(docSub, included, mapVirtualAttributes, applicableEntity);
 					}
 
 				}
@@ -1855,7 +1901,7 @@ namespace IfcDoc.Schema.DOC
 			// recurse through nested concepts
 			foreach (DocTemplateUsage docChild in docUsage.Concepts)
 			{
-				RegisterConcept(docChild, included, mapVirtualAttributes);
+				RegisterConcept(docChild, included, mapVirtualAttributes, applicableEntity);
 			}
 		}
 
@@ -5413,6 +5459,20 @@ namespace IfcDoc.Schema.DOC
 			return null;
 		}
 
+		public List<DocTemplateUsage> GetParameterConcepts(DocTemplateDefinition def)
+		{
+			List<DocTemplateUsage> docEachUsage = new List<DocTemplateUsage>();
+			foreach (DocTemplateUsage docUsage in this.Concepts)
+			{
+				if (def == null || docUsage.Definition == def)
+				{
+					docEachUsage.Add(docUsage);
+				}
+			}
+
+			return docEachUsage;
+		}
+
 		public DocTemplateUsage RegisterParameterConcept(string parameter, DocTemplateDefinition def)
 		{
 			DocTemplateUsage docUsage = this.GetParameterConcept(parameter, def);
@@ -5424,6 +5484,19 @@ namespace IfcDoc.Schema.DOC
 				this.Concepts.Add(docUsage);
 			}
 			return docUsage;
+		}
+
+		public List<DocTemplateUsage> RegisterParameterConcepts(DocTemplateDefinition def)
+		{
+			List<DocTemplateUsage> docUsages = this.GetParameterConcepts(def);
+			if (docUsages == null)
+			{
+				return null;
+			}
+			else
+			{
+				return docUsages;
+			}
 		}
 
 		/// <summary>
@@ -5551,7 +5624,15 @@ namespace IfcDoc.Schema.DOC
 		/// <param name="encoding"></param>
 		public void ParseParameterExpressions(string encoding)
 		{
-			this.RuleParameters = encoding;//...
+			string[] rules = encoding.Split(new string[] { "AND" }, StringSplitOptions.RemoveEmptyEntries);
+			foreach (string rule in  rules)
+			{
+				string parsedRule = Regex.Replace(rule, @"\s+", "");
+				parsedRule = Regex.Replace(parsedRule, @"\[.*\]", "");
+				parsedRule = parsedRule.Replace("\'", "");
+
+				this.RuleParameters += parsedRule + ";";
+			}
 		}
 
 		public string GetParameterValue(string key)
@@ -6801,17 +6882,17 @@ namespace IfcDoc.Schema.DOC
 		{
 			get
 			{
-				return ((this.AttributeFlags & 2) != 0);
+				return ((this.AggregationFlag & 2) != 0);
 			}
 			set
 			{
 				if (value)
 				{
-					this.AttributeFlags |= 2;
+					this.AggregationFlag |= 2;
 				}
 				else
 				{
-					this.AttributeFlags &= ~2;
+					this.AggregationFlag &= ~2;
 				}
 			}
 		}
