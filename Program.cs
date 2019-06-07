@@ -1493,10 +1493,13 @@ namespace IfcDoc
 									na.lang = docLocal.Locale;
 									na.Value = docLocal.Name.Trim();
 
-									DefinitionAlias da = new DefinitionAlias();
-									con.DefinitionAliases.Add(da);
-									da.lang = docLocal.Locale;
-									da.Value = docLocal.Documentation;
+									if (!string.IsNullOrEmpty(docLocal.Documentation))
+									{
+										DefinitionAlias da = new DefinitionAlias();
+										con.DefinitionAliases.Add(da);
+										da.lang = docLocal.Locale;
+										da.Value = docLocal.Documentation;
+									}
 								}
 							}
 						}
