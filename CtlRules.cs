@@ -828,26 +828,27 @@ namespace IfcDoc
 				{
 					string value = form.GenerateValuePath();
 
-					Dictionary<string, DocObject> mapEntity = new Dictionary<string, DocObject>();
-					foreach (DocSection docSection in this.m_project.Sections)
-					{
-						foreach (DocSchema docSchema in docSection.Schemas)
-						{
-							foreach (DocEntity docEntity in docSchema.Entities)
-							{
-								mapEntity.Add(docEntity.Name, docEntity);
-							}
-							foreach (DocType docType in docSchema.Types)
-							{
-								mapEntity.Add(docType.Name, docType);
-							}
-						}
-					}
-
-					if (docBaseEntity.BaseDefinition == "IfcElement" || docBaseEntity.BaseDefinition == "IfcElementComponent" || docBaseEntity.BaseDefinition == "IfcBuildingElement" ||
-						docBaseEntity.BaseDefinition == "IfcReinforcingElement" || docBaseEntity.BaseDefinition == "IfcFlowSegment" || docBaseEntity.BaseDefinition == "IfcFeatureElement")
-					{
-						this.ChangeTemplate(this.m_project.GetTemplate(DocTemplateDefinition.guidTemplatePsetObject));
+                    Dictionary<string, DocObject> mapEntity = new Dictionary<string, DocObject>();
+                    foreach (DocSection docSection in this.m_project.Sections)
+                    {
+                        foreach (DocSchema docSchema in docSection.Schemas)
+                        {
+                            foreach (DocEntity docEntity in docSchema.Entities)
+                            {
+                                mapEntity.Add(docEntity.Name, docEntity);
+                            }
+                            foreach(DocType docType in docSchema.Types)
+                            {
+                                mapEntity.Add(docType.Name, docType);
+                            }
+                        }
+                    }
+                    
+                    if (docBaseEntity.BaseDefinition == "IfcElement" || docBaseEntity.BaseDefinition == "IfcElementComponent" || docBaseEntity.BaseDefinition == "IfcBuildingElement" ||
+                        docBaseEntity.BaseDefinition == "IfcReinforcingElement" || docBaseEntity.BaseDefinition == "IfcFlowSegment" || docBaseEntity.BaseDefinition == "IfcFeatureElement" ||
+						docBaseEntity.BaseDefinition == "IfcContext")
+                    {
+                        this.ChangeTemplate(this.m_project.GetTemplate(DocTemplateDefinition.guidTemplatePsetObject));
 
 						string[] psetParamNames = this.Concept.Definition.GetParameterNames();
 						DocTemplateItem pset = new DocTemplateItem();

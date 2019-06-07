@@ -1801,10 +1801,19 @@ namespace IfcDoc
 				lvi.SubItems.Add(docAttr.AggregationUpper);
 				this.listViewAttributeCardinality.Items.Add(lvi);
 
-				docAttr = docAttr.AggregationAttribute;
-			}
-			this.m_loadagg = false;
-		}
+				if (docAttr.IsUnique)
+				{
+					this.checkBoxAttributeUnique.Checked = true;
+				}
+				else
+				{
+					this.checkBoxAttributeUnique.Checked = false;
+				}
+
+                docAttr = docAttr.AggregationAttribute;
+            }
+            this.m_loadagg = false;
+        }
 
 		private void buttonAttributeAggregationInsert_Click(object sender, EventArgs e)
 		{
