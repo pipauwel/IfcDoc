@@ -2862,7 +2862,14 @@ namespace IfcDoc
 					indexpath.Add(0);
 					foreach (DocExample docSub in docExample.Examples)
 					{
-						GenerateExample(docProject, docPublication, docSub, listFormats, path, indexpath, included, mapEntity, mapSchema, listFigures, listTables, htmTOC, htmSectionTOC, mapFormats, outerinstancemap, outerinstanceroot);
+						try
+						{
+							GenerateExample(docProject, docPublication, docSub, listFormats, path, indexpath, included, mapEntity, mapSchema, listFigures, listTables, htmTOC, htmSectionTOC, mapFormats, outerinstancemap, outerinstanceroot);
+						}
+						catch(Exception x)
+						{
+							System.Diagnostics.Debug.WriteLine(x.Message + " - " + x.StackTrace);
+						}
 					}
 					indexpath.RemoveAt(indexpath.Count - 1);
 				}
