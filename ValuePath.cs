@@ -746,6 +746,10 @@ namespace IfcDoc
 				if (valpath != null && valpath.Property != null)
 				{
 					desc = valpath.Property.Documentation;
+					if (String.IsNullOrEmpty(desc))
+					{
+						desc = "";
+					}
 				}
 				else if (valpath != null)
 				{

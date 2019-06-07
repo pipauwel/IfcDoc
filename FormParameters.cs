@@ -86,13 +86,16 @@ namespace IfcDoc
 			if (sel == null)
 				return;
 
-			if (sel.References.Count > 0)
-			{
-				DocTemplateDefinition docTemplateInner = sel.References[0];
-				DocTemplateUsage docConceptInner = ((DocTemplateItem)this.ConceptItem).RegisterParameterConcept(this.ConceptAttr.Identification, docTemplateInner);
-				this.ConceptLeaf = docConceptInner;
-			}
-		}
+            if (sel.References.Count > 0)
+            {
+                DocTemplateDefinition docTemplateInner = sel.References[0];
+                DocTemplateUsage docConceptInner = ((DocTemplateItem)this.ConceptItem).RegisterParameterConcept(this.ConceptAttr.Identification, docTemplateInner);
+				List<DocTemplateUsage> docConcepts = ((DocTemplateItem)this.ConceptItem).RegisterParameterConcepts(docTemplateInner);
+                this.ConceptLeaf = docConceptInner;
+            }
+
+			this.ctlParameters.ToolStripButtonVisibility();
+        }
 
 		public DocModelRuleAttribute ConceptAttr
 		{

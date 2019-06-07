@@ -1475,25 +1475,51 @@ namespace IfcDoc
 								prop.PropertyType.TypePropertyEnumeratedValue.EnumList.Items.Add(eni);
 								eni.Value = constant.Name;
 							}
-
-							prop.PropertyType.TypePropertyEnumeratedValue.ConstantList = new ConstantList();
-							prop.PropertyType.TypePropertyEnumeratedValue.ConstantList.Items = new List<ConstantDef>();
-							foreach (DocPropertyConstant docPropConst in docPropEnum.Constants)
+							else
 							{
-								ConstantDef con = new ConstantDef();
-								prop.PropertyType.TypePropertyEnumeratedValue.ConstantList.Items.Add(con);
+								//DocPropertyEnumeration docEnum = this.m_project.FindPropertyEnumeration(docTemplate.SecondaryDataType.Split(':')[0], out docSchema);
+								//mapPropEnum[parts]
+								prop.PropertyType.TypePropertyEnumeratedValue.EnumList.name = parts[0];
+								prop.PropertyType.TypePropertyEnumeratedValue.EnumList.Items = new List<EnumItem>();
+								foreach (DocPropertyConstant enumValue in mapPropEnum[parts[0]].Constants)
+								{
+									EnumItem enumConstant = new EnumItem();
+									enumConstant.Value = enumValue.Name.Trim();
+									prop.PropertyType.TypePropertyEnumeratedValue.EnumList.Items.Add(enumConstant);
+								}
+							}
+
+							string propenum = docProp.SecondaryDataType;
+							if (propenum != null)
+							{
+								int colon = propenum.IndexOf(':');
+								if (colon > 0)
+								{
+									propenum = propenum.Substring(0, colon);
+								}
+							}
+							DocPropertyEnumeration docPropEnum = null;
+							if (mapPropEnum.TryGetValue(propenum, out docPropEnum))
+							{
+								prop.PropertyType.TypePropertyEnumeratedValue.ConstantList = new ConstantList();
+								prop.PropertyType.TypePropertyEnumeratedValue.ConstantList.Items = new List<ConstantDef>();
+								foreach (DocPropertyConstant docPropConst in docPropEnum.Constants)
+								{
+									ConstantDef con = new ConstantDef();
 
 								con.Name = docPropConst.Name.Trim();
 								con.Definition = docPropConst.Documentation;
 								con.NameAliases = new List<NameAlias>();
 								con.DefinitionAliases = new List<DefinitionAlias>();
 
-								foreach (DocLocalization docLocal in docPropConst.Localization)
-								{
-									NameAlias na = new NameAlias();
-									con.NameAliases.Add(na);
-									na.lang = docLocal.Locale;
-									na.Value = docLocal.Name.Trim();
+									prop.PropertyType.TypePropertyEnumeratedValue.ConstantList.Items.Add(con);
+
+									foreach (DocLocalization docLocal in docPropConst.Localization)
+									{
+										NameAlias na = new NameAlias();
+										con.NameAliases.Add(na);
+										na.lang = docLocal.Locale;
+										na.Value = docLocal.Name.Trim();
 
 									DefinitionAlias da = new DefinitionAlias();
 									con.DefinitionAliases.Add(da);
@@ -2491,7 +2517,15 @@ namespace IfcDoc
 			}
 
 			mvdRule.Description = docItem.Documentation;
-			mvdRule.Parameters = docItem.FormatParameterExpressions(docTemplate, docProject, map); // was RuleParameters;
+			//if (String.IsNullOrEmpty(docItem.RuleParameters))
+			//{
+				mvdRule.Parameters = docItem.FormatParameterExpressions(docTemplate, docProject, map); // was RuleParameters;
+			//}
+			//else
+			//{
+				//mvdRule.Parameters = docItem.RuleParameters;
+			//}
+			
 
 			return mvdRule;
 		}

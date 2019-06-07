@@ -4,3 +4,14 @@
 *.user
 /.vs
 
+/obj/x86/Debug
+/IfcKit/schemas/IFC4X1/obj/Debug
+/IfcKit/formats/xml/obj/Debug
+/IfcKit/formats/ttl/obj/Debug
+/IfcKit/formats/json/obj/Debug
+/IfcKit/formats/spf/obj/Debug
+/IfcKit/formats/BuildingSmart.Serialization/obj/Debug
+/bin/x64/Debug
+/.vs/IfcDoc/v15/sqlite3
+/IfcKit
+/.vs/IfcDoc/v15/Server/sqlite3

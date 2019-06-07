@@ -846,7 +846,8 @@ namespace IfcDoc
                     
                     if (docBaseEntity.BaseDefinition == "IfcElement" || docBaseEntity.BaseDefinition == "IfcElementComponent" || docBaseEntity.BaseDefinition == "IfcBuildingElement" ||
                         docBaseEntity.BaseDefinition == "IfcReinforcingElement" || docBaseEntity.BaseDefinition == "IfcFlowSegment" || docBaseEntity.BaseDefinition == "IfcFeatureElement" ||
-						docBaseEntity.BaseDefinition == "IfcContext")
+						docBaseEntity.BaseDefinition == "IfcContext" || docBaseEntity.BaseDefinition == "IfcSpatialStructureElement" || docBaseEntity.BaseDefinition == "IfcFacility" ||
+						docBaseEntity.BaseDefinition == "IfcFacilityPart")
                     {
                         this.ChangeTemplate(this.m_project.GetTemplate(DocTemplateDefinition.guidTemplatePsetObject));
 
@@ -880,26 +881,46 @@ namespace IfcDoc
 							}
 						}
 
-						DocTemplateUsage propertyConcept = new DocTemplateUsage();
-						DocPropertyTemplateTypeEnum propertyType = form.SelectedProperty.PropertyType;
-						propertyConcept.Operator = DocTemplateOperator.And;
-						DocTemplateItem property = new DocTemplateItem();
-						string psetName = pset.Name;
-						propertyConcept.Name = String.Join(" ", Regex.Split(form.SelectedProperty.Name, @"(?<!^)(?=[A-Z])"));
-						switch (propertyType)
-						{
-							case DocPropertyTemplateTypeEnum.P_SINGLEVALUE:
-								//propertyConcept.Name = "Single Value";
-								//propertyRule.RuleParameters = parameterNames[0] + "[Value]=" + "'" + form.SelectedProperty.Name + "'" + parameterNames[1] + "[Type]=" + "'" + form.SelectedProperty.PrimaryDataType + "'";
-								propertyConcept.Definition = this.m_project.GetTemplate(DocTemplateDefinition.guidTemplatePropertySingle);
-								//parameterNames = property.Definition.GetParameterNames();
+                        DocTemplateUsage propertyConcept = new DocTemplateUsage();
+                        DocPropertyTemplateTypeEnum propertyType = form.SelectedProperty.PropertyType;
+                        propertyConcept.Operator = DocTemplateOperator.And;
+                        DocTemplateItem property = new DocTemplateItem();
+                        string psetName = pset.Name;
+                        propertyConcept.Name = String.Join(" ", Regex.Split(form.SelectedProperty.Name, @"(?<!^)(?=[A-Z])"));
+                        switch (propertyType)
+                        {
+                            case DocPropertyTemplateTypeEnum.P_SINGLEVALUE:
+                                //propertyConcept.Name = "Single Value";
+                                //propertyRule.RuleParameters = parameterNames[0] + "[Value]=" + "'" + form.SelectedProperty.Name + "'" + parameterNames[1] + "[Type]=" + "'" + form.SelectedProperty.PrimaryDataType + "'";
+                                propertyConcept.Definition = this.m_project.GetTemplate(DocTemplateDefinition.guidTemplatePropertySingle);
+                                //parameterNames = property.Definition.GetParameterNames();
+                                property.RuleParameters = propertyConcept.Definition.GetParameterNames()[0] + "=" + form.SelectedProperty.Name + ";" + propertyConcept.Definition.GetParameterNames()[1] + "=" + form.SelectedProperty.PrimaryDataType + ";";
+                                CreateAndAssignProperty(form, propertyConcept, property, psetName);
+                                break;
+                            case DocPropertyTemplateTypeEnum.P_ENUMERATEDVALUE:
+                                //propertyConcept.Name = "Enumerated Value";
+                                propertyConcept.Definition = this.m_project.GetTemplate(DocTemplateDefinition.guidTemplatePropertyEnumerated);
+                                //parameterNames = property.Definition.GetParameterNames();
+                                property.RuleParameters = propertyConcept.Definition.GetParameterNames()[0] + "=" + form.SelectedProperty.Name + ";" + propertyConcept.Definition.GetParameterNames()[1] + "=" + form.SelectedProperty.PrimaryDataType + ";";
+                                CreateAndAssignProperty(form, propertyConcept, property, psetName);
+                                break;
+							case DocPropertyTemplateTypeEnum.P_LISTVALUE:
+								propertyConcept.Definition = this.m_project.GetTemplate(DocTemplateDefinition.guidTemplatePropertyList);
 								property.RuleParameters = propertyConcept.Definition.GetParameterNames()[0] + "=" + form.SelectedProperty.Name + ";" + propertyConcept.Definition.GetParameterNames()[1] + "=" + form.SelectedProperty.PrimaryDataType + ";";
 								CreateAndAssignProperty(form, propertyConcept, property, psetName);
 								break;
-							case DocPropertyTemplateTypeEnum.P_ENUMERATEDVALUE:
-								//propertyConcept.Name = "Enumerated Value";
-								propertyConcept.Definition = this.m_project.GetTemplate(DocTemplateDefinition.guidTemplatePropertyEnumerated);
-								//parameterNames = property.Definition.GetParameterNames();
+							case DocPropertyTemplateTypeEnum.P_BOUNDEDVALUE:
+								propertyConcept.Definition = this.m_project.GetTemplate(DocTemplateDefinition.guidTemplatePropertyBounded);
+								property.RuleParameters = propertyConcept.Definition.GetParameterNames()[0] + "=" + form.SelectedProperty.Name + ";" + propertyConcept.Definition.GetParameterNames()[1] + "=" + form.SelectedProperty.PrimaryDataType + ";";
+								CreateAndAssignProperty(form, propertyConcept, property, psetName);
+								break;
+							case DocPropertyTemplateTypeEnum.P_REFERENCEVALUE:
+								propertyConcept.Definition = this.m_project.GetTemplate(DocTemplateDefinition.guidTemplatePropertyReference);
+								property.RuleParameters = propertyConcept.Definition.GetParameterNames()[0] + "=" + form.SelectedProperty.Name + ";" + propertyConcept.Definition.GetParameterNames()[1] + "=" + form.SelectedProperty.PrimaryDataType + ";";
+								CreateAndAssignProperty(form, propertyConcept, property, psetName);
+								break;
+							case DocPropertyTemplateTypeEnum.P_TABLEVALUE:
+								propertyConcept.Definition = this.m_project.GetTemplate(DocTemplateDefinition.guidTemplatePropertyTable);
 								property.RuleParameters = propertyConcept.Definition.GetParameterNames()[0] + "=" + form.SelectedProperty.Name + ";" + propertyConcept.Definition.GetParameterNames()[1] + "=" + form.SelectedProperty.PrimaryDataType + ";";
 								CreateAndAssignProperty(form, propertyConcept, property, psetName);
 								break;
@@ -962,16 +983,17 @@ namespace IfcDoc
 		{
 			this.Template = docTemplateDefinition;
 
-			// update link to template on concept or concept root
-			if (this.Concept != null)
-			{
-				this.Concept.Definition = this.Template;
-			}
-			else if (this.ConceptRoot != null)
-			{
-				this.ConceptRoot.ApplicableTemplate = this.Template;
-				this.ConceptRoot.ApplicableEntity = this.Project.GetDefinition(this.Template.Type) as DocEntity;
-			}
+            // update link to template on concept or concept root
+            if (this.Concept != null)
+            {
+                this.Concept.Definition = this.Template;
+				this.Concept.Items.Add(new DocTemplateItem { Optional = false });
+            }
+            else if (this.ConceptRoot != null)
+            {
+                this.ConceptRoot.ApplicableTemplate = this.Template;
+                this.ConceptRoot.ApplicableEntity = this.Project.GetDefinition(this.Template.Type) as DocEntity;
+            }
 
 			this.LoadTemplateGraph();
 			this.ContentChanged(this, EventArgs.Empty);

@@ -3134,13 +3134,25 @@ namespace IfcDoc.Format.HTM
 			{
 				if (viewmap[iView] != null)
 				{
-					this.m_writer.Write("<td>");
-					bool included = false;
-					if (viewmap[iView].TryGetValue(docAttr, out included))
+					bool isViewPublishing = false;
+					for (int i = 0; i < views.Length; i++)
 					{
-						this.m_writer.Write("X");
+						if (views[i] != null)
+						{
+							if (viewmap[iView].TryGetValue(views[i], out isViewPublishing)) break;
+						}
 					}
-					this.m_writer.Write("</td>");
+
+					if (isViewPublishing)
+					{
+						this.m_writer.Write("<td>");
+						bool included = false;
+						if (viewmap[iView].TryGetValue(docAttr, out included))
+						{
+							this.m_writer.Write("X");
+						}
+						this.m_writer.Write("</td>");
+					}
 				}
 			}
 		}
