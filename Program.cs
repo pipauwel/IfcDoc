@@ -1469,62 +1469,37 @@ namespace IfcDoc
 							DocPropertyEnumeration docPropEnum = docProp.Enumeration;
 							prop.PropertyType.TypePropertyEnumeratedValue.EnumList.name = docPropEnum.Name;
 							prop.PropertyType.TypePropertyEnumeratedValue.EnumList.Items = new List<EnumItem>();
+							prop.PropertyType.TypePropertyEnumeratedValue.ConstantList = new ConstantList();
+							prop.PropertyType.TypePropertyEnumeratedValue.ConstantList.Items = new List<ConstantDef>();
+
 							foreach (DocPropertyConstant constant in docPropEnum.Constants)
 							{
 								EnumItem eni = new EnumItem();
 								prop.PropertyType.TypePropertyEnumeratedValue.EnumList.Items.Add(eni);
 								eni.Value = constant.Name;
-							}
-							else
-							{
-								//DocPropertyEnumeration docEnum = this.m_project.FindPropertyEnumeration(docTemplate.SecondaryDataType.Split(':')[0], out docSchema);
-								//mapPropEnum[parts]
-								prop.PropertyType.TypePropertyEnumeratedValue.EnumList.name = parts[0];
-								prop.PropertyType.TypePropertyEnumeratedValue.EnumList.Items = new List<EnumItem>();
-								foreach (DocPropertyConstant enumValue in mapPropEnum[parts[0]].Constants)
-								{
-									EnumItem enumConstant = new EnumItem();
-									enumConstant.Value = enumValue.Name.Trim();
-									prop.PropertyType.TypePropertyEnumeratedValue.EnumList.Items.Add(enumConstant);
-								}
-							}
+								ConstantDef con = new ConstantDef();
 
-							string propenum = docProp.SecondaryDataType;
-							if (propenum != null)
-							{
-								int colon = propenum.IndexOf(':');
-								if (colon > 0)
-								{
-									propenum = propenum.Substring(0, colon);
-								}
-							}
-							DocPropertyEnumeration docPropEnum = null;
-							if (mapPropEnum.TryGetValue(propenum, out docPropEnum))
-							{
-								prop.PropertyType.TypePropertyEnumeratedValue.ConstantList = new ConstantList();
-								prop.PropertyType.TypePropertyEnumeratedValue.ConstantList.Items = new List<ConstantDef>();
-								foreach (DocPropertyConstant docPropConst in docPropEnum.Constants)
-								{
-									ConstantDef con = new ConstantDef();
-
-								con.Name = docPropConst.Name.Trim();
-								con.Definition = docPropConst.Documentation;
+								con.Name = constant.Name.Trim();
+								con.Definition = constant.Documentation;
 								con.NameAliases = new List<NameAlias>();
 								con.DefinitionAliases = new List<DefinitionAlias>();
 
-									prop.PropertyType.TypePropertyEnumeratedValue.ConstantList.Items.Add(con);
+								prop.PropertyType.TypePropertyEnumeratedValue.ConstantList.Items.Add(con);
 
-									foreach (DocLocalization docLocal in docPropConst.Localization)
+								foreach (DocLocalization docLocal in constant.Localization)
+								{
+									NameAlias na = new NameAlias();
+									con.NameAliases.Add(na);
+									na.lang = docLocal.Locale;
+									na.Value = docLocal.Name.Trim();
+
+									if (!string.IsNullOrEmpty(docLocal.Documentation))
 									{
-										NameAlias na = new NameAlias();
-										con.NameAliases.Add(na);
-										na.lang = docLocal.Locale;
-										na.Value = docLocal.Name.Trim();
-
-									DefinitionAlias da = new DefinitionAlias();
-									con.DefinitionAliases.Add(da);
-									da.lang = docLocal.Locale;
-									da.Value = docLocal.Documentation;
+										DefinitionAlias da = new DefinitionAlias();
+										con.DefinitionAliases.Add(da);
+										da.lang = docLocal.Locale;
+										da.Value = docLocal.Documentation;
+									}
 								}
 							}
 						}

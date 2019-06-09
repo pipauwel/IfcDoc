@@ -2862,7 +2862,14 @@ namespace IfcDoc
 					indexpath.Add(0);
 					foreach (DocExample docSub in docExample.Examples)
 					{
-						GenerateExample(docProject, docPublication, docSub, listFormats, path, indexpath, included, mapEntity, mapSchema, listFigures, listTables, htmTOC, htmSectionTOC, mapFormats, outerinstancemap, outerinstanceroot);
+						try
+						{
+							GenerateExample(docProject, docPublication, docSub, listFormats, path, indexpath, included, mapEntity, mapSchema, listFigures, listTables, htmTOC, htmSectionTOC, mapFormats, outerinstancemap, outerinstanceroot);
+						}
+						catch(Exception x)
+						{
+							System.Diagnostics.Debug.WriteLine(x.Message + " - " + x.StackTrace);
+						}
 					}
 					indexpath.RemoveAt(indexpath.Count - 1);
 				}
@@ -4690,7 +4697,12 @@ namespace IfcDoc
 						mapFormatSchema.Add(docFormat.FormatType, new FormatXSD(null));
 						string version = docProject.GetSchemaVersion();
 						XmlSerializer serializer = new XmlSerializer(typeProject);
-						if(version.StartsWith("2.3.0"))
+						if(string.IsNullOrEmpty(version))
+						{
+							
+
+						}
+						else if(version.StartsWith("2.3.0"))
 						{
 							serializer.NameSpace = @"http://www.iai-tech.org/ifcXML/IFC2x3/FINAL";
 							serializer.SchemaLocation = @"http://standards.buildingsmart.org/IFC/RELEASE/IFC2x3/TC1/XML/IFC2X3.xsd";
