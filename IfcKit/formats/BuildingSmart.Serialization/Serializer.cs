@@ -40,7 +40,12 @@ namespace BuildingSmart.Serialization
 		/// </summary>
 		/// <param name="typeProject">Type of the root object to load</param>
 		public Serializer(Type typeProject)
-			: base(typeProject, null, null, null, null)
+			: base(typeProject)
+		{
+		}
+
+		public Serializer(Type typeProject, bool xmlAttributePriority)
+			: base(typeProject, xmlAttributePriority)
 		{
 		}
 

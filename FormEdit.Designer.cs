@@ -102,6 +102,7 @@
             this.toolStripMenuItemImportDatabase = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemFileUpdate = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemFileExport = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemCSharp = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem5 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripMenuItemDownload = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemPublish = new System.Windows.Forms.ToolStripMenuItem();
@@ -288,7 +289,6 @@
             this.ctlInheritance = new IfcDoc.CtlInheritance();
             this.ctlProperties = new IfcDoc.CtlProperties();
             this.ctlCheckGrid = new IfcDoc.CtlCheckGrid();
-            this.toolStripMenuItemCSharp = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainerRoot)).BeginInit();
             this.splitContainerRoot.Panel1.SuspendLayout();
             this.splitContainerRoot.Panel2.SuspendLayout();
@@ -901,6 +901,12 @@
             resources.ApplyResources(this.toolStripMenuItemFileExport, "toolStripMenuItemFileExport");
             this.toolStripMenuItemFileExport.Name = "toolStripMenuItemFileExport";
             this.toolStripMenuItemFileExport.Click += new System.EventHandler(this.toolStripMenuItemFileExport_Click);
+            // 
+            // toolStripMenuItemCSharp
+            // 
+            this.toolStripMenuItemCSharp.Name = "toolStripMenuItemCSharp";
+            resources.ApplyResources(this.toolStripMenuItemCSharp, "toolStripMenuItemCSharp");
+            this.toolStripMenuItemCSharp.Click += new System.EventHandler(this.toolStripMenuItemCSharp_Click);
             // 
             // toolStripMenuItem5
             // 
@@ -2214,12 +2220,6 @@
             this.ctlCheckGrid.Name = "ctlCheckGrid";
             this.ctlCheckGrid.Selection = null;
             this.ctlCheckGrid.SelectionChanged += new System.EventHandler(this.ctlCheckGrid_SelectionChanged);
-            // 
-            // toolStripMenuItemCSharp
-            // 
-            this.toolStripMenuItemCSharp.Name = "toolStripMenuItemCSharp";
-            resources.ApplyResources(this.toolStripMenuItemCSharp, "toolStripMenuItemCSharp");
-            this.toolStripMenuItemCSharp.Click += new System.EventHandler(this.toolStripMenuItemCSharp_Click);
             // 
             // FormEdit
             // 

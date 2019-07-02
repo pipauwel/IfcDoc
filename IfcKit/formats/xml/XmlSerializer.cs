@@ -31,9 +31,8 @@ namespace BuildingSmart.Serialization.Xml
 		public string NameSpace { set { _NameSpace = value; } }
 		public string SchemaLocation { set { _SchemaLocation = value; } }
 
-		public XmlSerializer(Type type) : base(type)
+		public XmlSerializer(Type typeProject) : base(typeProject, true)
 		{
-			_XmlAttributePriority = true;
 		}
 
 		public override object ReadObject(Stream stream)

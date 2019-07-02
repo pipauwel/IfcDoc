@@ -379,7 +379,12 @@ namespace IfcDoc.Format.HTM
 							string hyperlink = @"../" + schema.ToLower() + @"/lexical/" + definition.ToLower() + ".htm";
 							return "<a href=\"" + hyperlink + "\">" + definition + "</a>";
 						}
-						else if (ent is DocPropertySet || ent is DocPropertyEnumeration)
+						else if (ent is DocPropertyEnumeration)
+						{
+							string hyperlink = urlprefix + @"/penum/" + definition.ToLower() + ".htm";
+							return "<a href=\"" + hyperlink + "\">" + definition + "</a>";
+						}
+						else if (ent is DocPropertySet)
 						{
 							string hyperlink = urlprefix + schema.ToLower() + @"/pset/" + definition.ToLower() + ".htm";
 							return "<a href=\"" + hyperlink + "\">" + definition + "</a>";

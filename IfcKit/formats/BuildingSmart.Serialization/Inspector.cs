@@ -35,7 +35,7 @@ namespace BuildingSmart.Serialization
 		Dictionary<int, List<PropertyInfo>> _inversemap = new Dictionary<int, List<PropertyInfo>>();
 		Dictionary<Type, MethodInfo> _deserializingmap = new Dictionary<Type, MethodInfo>(); // cached field lists in declaration order
 
-		protected bool _XmlAttributePriority { get; set; } = false;
+		private bool _XmlAttributePriority { get; set; } = false;
 		/// <summary>
 		/// Creates serializer accepting all types within assembly.
 		/// </summary>
@@ -44,7 +44,11 @@ namespace BuildingSmart.Serialization
 			: this(typeProject, null, null, null, null)
 		{
 		}
-
+		public Inspector(Type typeProject, bool xmlAttributePriority)
+			: this(typeProject)
+		{
+			_XmlAttributePriority = xmlAttributePriority;
+		}
 		public Inspector(Type typeProject, Type[] loadtypes)
 			: this(typeProject, loadtypes, null, null, null)
 		{
@@ -499,6 +503,9 @@ namespace BuildingSmart.Serialization
 				DataMemberAttribute dataMemberAttribute = field.GetCustomAttribute<DataMemberAttribute>();
 				if (_XmlAttributePriority)
 				{
+					XmlIgnoreAttribute xmlIgnoreAttribute = field.GetCustomAttribute<XmlIgnoreAttribute>();
+					if (xmlIgnoreAttribute != null)
+						continue;
 					XmlElementAttribute xmlElementAttribute = field.GetCustomAttribute<XmlElementAttribute>();
 					if (xmlElementAttribute != null)
 					{

@@ -276,7 +276,7 @@ namespace IfcDoc
 
 			LoadTree();
 		}
-		
+
 
 		/// <summary>
 		/// Temporary routine for providing English localization for definition
@@ -334,7 +334,7 @@ namespace IfcDoc
 
 				try
 				{
-					IfcDocUtils.SaveProject(this.m_project ,this.m_file);
+					IfcDocUtils.SaveProject(this.m_project, this.m_file);
 					this.m_modified = false;
 				}
 				catch (System.Exception x)
@@ -595,34 +595,12 @@ namespace IfcDoc
 									}
 								}
 							}
-							else if (filename.Contains("ifcXML"))
-							{
-								using (FormatXML format = new FormatXML(filename, typeof(configuration), null, SchemaCNF.Prefixes))
-								{
-									try
-									{
-										format.Load();
-
-										DocModelView docView = null;
-										using (FormSelectView form = new FormSelectView(this.m_project, null))
-										{
-											if (form.ShowDialog(this) == System.Windows.Forms.DialogResult.OK && form.Selection != null && form.Selection.Length == 1)
-											{
-												docView = form.Selection[0];
-											}
-										}
-
-										configuration cnf = (configuration)format.Instance;
-										Program.ImportCnf(cnf, this.m_project, docView);
-									}
-									catch (Exception xx)
-									{
-										MessageBox.Show(this, xx.Message, "Import CNFXML");
-									}
-								}
-							}
 							break;
-
+						case ".ifcxml":
+							FormSelectSchema schemaSelect = new FormSelectSchema(m_project);
+							schemaSelect.ShowDialog();
+							Program.ImportIFC(filename, m_project, schemaSelect.Selection);
+							break;
 						case ".mvdxml":
 							this.ImportMVD(filename);
 							break;
@@ -1922,7 +1900,7 @@ namespace IfcDoc
 							mapEntity.Add(def.Name, def);
 						}
 					}
-					
+
 					foreach (DocQuantitySet def in docSchema.QuantitySets)
 					{
 						mapSchema.Add(def.Name, docSchema.Name);
@@ -3041,7 +3019,7 @@ namespace IfcDoc
 			}
 			else if (e.Node.Tag == typeof(DocConstant))
 			{
-				this.toolStripMenuItemInsertEnumerationConstant.Visible = true;	
+				this.toolStripMenuItemInsertEnumerationConstant.Visible = true;
 				this.toolStripMenuItemContextInsertConstant.Visible = true;
 				this.toolStripMenuItemContextInsert.Visible = true;
 			}
@@ -3240,7 +3218,7 @@ namespace IfcDoc
 				else if (obj is DocPropertyConstant)
 				{
 					DocPropertyConstant constant = (DocPropertyConstant)obj;
-					if(e.Node.Parent.Tag != typeof(DocPropertyConstant))
+					if (e.Node.Parent.Tag != typeof(DocPropertyConstant))
 					{
 						this.toolStripMenuItemContextRemove.Visible = true;
 					}
@@ -3998,21 +3976,17 @@ namespace IfcDoc
 			if (res != DialogResult.OK)
 				return;
 
-            try
-            {
-                using (FileStream streamChange = new FileStream(this.openFileDialogChanges.FileName, FileMode.Open))
-                {
-                    StepSerializer formatChange = new StepSerializer(typeof(DocProject), SchemaDOC.Types);
-                    DocProject docProjectBase = (DocProject)formatChange.ReadObject(streamChange);
-                    DocPublication docPub = this.treeView.SelectedNode.Tag as DocPublication; // if publication selected, then change log is specific to publication
-                    ChangeLogGenerator.Generate(docProjectBase, this.m_project, docPub);
-                }
-            }
-            catch (Exception x)
-            {
-                MessageBox.Show(x.Message + System.Environment.NewLine + x.StackTrace);
-                return;
-            }
+			try
+			{
+				DocProject docProjectBase = IfcDocUtils.LoadFile(this.openFileDialogChanges.FileName);
+				DocPublication docPub = this.treeView.SelectedNode.Tag as DocPublication; // if publication selected, then change log is specific to publication
+				ChangeLogGenerator.Generate(docProjectBase, this.m_project, docPub);
+			}
+			catch (Exception x)
+			{
+				MessageBox.Show(x.Message + System.Environment.NewLine + x.StackTrace);
+				return;
+			}
 
 			this.LoadTree();
 		}
@@ -4741,7 +4715,7 @@ namespace IfcDoc
 		{
 			object selected = this.treeView.SelectedNode.Tag;
 			object parent = this.treeView.SelectedNode.Parent.Tag;
-			
+
 			DocProperty docProp = selected as DocProperty;
 			if (docProp != null)
 			{
@@ -4788,10 +4762,10 @@ namespace IfcDoc
 					else
 					{
 						DocPropertyConstant docPropertyConstant = selected as DocPropertyConstant;
-						if(docPropertyConstant != null)
+						if (docPropertyConstant != null)
 						{
 							DocPropertyEnumeration docPropertyEnumeration = parent as DocPropertyEnumeration;
-							if(docPropertyEnumeration != null)
+							if (docPropertyEnumeration != null)
 							{
 								docPropertyEnumeration.Constants.Remove(docPropertyConstant);
 								docPropertyConstant.PartOfEnumeration.Remove(docPropertyEnumeration);
@@ -9850,7 +9824,7 @@ namespace IfcDoc
 			{
 				XmlFolderSerializer folderSerializer = new XmlFolderSerializer(typeof(DocProject));
 				DocProject docProject = folderSerializer.ReadObject(folderBrowserDialog.SelectedPath) as DocProject;
-				if(docProject == null)
+				if (docProject == null)
 				{
 					MessageBox.Show(this, "Unrecognized Project, aborted.", "Error loading from folder");
 					return;
@@ -9880,7 +9854,7 @@ namespace IfcDoc
 			//	form.SelectedPath = this.folderBrowserDialog.SelectedPath;
 			//	if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK)
 			//	{
-					
+
 			//		Dictionary<string, DocObject> mapEntity = new Dictionary<string, DocObject>();
 			//		Dictionary<string, string> mapSchema = new Dictionary<string, string>();
 			//		BuildMaps(mapEntity, mapSchema);
@@ -10215,7 +10189,7 @@ namespace IfcDoc
 			this.LoadTree();
 		}
 
-	
+
 	}
 
 }
