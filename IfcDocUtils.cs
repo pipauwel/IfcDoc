@@ -257,7 +257,7 @@ namespace IfcDoc
 		
 		private static bool isUnchanged(DocChangeAction docChangeAction)
 		{
-			docChangeAction.Changes.RemoveAll(x => !isUnchanged(x));
+			docChangeAction.Changes.RemoveAll(x => isUnchanged(x));
 			if (docChangeAction.Changes.Count == 0 && docChangeAction.Action == DocChangeActionEnum.NOCHANGE && !docChangeAction.ImpactXML && !docChangeAction.ImpactSPF)
 				return true;
 			return false;
