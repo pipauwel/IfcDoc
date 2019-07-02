@@ -459,13 +459,17 @@ namespace IfcDoc
 						selectedTemplateItem.Concepts[0].Definition.Uuid == DocTemplateDefinition.guidTemplatePropertyReference ||
 						selectedTemplateItem.Concepts[0].Definition.Uuid == DocTemplateDefinition.guidTemplatePropertySingle ||
 						selectedTemplateItem.Concepts[0].Definition.Uuid == DocTemplateDefinition.guidTemplatePropertyTable;*/
-					bool isSelectedItemAProperty = this.ConceptLeaf.Definition.Uuid == DocTemplateDefinition.guidTemplatePropertyBounded || this.ConceptLeaf.Definition.Uuid == DocTemplateDefinition.guidTemplatePropertyEnumerated ||
-						this.ConceptLeaf.Definition.Uuid == DocTemplateDefinition.guidTemplatePropertyList || this.ConceptLeaf.Definition.Uuid == DocTemplateDefinition.guidTemplatePropertyReference ||
-						this.ConceptLeaf.Definition.Uuid == DocTemplateDefinition.guidTemplatePropertySingle || this.ConceptLeaf.Definition.Uuid == DocTemplateDefinition.guidTemplatePropertyTable;
-					if (isSelectedItemAProperty)
-					{
-						this.toolStripButtonTemplateInsert.Enabled = (this.dataGridViewConceptRules.SelectedRows.Count > 0 && this.dataGridViewConceptRules.SelectedRows[0].Index < this.dataGridViewConceptRules.Rows.Count - 1);
-					}
+			if (this.ConceptLeaf != null)
+			{
+				bool isSelectedItemAProperty = this.ConceptLeaf.Definition.Uuid == DocTemplateDefinition.guidTemplatePropertyBounded || this.ConceptLeaf.Definition.Uuid == DocTemplateDefinition.guidTemplatePropertyEnumerated ||
+					this.ConceptLeaf.Definition.Uuid == DocTemplateDefinition.guidTemplatePropertyList || this.ConceptLeaf.Definition.Uuid == DocTemplateDefinition.guidTemplatePropertyReference ||
+					this.ConceptLeaf.Definition.Uuid == DocTemplateDefinition.guidTemplatePropertySingle || this.ConceptLeaf.Definition.Uuid == DocTemplateDefinition.guidTemplatePropertyTable;
+				if (isSelectedItemAProperty)
+				{
+					this.toolStripButtonTemplateInsert.Enabled = (this.dataGridViewConceptRules.SelectedRows.Count > 0 && this.dataGridViewConceptRules.SelectedRows[0].Index < this.dataGridViewConceptRules.Rows.Count - 1);
+				}
+			}
+
 				/*}
 			}*/
 

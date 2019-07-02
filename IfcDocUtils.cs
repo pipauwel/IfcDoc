@@ -279,7 +279,8 @@ namespace IfcDoc
 			}
 			foreach (DocType t in schema.Types)
 			{
-				if (t is DocEnumeration enumeration)
+				DocEnumeration enumeration = t as DocEnumeration;
+				if (enumeration != null)
 				{
 					foreach (DocConstant constant in enumeration.Constants)
 					{
