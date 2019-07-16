@@ -610,7 +610,7 @@ namespace IfcDoc.Schema.DOC
 	public class DocProject : SEntity
 	{ 
 		[DataMember(Order = 0)] [XmlElement(Order = 5)] public List<DocSection> Sections { get; protected set; }
-		[DataMember(Order = 1)] [XmlElement(Order = 6)] public List<DocAnnex> Annexes { get; protected set; } // inserted in 1.2
+		[DataMember(Order = 1)] [XmlArray(Order = 6)] public List<DocAnnex> Annexes { get; protected set; } // inserted in 1.2
 		[DataMember(Order = 2)] [XmlElement(Order = 7)] public List<DocTemplateDefinition> Templates { get; protected set; }
 		[DataMember(Order = 3)] [XmlElement(Order = 8)] public List<DocModelView> ModelViews { get; protected set; } // new in 2.7
 		[DataMember(Order = 4)] [XmlElement(Order = 9)] public List<DocChangeSet> ChangeSets { get; protected set; } // new in 2.7
@@ -2206,6 +2206,8 @@ namespace IfcDoc.Schema.DOC
 			List<DocAnnex> notSorted = new List<DocAnnex>();
 			foreach (DocAnnex docAnnex in this.Annexes)
 			{
+				if (docAnnex == null)
+					continue;
 				if (string.Compare(docAnnex.Name, "Computer interpretable listings", true) == 0)
 					computer = docAnnex;
 				else if (string.Compare(docAnnex.Name, "Alphabetical listings", true) == 0)

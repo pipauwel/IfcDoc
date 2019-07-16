@@ -152,6 +152,8 @@ namespace BuildingSmart.Serialization.Xml
 								int count = 0;
 								foreach (object nested in enumerable)
 								{
+									if (nested == null)
+										continue;
 									count++;
 									if (string.IsNullOrEmpty(_ObjectStore.EncounteredId(nested)))
 										allSaved = false;
@@ -197,6 +199,8 @@ namespace BuildingSmart.Serialization.Xml
 									//}
 									foreach (object nested in enumerable)
 									{
+										if (nested == null)
+											continue;
 										_ObjectStore.MarkEncountered(nested, ref nextID);
 										string nestedObjectPath = Path.Combine(nestedPath, removeInvalidFile(uniqueIdProperty.GetValue(nested).ToString()));
 										Directory.CreateDirectory(nestedObjectPath);
