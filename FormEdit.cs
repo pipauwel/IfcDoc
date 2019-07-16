@@ -9043,7 +9043,7 @@ namespace IfcDoc
 			docPub.Name = "Publication" + this.m_project.Publications.Count;
 			docPub.Annotations.Add(new DocAnnotation("Foreword"));
 			docPub.Annotations.Add(new DocAnnotation("Introduction"));
-			TreeNode tnPub = this.LoadNode(this.treeView.Nodes[15], docPub, docPub.Name, false);
+			TreeNode tnPub = this.LoadNode(this.treeView.Nodes[20], docPub, docPub.Name, false);
 			foreach (DocAnnotation docAnno in docPub.Annotations)
 			{
 				LoadNode(tnPub, docAnno, docAnno.Name, false);
