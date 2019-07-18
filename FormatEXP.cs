@@ -176,7 +176,8 @@ namespace IfcDoc.Format.EXP
 				}
 
 				string org = "buildingSMART International Limited";
-
+				System.Globalization.CultureInfo currentCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+				System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("en-GB");
 				writer.Write("" +
 "(*\r\n" +
 "Copyright by:\r\n" +
@@ -203,6 +204,7 @@ DateTime.Today.ToLongDateString() + "\r\n" + //"December 27, 2012\r\n" +
 "\r\n" +
 "*)\r\n" +
 "\r\n");
+				System.Threading.Thread.CurrentThread.CurrentCulture = currentCulture;
 				writer.WriteLine("SCHEMA " + schemaid.ToUpper() + ";");
 				writer.WriteLine();
 
