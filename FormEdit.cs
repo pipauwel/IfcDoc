@@ -9837,6 +9837,7 @@ namespace IfcDoc
 				MessageBox.Show(this, xx.Message, "Error loading from folder");
 			}
 
+			this.m_project.SortProject();
 			this.LoadTree();
 		}
 
