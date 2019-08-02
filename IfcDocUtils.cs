@@ -277,17 +277,17 @@ namespace IfcDoc
 						project.PropertyConstants.Add(constant);
 				}
 			}
-			foreach (DocType t in schema.Types)
-			{
-				if (t is DocEnumeration enumeration)
-				{
-					foreach (DocConstant constant in enumeration.Constants)
-					{
-						if (!project.Constants.Contains(constant)) 
-							project.Constants.Add(constant);
-					}
-				}
-			}
+			//foreach (DocType t in schema.Types)
+			//{
+			//	if (t is DocEnumeration enumeration)
+			//	{
+			//		foreach (DocConstant constant in enumeration.Constants)
+			//		{
+			//			if (!project.Constants.Contains(constant)) 
+			//				project.Constants.Add(constant);
+			//		}
+			//	}
+			//}
 			foreach (DocProperty property in schema.PropertySets.SelectMany(x=>x.Properties))
 				extractListings(project, property, encounteredPropertyEnumerations); //listings
 		

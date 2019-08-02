@@ -31,6 +31,7 @@
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormEdit));
             this.splitContainerRoot = new System.Windows.Forms.SplitContainer();
+            this.treeView = new IfcDoc.ThemedTreeView();
             this.contextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.toolStripMenuItemContextInsert = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemContextInsertModelView = new System.Windows.Forms.ToolStripMenuItem();
@@ -74,7 +75,12 @@
             this.panelWorkspace = new System.Windows.Forms.Panel();
             this.panelDiagram = new System.Windows.Forms.Panel();
             this.splitContainerWorkspace = new System.Windows.Forms.SplitContainer();
+            this.ctlConcept = new IfcDoc.CtlConcept();
+            this.ctlExpressG = new IfcDoc.CtlExpressG();
+            this.ctlInheritance = new IfcDoc.CtlInheritance();
+            this.ctlProperties = new IfcDoc.CtlProperties();
             this.textBoxHTML = new System.Windows.Forms.TextBox();
+            this.ctlCheckGrid = new IfcDoc.CtlCheckGrid();
             this.webBrowser = new System.Windows.Forms.WebBrowser();
             this.splitContainerInstances = new System.Windows.Forms.SplitContainer();
             this.listViewValidate = new System.Windows.Forms.ListView();
@@ -102,6 +108,7 @@
             this.toolStripMenuItemImportDatabase = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemFileUpdate = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemFileExport = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemCSharp = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem5 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripMenuItemDownload = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemPublish = new System.Windows.Forms.ToolStripMenuItem();
@@ -282,13 +289,7 @@
             this.saveFileDialogModule = new System.Windows.Forms.SaveFileDialog();
             this.openFileDialogExpress = new System.Windows.Forms.OpenFileDialog();
             this.openFileDialogExamples = new System.Windows.Forms.OpenFileDialog();
-            this.treeView = new IfcDoc.ThemedTreeView();
-            this.ctlConcept = new IfcDoc.CtlConcept();
-            this.ctlExpressG = new IfcDoc.CtlExpressG();
-            this.ctlInheritance = new IfcDoc.CtlInheritance();
-            this.ctlProperties = new IfcDoc.CtlProperties();
-            this.ctlCheckGrid = new IfcDoc.CtlCheckGrid();
-            this.toolStripMenuItemCSharp = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemJAVA = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainerRoot)).BeginInit();
             this.splitContainerRoot.Panel1.SuspendLayout();
             this.splitContainerRoot.Panel2.SuspendLayout();
@@ -325,6 +326,20 @@
             // splitContainerRoot.Panel2
             // 
             this.splitContainerRoot.Panel2.Controls.Add(this.splitContainerEdit);
+            // 
+            // treeView
+            // 
+            this.treeView.ContextMenuStrip = this.contextMenuStrip;
+            resources.ApplyResources(this.treeView, "treeView");
+            this.treeView.HideSelection = false;
+            this.treeView.ImageList = this.imageListIcon;
+            this.treeView.LabelEdit = true;
+            this.treeView.Name = "treeView";
+            this.treeView.BeforeLabelEdit += new System.Windows.Forms.NodeLabelEditEventHandler(this.treeView_BeforeLabelEdit);
+            this.treeView.AfterLabelEdit += new System.Windows.Forms.NodeLabelEditEventHandler(this.treeView_AfterLabelEdit);
+            this.treeView.ItemDrag += new System.Windows.Forms.ItemDragEventHandler(this.treeView_ItemDrag);
+            this.treeView.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.TreeView_AfterSelect);
+            this.treeView.MouseUp += new System.Windows.Forms.MouseEventHandler(this.treeView_MouseUp);
             // 
             // contextMenuStrip
             // 
@@ -688,12 +703,72 @@
             // 
             this.splitContainerWorkspace.Panel2.Controls.Add(this.ctlProperties);
             // 
+            // ctlConcept
+            // 
+            resources.ApplyResources(this.ctlConcept, "ctlConcept");
+            this.ctlConcept.ConceptRoot = null;
+            this.ctlConcept.CurrentInstance = null;
+            this.ctlConcept.Name = "ctlConcept";
+            this.ctlConcept.Project = null;
+            this.ctlConcept.Selection = null;
+            this.ctlConcept.Template = null;
+            this.ctlConcept.SelectionChanged += new System.EventHandler(this.ctlConcept_SelectionChanged);
+            this.ctlConcept.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.ctlConcept_MouseDoubleClick);
+            // 
+            // ctlExpressG
+            // 
+            this.ctlExpressG.AllowDrop = true;
+            resources.ApplyResources(this.ctlExpressG, "ctlExpressG");
+            this.ctlExpressG.Format = IfcDoc.Schema.DOC.DiagramFormat.ExpressG;
+            this.ctlExpressG.Marker = new System.Drawing.Point(0, 0);
+            this.ctlExpressG.Mode = IfcDoc.ToolMode.Select;
+            this.ctlExpressG.Name = "ctlExpressG";
+            this.ctlExpressG.Project = null;
+            this.ctlExpressG.Schema = null;
+            this.ctlExpressG.ScrollToSelection = true;
+            this.ctlExpressG.Selection = null;
+            this.ctlExpressG.SelectionChanged += new System.EventHandler(this.ctlExpressG_SelectionChanged);
+            this.ctlExpressG.LinkOperation += new System.EventHandler(this.ctlExpressG_LinkOperation);
+            this.ctlExpressG.ExpandOperation += new System.EventHandler(this.ctlExpressG_ExpandOperation);
+            // 
+            // ctlInheritance
+            // 
+            resources.ApplyResources(this.ctlInheritance, "ctlInheritance");
+            this.ctlInheritance.Entity = null;
+            this.ctlInheritance.Mode = IfcDoc.ToolMode.Select;
+            this.ctlInheritance.ModelView = null;
+            this.ctlInheritance.Name = "ctlInheritance";
+            this.ctlInheritance.Project = null;
+            this.ctlInheritance.SelectionChanged += new System.EventHandler(this.ctlInheritance_SelectionChanged);
+            // 
+            // ctlProperties
+            // 
+            this.ctlProperties.CurrentInstance = null;
+            this.ctlProperties.CurrentPopulation = null;
+            resources.ApplyResources(this.ctlProperties, "ctlProperties");
+            this.ctlProperties.Name = "ctlProperties";
+            this.ctlProperties.SelectedAttribute = null;
+            this.ctlProperties.SelectedRule = null;
+            this.ctlProperties.Navigate += new System.EventHandler(this.ctlProperties_Navigate);
+            this.ctlProperties.RuleSelectionChanged += new System.EventHandler(this.ctlProperties_RuleSelectionChanged);
+            this.ctlProperties.RuleContentChanged += new System.EventHandler(this.ctlProperties_RuleContentChanged);
+            this.ctlProperties.SchemaChanged += new System.EventHandler(this.ctlProperties_SchemaChanged);
+            // 
             // textBoxHTML
             // 
             this.textBoxHTML.BorderStyle = System.Windows.Forms.BorderStyle.None;
             resources.ApplyResources(this.textBoxHTML, "textBoxHTML");
             this.textBoxHTML.Name = "textBoxHTML";
             this.textBoxHTML.Validated += new System.EventHandler(this.TextBoxHTML_Validated);
+            // 
+            // ctlCheckGrid
+            // 
+            resources.ApplyResources(this.ctlCheckGrid, "ctlCheckGrid");
+            this.ctlCheckGrid.CheckGridSource = null;
+            this.ctlCheckGrid.Mode = IfcDoc.ToolMode.Select;
+            this.ctlCheckGrid.Name = "ctlCheckGrid";
+            this.ctlCheckGrid.Selection = null;
+            this.ctlCheckGrid.SelectionChanged += new System.EventHandler(this.ctlCheckGrid_SelectionChanged);
             // 
             // webBrowser
             // 
@@ -812,6 +887,7 @@
             this.toolStripMenuItemImportDatabase,
             this.toolStripMenuItemFileUpdate,
             this.toolStripMenuItemFileExport,
+            this.toolStripMenuItemJAVA,
             this.toolStripMenuItemCSharp,
             this.toolStripMenuItem5,
             this.toolStripMenuItemDownload,
@@ -901,6 +977,12 @@
             resources.ApplyResources(this.toolStripMenuItemFileExport, "toolStripMenuItemFileExport");
             this.toolStripMenuItemFileExport.Name = "toolStripMenuItemFileExport";
             this.toolStripMenuItemFileExport.Click += new System.EventHandler(this.toolStripMenuItemFileExport_Click);
+            // 
+            // toolStripMenuItemCSharp
+            // 
+            this.toolStripMenuItemCSharp.Name = "toolStripMenuItemCSharp";
+            resources.ApplyResources(this.toolStripMenuItemCSharp, "toolStripMenuItemCSharp");
+            this.toolStripMenuItemCSharp.Click += new System.EventHandler(this.toolStripMenuItemCSharp_Click);
             // 
             // toolStripMenuItem5
             // 
@@ -2141,85 +2223,11 @@
             resources.ApplyResources(this.openFileDialogExamples, "openFileDialogExamples");
             this.openFileDialogExamples.Multiselect = true;
             // 
-            // treeView
+            // toolStripMenuItemJAVA
             // 
-            this.treeView.ContextMenuStrip = this.contextMenuStrip;
-            resources.ApplyResources(this.treeView, "treeView");
-            this.treeView.HideSelection = false;
-            this.treeView.ImageList = this.imageListIcon;
-            this.treeView.LabelEdit = true;
-            this.treeView.Name = "treeView";
-            this.treeView.BeforeLabelEdit += new System.Windows.Forms.NodeLabelEditEventHandler(this.treeView_BeforeLabelEdit);
-            this.treeView.AfterLabelEdit += new System.Windows.Forms.NodeLabelEditEventHandler(this.treeView_AfterLabelEdit);
-            this.treeView.ItemDrag += new System.Windows.Forms.ItemDragEventHandler(this.treeView_ItemDrag);
-            this.treeView.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.TreeView_AfterSelect);
-            this.treeView.MouseUp += new System.Windows.Forms.MouseEventHandler(this.treeView_MouseUp);
-            // 
-            // ctlConcept
-            // 
-            resources.ApplyResources(this.ctlConcept, "ctlConcept");
-            this.ctlConcept.ConceptRoot = null;
-            this.ctlConcept.CurrentInstance = null;
-            this.ctlConcept.Name = "ctlConcept";
-            this.ctlConcept.Project = null;
-            this.ctlConcept.Selection = null;
-            this.ctlConcept.Template = null;
-            this.ctlConcept.SelectionChanged += new System.EventHandler(this.ctlConcept_SelectionChanged);
-            this.ctlConcept.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.ctlConcept_MouseDoubleClick);
-            // 
-            // ctlExpressG
-            // 
-            this.ctlExpressG.AllowDrop = true;
-            resources.ApplyResources(this.ctlExpressG, "ctlExpressG");
-            this.ctlExpressG.Format = IfcDoc.Schema.DOC.DiagramFormat.ExpressG;
-            this.ctlExpressG.Marker = new System.Drawing.Point(0, 0);
-            this.ctlExpressG.Mode = IfcDoc.ToolMode.Select;
-            this.ctlExpressG.Name = "ctlExpressG";
-            this.ctlExpressG.Project = null;
-            this.ctlExpressG.Schema = null;
-            this.ctlExpressG.ScrollToSelection = true;
-            this.ctlExpressG.Selection = null;
-            this.ctlExpressG.SelectionChanged += new System.EventHandler(this.ctlExpressG_SelectionChanged);
-            this.ctlExpressG.LinkOperation += new System.EventHandler(this.ctlExpressG_LinkOperation);
-            this.ctlExpressG.ExpandOperation += new System.EventHandler(this.ctlExpressG_ExpandOperation);
-            // 
-            // ctlInheritance
-            // 
-            resources.ApplyResources(this.ctlInheritance, "ctlInheritance");
-            this.ctlInheritance.Entity = null;
-            this.ctlInheritance.Mode = IfcDoc.ToolMode.Select;
-            this.ctlInheritance.ModelView = null;
-            this.ctlInheritance.Name = "ctlInheritance";
-            this.ctlInheritance.Project = null;
-            this.ctlInheritance.SelectionChanged += new System.EventHandler(this.ctlInheritance_SelectionChanged);
-            // 
-            // ctlProperties
-            // 
-            this.ctlProperties.CurrentInstance = null;
-            this.ctlProperties.CurrentPopulation = null;
-            resources.ApplyResources(this.ctlProperties, "ctlProperties");
-            this.ctlProperties.Name = "ctlProperties";
-            this.ctlProperties.SelectedAttribute = null;
-            this.ctlProperties.SelectedRule = null;
-            this.ctlProperties.Navigate += new System.EventHandler(this.ctlProperties_Navigate);
-            this.ctlProperties.RuleSelectionChanged += new System.EventHandler(this.ctlProperties_RuleSelectionChanged);
-            this.ctlProperties.RuleContentChanged += new System.EventHandler(this.ctlProperties_RuleContentChanged);
-            this.ctlProperties.SchemaChanged += new System.EventHandler(this.ctlProperties_SchemaChanged);
-            // 
-            // ctlCheckGrid
-            // 
-            resources.ApplyResources(this.ctlCheckGrid, "ctlCheckGrid");
-            this.ctlCheckGrid.CheckGridSource = null;
-            this.ctlCheckGrid.Mode = IfcDoc.ToolMode.Select;
-            this.ctlCheckGrid.Name = "ctlCheckGrid";
-            this.ctlCheckGrid.Selection = null;
-            this.ctlCheckGrid.SelectionChanged += new System.EventHandler(this.ctlCheckGrid_SelectionChanged);
-            // 
-            // toolStripMenuItemCSharp
-            // 
-            this.toolStripMenuItemCSharp.Name = "toolStripMenuItemCSharp";
-            resources.ApplyResources(this.toolStripMenuItemCSharp, "toolStripMenuItemCSharp");
-            this.toolStripMenuItemCSharp.Click += new System.EventHandler(this.toolStripMenuItemCSharp_Click);
+            this.toolStripMenuItemJAVA.Name = "toolStripMenuItemJAVA";
+            resources.ApplyResources(this.toolStripMenuItemJAVA, "toolStripMenuItemJAVA");
+            this.toolStripMenuItemJAVA.Click += new System.EventHandler(this.toolStripMenuItemJAVA_Click);
             // 
             // FormEdit
             // 
@@ -2523,5 +2531,6 @@
 		private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemContextIncludePropertyConstant;
 		private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemContextIncludeQuantity;
 		private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemCSharp;
-	}
+        private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemJAVA;
+    }
 }

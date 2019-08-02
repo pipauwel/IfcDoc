@@ -13,48 +13,25 @@ using IfcDoc.Schema;
 using IfcDoc.Schema.DOC;
 
 using System.Runtime.Serialization.Json;
+using System.IO;
 
 namespace IfcDoc.Format.JAV
 {
 	internal class FormatJAV : IDisposable,
 		IFormatExtension
 	{
+		//+++++++++++++++
+		//ATTRIBUTES
+		//+++++++++++++++
 		string m_filename;
 		DocProject m_project;
-		DocDefinition m_definition;
+        DocSchema m_schema;
+        DocDefinition m_definition;
+        Dictionary<string, DocObject> m_map;
 
-		/// <summary>
-		/// Generates folder of definitions
-		/// </summary>
-		/// <param name="path"></param>
-		public static void GenerateCode(DocProject project, string path)
-		{
-			foreach (DocSection docSection in project.Sections)
-			{
-				foreach (DocSchema docSchema in docSection.Schemas)
-				{
-					foreach (DocType docType in docSchema.Types)
-					{
-						using (FormatJAV format = new FormatJAV(path + @"\" + docSchema.Name + @"\" + docType.Name + ".java"))
-						{
-							format.Instance = project;
-							format.Definition = docType;
-							format.Save();
-						}
-					}
-
-					foreach (DocEntity docType in docSchema.Entities)
-					{
-						using (FormatJAV format = new FormatJAV(path + @"\" + docSchema.Name + @"\" + docType.Name + ".java"))
-						{
-							format.Instance = project;
-							format.Definition = docType;
-							format.Save();
-						}
-					}
-				}
-			}
-		}
+		//+++++++++++++++
+		//CONSTRUCTORS
+		//+++++++++++++++
 
 		public FormatJAV()
 		{
@@ -66,30 +43,54 @@ namespace IfcDoc.Format.JAV
 			this.m_filename = filename;
 		}
 
-		public DocProject Instance
-		{
-			get
-			{
-				return this.m_project;
-			}
-			set
-			{
-				this.m_project = value;
-			}
-		}
+		//+++++++++++++++
+		//METHODS
+		//+++++++++++++++
 
 		/// <summary>
-		/// Optional definition to save, or null for all definitions in project.
+		/// Generates folder of definitions
 		/// </summary>
-		public DocDefinition Definition
+		/// <param name="path"></param>
+		public static void GenerateCode(DocProject project, string path, Dictionary<string, DocObject> map, DocCodeEnum options)
 		{
-			get
+			string schemaid = project.GetSchemaIdentifier();
+
+			foreach (DocSection docSection in project.Sections)
 			{
-				return this.m_definition;
-			}
-			set
-			{
-				this.m_definition = value;
+				foreach (DocSchema docSchema in docSection.Schemas)
+				{
+					string pathSchema = path + @"\" + docSchema.Name;
+					if (!Directory.Exists(pathSchema))
+					{
+						Directory.CreateDirectory(pathSchema);
+					}
+
+					foreach (DocType docType in docSchema.Types)
+					{
+						string file = docSchema.Name + @"\" + docType.Name + ".java";
+						using (FormatJAV format = new FormatJAV(path + @"\" + file))
+						{
+							format.Instance = project;
+							format.Schema = docSchema;
+							format.Definition = docType;
+							format.Map = map;
+							format.Save();
+						}
+					}
+
+					foreach (DocEntity docType in docSchema.Entities)
+					{
+						string file = docSchema.Name + @"\" + docType.Name + ".java";
+						using (FormatJAV format = new FormatJAV(path + @"\" + file))
+						{
+							format.Instance = project;
+							format.Schema = docSchema;
+							format.Definition = docType;
+							format.Map = map;
+							format.Save();
+						}
+					}
+				}
 			}
 		}
 
@@ -101,111 +102,72 @@ namespace IfcDoc.Format.JAV
 				System.IO.Directory.CreateDirectory(dirpath);
 			}
 
+			if (this.m_definition == null)
+			{
+				return;
+			}
+
+			//if (!(this.m_definition is DocEntity))
+			//{
+			//	return;
+			//}
+
 			using (System.IO.StreamWriter writer = new System.IO.StreamWriter(this.m_filename))
 			{
-				writer.WriteLine("// This file was automatically generated from IFCDOC at www.buildingsmart-tech.org.");
+				writer.WriteLine("// This file was automatically generated from IFCDOC at https://technical.buildingsmart.org/.");
 				writer.WriteLine("// IFC content is copyright (C) 1996-2013 BuildingSMART International Ltd.");
+				writer.WriteLine("// Author: Pieter Pauwels, Ghent University");
 				writer.WriteLine();
-
+				
 				if (this.m_definition != null)
 				{
-					writer.WriteLine("package buildingsmart.ifc");
-					writer.WriteLine("{");
+					writer.Write("package com.buildingsmart.tech.ifc");
+					if (this.m_schema != null)
+					{
+						writer.Write("." + this.m_schema.Name);
+					}
+					writer.Write(";");
 
+					writer.WriteLine();
+					writer.WriteLine();
+
+					//IMPORTS
+					if (!(this.m_definition is DocSelect) && !(this.m_definition is DocEnumeration))
+					{
+						this.WriteImports(writer);
+						writer.WriteLine();
+					}
+
+					//CONTENT
 					if (this.m_definition is DocDefined)
 					{
+						//TODO
+						//Console.Out.WriteLine("DocDefined found: " + this.m_definition.Name);
+						//Console.Out.WriteLine("doing nothing with it.");
+						
+						//DocDefined docDefined = (DocDefined)this.m_definition;
+						//string text = this.Indent(this.FormatDefined(docDefined, this.m_map, null), 1);
+						//writer.WriteLine(text);
 						// do nothing - don't make a separate type in Java, as that would require extra heap allocation 
 					}
 					else if (this.m_definition is DocSelect)
 					{
-						writer.WriteLine("\tpublic interface " + this.m_definition.Name);
-						writer.WriteLine("\t{");
-						writer.WriteLine("\t}");
+						DocSelect docSelect = (DocSelect)this.m_definition;
+						string text = this.FormatSelect(docSelect, this.m_map, null);
+						writer.Write(text);
 					}
 					else if (this.m_definition is DocEnumeration)
 					{
-						DocEnumeration docEnumumeration = (DocEnumeration)this.m_definition;
-
-						writer.WriteLine("\tpublic enum " + this.m_definition.Name);
-						writer.WriteLine("\t{");
-						foreach (DocConstant docConstant in docEnumumeration.Constants)
-						{
-							writer.WriteLine("\t\t" + docConstant.Name + ",");
-						}
-						writer.WriteLine("\t}");
+						DocEnumeration docEnumeration = (DocEnumeration)this.m_definition;
+						string text = this.FormatEnumeration(docEnumeration, this.m_map, null);
+						writer.WriteLine(text);
 					}
 					else if (this.m_definition is DocEntity)
 					{
 						DocEntity docEntity = (DocEntity)this.m_definition;
-
-						string basedef = docEntity.BaseDefinition;
-						if (String.IsNullOrEmpty(basedef))
-						{
-							basedef = "IfcBase";
-						}
-
-						writer.WriteLine("\tpublic class " + this.m_definition.Name + " extends " + basedef);
-						writer.WriteLine("\t{");
-
-						// fields
-						foreach (DocAttribute docAttribute in docEntity.Attributes)
-						{
-							string deftype = docAttribute.DefinedType;
-
-							// if defined type, use raw type (avoiding extra memory allocation)
-							DocDefinition docDef = GetDefinition(deftype);
-							if (docDef is DocDefined)
-							{
-								deftype = ((DocDefined)docDef).DefinedType;
-
-								switch (deftype)
-								{
-									case "STRING":
-										deftype = "string";
-										break;
-
-									case "INTEGER":
-										deftype = "int";
-										break;
-
-									case "REAL":
-										deftype = "double";
-										break;
-
-									case "BOOLEAN":
-										deftype = "bool";
-										break;
-
-									case "LOGICAL":
-										deftype = "int";
-										break;
-
-									case "BINARY":
-										deftype = "byte[]";
-										break;
-								}
-							}
-
-							switch (docAttribute.GetAggregation())
-							{
-								case DocAggregationEnum.SET:
-									writer.WriteLine("\t\tprivate " + deftype + "[] " + docAttribute.Name + ";");
-									break;
-
-								case DocAggregationEnum.LIST:
-									writer.WriteLine("\t\tprivate " + deftype + "[] " + docAttribute.Name + ";");
-									break;
-
-								default:
-									writer.WriteLine("\t\tprivate " + deftype + " " + docAttribute.Name + ";");
-									break;
-							}
-						}
-
-						writer.WriteLine("\t}");
+						string text = this.FormatEntity(docEntity, this.m_map, null);
+						writer.WriteLine(text);
 					}
-
-					writer.WriteLine("}");
 				}
 				else
 				{
@@ -350,56 +312,72 @@ namespace IfcDoc.Format.JAV
 			}
 		}
 
-		#region IDisposable Members
+		
 
-		public void Dispose()
+		
+
+		private void WriteImports(StreamWriter writer)
 		{
+			//TODO: check for completeness!!
+			writer.WriteLine("import java.util.ArrayList;");
+			writer.WriteLine("import java.util.HashMap;");
+			writer.WriteLine("import java.util.Map;");
+			writer.WriteLine("import java.util.HashSet;");
+			writer.WriteLine("import java.util.LinkedList;");
+			writer.WriteLine("import java.util.List;");
+			writer.WriteLine("import java.util.Set;");
+			
+			//NOTE PIETER: not included the following method, as I have no clue what it is
+			//WriteIncludes(writer);
 		}
 
-		#endregion
-
-		private DocDefinition GetDefinition(string def)
+		private String FindBase(String basedef)
 		{
-			foreach (DocSection docSection in this.m_project.Sections)
-			{
-				foreach (DocSchema docSchema in docSection.Schemas)
-				{
-					foreach (DocType docType in docSchema.Types)
-					{
-						if (docType.Name.Equals(def))
-						{
-							return docType;
-						}
-					}
+			String based = "";
 
-					foreach (DocEntity docType in docSchema.Entities)
-					{
-						if (docType.Name.Equals(def))
-						{
-							return docType;
-						}
-					}
-				}
-			}
+			//TODO: find schema of basedef string
 
-			return null;
+			//DocDefinition d = new DocDefinition();
+
+			//if (docDef is DocEnumeration)
+			//	docSchema = this.m_project.GetSchemaOfDefinition((DocEnumeration)docDef);
+			//if (docDef is DocSelect)
+			//	docSchema = this.m_project.GetSchemaOfDefinition((DocSelect)docDef);
+			//if (docDef is DocDefined)
+			//	docSchema = this.m_project.GetSchemaOfDefinition((DocDefined)docDef);
+			//if (docDef is DocEntity)
+			//	docSchema = this.m_project.GetSchemaOfDefinition((DocEntity)docDef);
+
+			//if (docSchema != null && docSchema != entitySchema)
+			//	deftype = "com.buildingsmart.tech.ifc." + docSchema.Name + "." + deftype;
+
+			return based;
 		}
 
 		public string FormatEntity(DocEntity docEntity, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included)
 		{
+			DocSchema entitySchema = m_project.GetSchemaOfDefinition(docEntity);
+			StringBuilder sb = new StringBuilder();
+
 			string basedef = docEntity.BaseDefinition;
 			if (String.IsNullOrEmpty(basedef))
+				sb.AppendLine("public class " + docEntity.Name);
+			else
 			{
-				basedef = "IfcBase";
-			}
+				basedef = FindBase(basedef);
 
-			StringBuilder sb = new StringBuilder();
-			sb.AppendLine("public class " + docEntity.Name + " extends " + basedef);
+				sb.AppendLine("public class " + docEntity.Name + " extends " + basedef);
+
+
+
+			}
+			
 			sb.AppendLine("{");
 
 			// fields
 			foreach (DocAttribute docAttribute in docEntity.Attributes)
 			{
+				DocSchema docSchema = null;
 				string deftype = docAttribute.DefinedType;
 
 				// if defined type, use raw type (avoiding extra memory allocation)
@@ -416,7 +394,7 @@ namespace IfcDoc.Format.JAV
 					switch (deftype)
 					{
 						case "STRING":
-							deftype = "string";
+							deftype = "String";
 							break;
 
 						case "INTEGER":
@@ -428,7 +406,7 @@ namespace IfcDoc.Format.JAV
 							break;
 
 						case "BOOLEAN":
-							deftype = "bool";
+							deftype = "boolean";
 							break;
 
 						case "LOGICAL":
@@ -439,6 +417,20 @@ namespace IfcDoc.Format.JAV
 							deftype = "byte[]";
 							break;
 					}
+				}
+				else
+				{
+					if (docDef is DocEnumeration)
+						docSchema = this.m_project.GetSchemaOfDefinition((DocEnumeration)docDef);
+					if (docDef is DocSelect)
+						docSchema = this.m_project.GetSchemaOfDefinition((DocSelect)docDef);
+					if (docDef is DocDefined)
+						docSchema = this.m_project.GetSchemaOfDefinition((DocDefined)docDef);
+					if (docDef is DocEntity)
+						docSchema = this.m_project.GetSchemaOfDefinition((DocEntity)docDef);
+
+					if (docSchema != null && docSchema != entitySchema)
+						deftype = "com.buildingsmart.tech.ifc." + docSchema.Name + "." + deftype;
 				}
 
 				switch (docAttribute.GetAggregation())
@@ -476,7 +468,16 @@ namespace IfcDoc.Format.JAV
 
 		public string FormatSelect(DocSelect docSelect, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included)
 		{
-			return "public interface " + docSelect.Name + "\r\n{\r\n}\r\n";
+			StringBuilder sb = new StringBuilder();
+			//sb.AppendLine("[Guid(\"" + docSelect.Uuid.ToString() + "\")]");
+			sb.Append("public interface "+ docSelect.Name);
+
+			FindSelectInheritance(sb, docSelect, map, included, false);
+
+			sb.AppendLine(" {");
+			sb.AppendLine();
+			sb.AppendLine("}");
+			return sb.ToString();
 		}
 
 		public string FormatDefined(DocDefined docDefined, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included)
@@ -485,6 +486,8 @@ namespace IfcDoc.Format.JAV
 			return "/* " + docDefined.Name + " : " + docDefined.DefinedType + " (Java does not support structures, so usage of defined types are inline for efficiency.) */\r\n";
 		}
 
+
+		//UNSURE WHAT THESE ARE FOR:
 		public string FormatDefinitions(DocProject docProject, DocPublication docPublication, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included)
 		{
 			StringBuilder sb = new StringBuilder();
@@ -586,6 +589,70 @@ namespace IfcDoc.Format.JAV
 			return content;
 		}
 
+
+		//CALLED BY THE MAIN FORMAT METHODS:
+		/// <summary>
+		/// Makes sure that inheritance of interfaces is collected and serialised into the generated code
+		/// </summary>
+		/// <param name="sb"></param>
+		/// <param name="docEntity"></param>
+		/// <param name="map"></param>
+		/// <param name="included"></param>
+		/// <param name="hasentry">Whether entries already listed; if not, then colon is added</param>
+		private void FindSelectInheritance(StringBuilder sb, DocDefinition docEntity, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included, bool hasentry)
+		{
+			SortedList<string, DocSelect> listSelects = new SortedList<string, DocSelect>();
+			foreach (DocObject obj in map.Values)
+			{
+				if (obj is DocSelect)
+				{
+					DocSelect docSelect = (DocSelect)obj;
+					foreach (DocSelectItem docItem in docSelect.Selects)
+					{
+						if (docItem.Name != null && docItem.Name.Equals(docEntity.Name) && !listSelects.ContainsKey(docSelect.Name))
+						{
+							// found it; add it
+							listSelects.Add(docSelect.Name, docSelect);
+						}
+					}
+				}
+			}
+			DocSchema entitySchema = m_project.GetSchemaOfDefinition(docEntity);
+
+			foreach (DocSelect docSelect in listSelects.Values)
+			{
+				if (docSelect == listSelects.Values[0] && !hasentry)
+				{
+					sb.Append(" extends");
+				}
+				else
+				{
+					sb.Append(",");
+				}
+
+				// fully qualify reference inline (rather than in usings) to differentiate C# select implementation from explicit schema references in data model
+				DocSchema docSchema = this.m_project.GetSchemaOfDefinition(docSelect);
+				sb.Append(" ");
+				if (docSchema != entitySchema)
+				{
+					sb.Append("com.buildingsmart.tech.ifc.");
+					sb.Append(docSchema.Name);
+					sb.Append(".");
+				}
+				sb.Append(docSelect.Name);
+			}
+		}
+
+		
+
+		//+++++++++++++++
+		//HELPER METHODS
+		//+++++++++++++++
+
+		public void Dispose()
+		{
+		}
+
 		/// <summary>
 		/// Inserts tabs for each line
 		/// </summary>
@@ -602,5 +669,88 @@ namespace IfcDoc.Format.JAV
 
 			return text;
 		}
-	}
+
+
+		//+++++++++++++++
+		//ACCESSORS
+		//+++++++++++++++
+
+		/// <summary>
+		/// Optional definition to save, or null for all definitions in project.
+		/// </summary>
+		private DocDefinition GetDefinition(string def)
+		{
+			foreach (DocSection docSection in this.m_project.Sections)
+			{
+				foreach (DocSchema docSchema in docSection.Schemas)
+				{
+					foreach (DocType docType in docSchema.Types)
+					{
+						if (docType.Name.Equals(def))
+						{
+							return docType;
+						}
+					}
+
+					foreach (DocEntity docType in docSchema.Entities)
+					{
+						if (docType.Name.Equals(def))
+						{
+							return docType;
+						}
+					}
+				}
+			}
+
+			return null;
+		}
+
+		public DocDefinition Definition
+		{
+			get
+			{
+				return this.m_definition;
+			}
+			set
+			{
+				this.m_definition = value;
+			}
+		}
+
+		public DocProject Instance
+		{
+			get
+			{
+				return this.m_project;
+			}
+			set
+			{
+				this.m_project = value;
+			}
+		}
+
+		public DocSchema Schema
+        {
+            get
+            {
+                return this.m_schema;
+            }
+            set
+            {
+                this.m_schema = value;
+            }
+        }
+
+        public Dictionary<string, DocObject> Map
+        {
+            get
+            {
+                return this.m_map;
+            }
+            set
+            {
+                this.m_map = value;
+            }
+        }
+    }
 }

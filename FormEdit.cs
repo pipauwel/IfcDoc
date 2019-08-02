@@ -4973,8 +4973,20 @@ namespace IfcDoc
 					MessageBox.Show(this, ex.Message, "Error");
 				}
 			}
-		}
-		private void toolStripMenuItemCSharp_Click(object sender, EventArgs e)
+        }        
+        private void toolStripMenuItemJAVA_Click(object sender, EventArgs e)
+        {
+            DialogResult res = folderBrowserDialog.ShowDialog();
+            if (res != System.Windows.Forms.DialogResult.OK)
+                return;
+            System.IO.Directory.CreateDirectory(folderBrowserDialog.SelectedPath);
+
+            Dictionary<string, DocObject> mapEntity = new Dictionary<string, DocObject>();
+            Dictionary<string, string> mapSchema = new Dictionary<string, string>();
+            BuildMaps(mapEntity, mapSchema);
+            FormatJAV.GenerateCode(this.m_project, folderBrowserDialog.SelectedPath, mapEntity, DocCodeEnum.All);
+        }
+        private void toolStripMenuItemCSharp_Click(object sender, EventArgs e)
 		{
 			DialogResult res = folderBrowserDialog.ShowDialog();
 			if (res != System.Windows.Forms.DialogResult.OK)
@@ -6651,8 +6663,8 @@ namespace IfcDoc
 							break;
 
 						case "Java":
-							FormatJAV.GenerateCode(this.m_project, form.Path);
-							break;
+							FormatJAV.GenerateCode(this.m_project, form.Path, mapEntity, DocCodeEnum.Default);
+                            break;
 					}
 				}
 			}
@@ -10215,7 +10227,6 @@ namespace IfcDoc
 			this.LoadTree();
 		}
 
-	
-	}
+    }
 
 }
