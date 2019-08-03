@@ -356,101 +356,454 @@ namespace IfcDoc.Format.JAV
 
 		public string FormatEntity(DocEntity docEntity, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included)
 		{
-			DocSchema entitySchema = m_project.GetSchemaOfDefinition(docEntity);
 			StringBuilder sb = new StringBuilder();
 
-			string basedef = docEntity.BaseDefinition;
-			if (String.IsNullOrEmpty(basedef))
-				sb.AppendLine("public class " + docEntity.Name);
-			else
-			{
-				basedef = FindBase(basedef);
+			//using (CSharpCodeProvider prov = new CSharpCodeProvider())
+			//{
+				//sb.AppendLine("[Guid(\"" + docEntity.Uuid.ToString() + "\")]");
 
-				sb.AppendLine("public class " + docEntity.Name + " extends " + basedef);
-
-
-
-			}
-			
-			sb.AppendLine("{");
-
-			// fields
-			foreach (DocAttribute docAttribute in docEntity.Attributes)
-			{
-				DocSchema docSchema = null;
-				string deftype = docAttribute.DefinedType;
-
-				// if defined type, use raw type (avoiding extra memory allocation)
-				DocObject docDef = null;
-				if (deftype != null)
+				sb.Append("public ");
+				if (docEntity.IsAbstract)
 				{
-					map.TryGetValue(deftype, out docDef);
+					sb.Append("abstract ");
+				}
+				sb.Append("partial class " + docEntity.Name);
+
+				bool hasentry = false;
+				if (!String.IsNullOrEmpty(docEntity.BaseDefinition))
+				{
+					sb.Append(" : ");
+					sb.Append(docEntity.BaseDefinition);
+					hasentry = true;
 				}
 
-				if (docDef is DocDefined)
+				// implement any selects
+				FindSelectInheritance(sb, docEntity, map, included, hasentry);
+
+				sb.AppendLine();
+				sb.AppendLine("{");
+
+				// fields
+				int order = 0;
+				StringBuilder sbFields = new StringBuilder();
+				StringBuilder sbProperties = new StringBuilder();
+				StringBuilder sbConstructor = new StringBuilder(); // constructor parameters
+				StringBuilder sbAssignment = new StringBuilder(); // constructor assignment of fields
+				StringBuilder sbElemConstructor = new StringBuilder(); // default constructor
+				foreach (DocAttribute docAttribute in docEntity.Attributes)
 				{
-					deftype = ((DocDefined)docDef).DefinedType;
+					string type = FormatIdentifier(docAttribute.DefinedType);
 
-					switch (deftype)
+					DocObject docRef = null;
+					if (docAttribute.DefinedType != null)
 					{
-						case "STRING":
-							deftype = "String";
-							break;
+						map.TryGetValue(docAttribute.DefinedType, out docRef);
+					}
 
-						case "INTEGER":
-							deftype = "int";
-							break;
+					if (docAttribute.Derived != null)
+					{
+						// export as "new" property that hides base
+						switch (docAttribute.GetAggregation())
+						{
+							case DocAggregationEnum.SET:
+								sbProperties.AppendLine("\tpublic new ISet<" + type + "> " + docAttribute.Name + " { get { return null; } }");
+								break;
 
-						case "REAL":
-							deftype = "double";
-							break;
+							case DocAggregationEnum.LIST:
+								sbProperties.AppendLine("\tpublic new IList<" + type + "> " + docAttribute.Name + " { get { return null; } }");
+								break;
 
-						case "BOOLEAN":
-							deftype = "boolean";
-							break;
+							default:
+								if (docRef is DocDefined)
+								{
+									sbProperties.AppendLine("\tpublic new " + type + " " + docAttribute.Name + " { get { return new " + type + "(); } }");
+								}
+								else
+								{
+									if (string.Compare(type, "Int64") == 0 || string.Compare(type, "Double") == 0)
+										sbProperties.AppendLine("\tpublic new " + type + " " + docAttribute.Name + " { get { return 0; } }");
+									else
+										sbProperties.AppendLine("\tpublic new " + type + " " + docAttribute.Name + " { get { return null; } }");
+								}
+								break;
+						}
+						sbProperties.AppendLine();
+						// future: generate C# code for EXPRESS
+					}
+					else
+					{
+						bool inscope = false;
 
-						case "LOGICAL":
-							deftype = "int";
-							break;
+						if (included != null)
+						{
+							included.TryGetValue(docAttribute, out inscope);
+						}
+						else
+						{
+							inscope = true;
+						}
 
-						case "BINARY":
-							deftype = "byte[]";
-							break;
+
+						if (docAttribute.Inverse == null)
+						{
+							// System.Runtime.Serialization -- used by Windows Communication Foundation formatters to indicate data serialization inclusion and order
+							sbFields.AppendLine("\t[DataMember(Order = " + order + ")] ");
+							order++;
+						}
+						else if (inscope)
+						{
+							// System.ComponentModel.DataAnnotations for capturing inverse properties -- EntityFramework navigation properties
+							sbFields.AppendLine("\t[InverseProperty(\"" + docAttribute.Inverse + "\")] ");
+						}
+
+						// xml configuration
+						if (docAttribute.AggregationAttribute == null && (docRef is DocDefined || docRef is DocEnumeration))
+						{
+							sbFields.AppendLine("\t[XmlAttribute]");
+						}
+						else
+						{
+							switch (docAttribute.XsdFormat)
+							{
+								case DocXsdFormatEnum.Attribute: // e.g. IfcRoot.OwnerHistory -- only attribute has tag; element data type does not
+									sbFields.AppendLine("\t[XmlElement]");
+									break;
+
+								case DocXsdFormatEnum.Element: // attribute has tag and referenced object instance(s) have tags
+									sbFields.AppendLine("\t[XmlElement(\"" + docAttribute.DefinedType + "\")]"); // same as .Element, but skip attribute name (NOT XmlAttribute)
+									break;
+
+								case DocXsdFormatEnum.Hidden:
+									sbFields.AppendLine("\t[XmlIgnore]");
+									break;
+							}
+						}
+
+						if (docAttribute.Inverse == null || inscope)
+						{
+							// documentation
+							if (!String.IsNullOrEmpty(docAttribute.Documentation))
+							{
+								sbFields.Append("\t[Description(\""); // keep descriptions on one line
+								string encodedoc = docAttribute.Documentation.Replace("\\", "\\\\"); // backslashes used for notes that relate to EXPRESS syntax
+								encodedoc = encodedoc.Replace("\"", "\\\""); // escape any quotes
+								encodedoc = encodedoc.Replace("\r", " "); // remove any return characters
+								encodedoc = encodedoc.Replace("\n", " "); // remove any return characters
+								sbFields.Append(encodedoc);
+
+								//prov.GenerateCodeFromExpression(new CodePrimitiveExpression(docAttribute.Documentation), new StringWriter(sbFields), null); //... do this directly to avoid line splitting...
+								sbFields.AppendLine("\")]");
+							}
+
+							if (docAttribute.Inverse == null && !docAttribute.IsOptional)
+							{
+								sbFields.AppendLine("\t[Required()]");
+							}
+
+							if (docAttribute.IsUnique)
+							{
+								sbFields.AppendLine("\t[CustomValidation(typeof(" + docEntity.Name + "), \"Unique\")]"); // extent via partial class for implementation
+																														 // MS Entity Framework 6.1 supports IndexAttribute for this purpose, however above is used for now to avoid additional dependency
+							}
+
+							string optional = "";
+							if (docAttribute.IsOptional && (docRef == null || docRef is DocDefined || docRef is DocEnumeration))
+							{
+								optional = "?";
+							}
+
+							int lower = 0;
+							if (docAttribute.AggregationLower != null && Int32.TryParse(docAttribute.AggregationLower, out lower) && lower != 0)
+							{
+								sbFields.AppendLine("\t[MinLength(" + lower + ")]");
+							}
+
+							int upper = 0;
+							if (docAttribute.AggregationUpper != null && Int32.TryParse(docAttribute.AggregationUpper, out upper) && upper != 0)
+							{
+								sbFields.AppendLine("\t[MaxLength(" + upper + ")]");
+							}
+
+							//sb.AppendLine("[Guid(\"" + docAttribute.Uuid.ToString() + "\")]");
+							switch (docAttribute.GetAggregation())
+							{
+								case DocAggregationEnum.SET:
+									if (docAttribute.Inverse == null && !docAttribute.IsOptional)
+									{
+										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = new HashSet<" + type + ">(" + formatAttributeName(docAttribute) + ");");
+									}
+									else
+									{
+										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = new HashSet<" + type + ">();");
+									}
+									sbFields.AppendLine("\tpublic ISet<" + type + "> " + docAttribute.Name + " { get; protected set; }");
+									//sbProperties.AppendLine("\tpublic ISet<" + type + "> " + docAttribute.Name + " { get { return this." + docAttribute.Name + "; } }");
+									break;
+
+								case DocAggregationEnum.LIST:
+									if (docAttribute.Inverse == null && !docAttribute.IsOptional)
+									{
+										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = new List<" + type + ">(" + formatAttributeName(docAttribute) + ");");
+									}
+									else
+									{
+										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = new List<" + type + ">();");
+									}
+									sbFields.AppendLine("\tpublic IList<" + type + "> " + docAttribute.Name + " { get; protected set; }");
+									//sbProperties.AppendLine("\tpublic IList<" + type + "> " + docAttribute.Name + " { get { return this." + docAttribute.Name + "; } }");
+									break;
+
+								case DocAggregationEnum.ARRAY:
+									if (docAttribute.Inverse == null && !docAttribute.IsOptional)
+									{
+										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = " + formatAttributeName(docAttribute) + ";");
+									}
+									sbFields.AppendLine("\tpublic " + type + "[] " + docAttribute.Name + " { get; set; }");
+									//sbProperties.AppendLine("\tpublic " + type + "[] " + docAttribute.Name + " { get { return this." + docAttribute.Name + "; } }");
+									break;
+
+								default:
+									if (docAttribute.Inverse == null && !docAttribute.IsOptional)
+									{
+										sbAssignment.AppendLine("\t\tthis." + docAttribute.Name + " = " + formatAttributeName(docAttribute) + ";");
+									}
+									sbFields.AppendLine("\tpublic " + type + optional + " " + docAttribute.Name + " { get; set; }");
+									//sbProperties.AppendLine("\tpublic " + type + optional + " " + docAttribute.Name + " { get { return this._" + docAttribute.Name + "; } set { this._" + docAttribute.Name + " = value;} }");
+									break;
+							}
+
+							// helper constructors for x/y, x/y/z
+							if (docAttribute.Inverse == null && docAttribute.GetAggregation() == DocAggregationEnum.LIST && upper == 3 && docRef is DocDefined)
+							{
+								DocDefined docDefined = (DocDefined)docRef;
+								Type typePrim = GetNativeType(docDefined.DefinedType);
+								if (typePrim != null)
+								{
+									string primtype = typePrim.Name;
+
+									if (lower >= 1 && lower < upper)
+									{
+										sbElemConstructor.AppendLine("\tpublic " + docEntity.Name + "(" + primtype + " x, " + primtype + " y) : this(new " + type + "[]{ new " + type + "(x), new " + type + "(y)})");
+										sbElemConstructor.AppendLine("\t{");
+										sbElemConstructor.AppendLine("\t}");
+										sbElemConstructor.AppendLine();
+									}
+
+									if (upper == 3)
+									{
+										sbElemConstructor.AppendLine("\tpublic " + docEntity.Name + "(" + primtype + " x, " + primtype + " y, " + primtype + " z) : this(new " + type + "[]{ new " + type + "(x), new " + type + "(y), new " + type + "(z)})");
+										sbElemConstructor.AppendLine("\t{");
+										sbElemConstructor.AppendLine("\t}");
+										sbElemConstructor.AppendLine();
+									}
+								}
+							}
+
+							// todo: support special collections and properties that keep inverse properties in sync...
+							sbFields.AppendLine();
+							//sbProperties.AppendLine();
+						}
 					}
 				}
-				else
-				{
-					if (docDef is DocEnumeration)
-						docSchema = this.m_project.GetSchemaOfDefinition((DocEnumeration)docDef);
-					if (docDef is DocSelect)
-						docSchema = this.m_project.GetSchemaOfDefinition((DocSelect)docDef);
-					if (docDef is DocDefined)
-						docSchema = this.m_project.GetSchemaOfDefinition((DocDefined)docDef);
-					if (docDef is DocEntity)
-						docSchema = this.m_project.GetSchemaOfDefinition((DocEntity)docDef);
 
-					if (docSchema != null && docSchema != entitySchema)
-						deftype = "com.buildingsmart.tech.ifc." + docSchema.Name + "." + deftype;
+				sb.Append(sbFields.ToString());
+				sb.AppendLine();
+
+				// constructors
+
+#if false // no default constructors anymore
+                // default constructor
+                sb.AppendLine("\tpublic " + docEntity.Name + "()");
+                sb.AppendLine("\t{");
+                sb.AppendLine("\t}");
+                sb.AppendLine();
+#endif
+
+				// parameters for base constructor
+				List<DocAttribute> listAttr = new List<DocAttribute>();
+				BuildAttributeList(docEntity, map, listAttr);
+
+				List<DocAttribute> listBase = new List<DocAttribute>();
+				if (docEntity.BaseDefinition != null)
+				{
+					DocEntity docBase = (DocEntity)map[docEntity.BaseDefinition];
+					BuildAttributeList(docBase, map, listBase);
 				}
 
-				switch (docAttribute.GetAggregation())
+				string constructorvisibility = "public";
+				if (docEntity.IsAbstract)
 				{
-					case DocAggregationEnum.SET:
-						sb.AppendLine("\tprivate " + deftype + "[] " + docAttribute.Name + ";");
-						break;
-
-					case DocAggregationEnum.LIST:
-						sb.AppendLine("\tprivate " + deftype + "[] " + docAttribute.Name + ";");
-						break;
-
-					default:
-						sb.AppendLine("\tprivate " + deftype + " " + docAttribute.Name + ";");
-						break;
+					constructorvisibility = "protected";
 				}
-			}
 
-			sb.AppendLine("}");
+
+				// helper constructor -- expand fixed lists into separate parameters -- e.g. IfcCartesianPoint(IfcLengthMeasure, IfcLengthMeasure, IfcLengthMeasure)
+				sb.Append("\t" + constructorvisibility + " " + docEntity.Name + "(");
+				foreach (DocAttribute docAttr in listAttr)
+				{
+					if (docAttr != listAttr[0])
+					{
+						sb.Append(", ");
+					}
+
+					string type = FormatIdentifier(docAttr.DefinedType);
+					sb.Append(type);
+
+					DocObject docRef = null;
+					if (docAttr.DefinedType != null)
+					{
+						map.TryGetValue(docAttr.DefinedType, out docRef);
+					}
+
+					if (docAttr.GetAggregation() != DocAggregationEnum.NONE)
+					{
+						sb.Append("[]");
+					}
+					else if (docAttr.IsOptional && (docRef == null || docRef is DocDefined || docRef is DocEnumeration))
+					{
+						sb.Append("?");
+					}
+
+					sb.Append(" " + formatAttributeName(docAttr));
+
+				}
+				sb.AppendLine(sbConstructor.ToString() + ")");
+
+				if (listBase.Count > 0)
+				{
+					sb.Append("\t\t: base(");
+					foreach (DocAttribute docAttr in listBase)
+					{
+						if (docAttr != listBase[0])
+						{
+							sb.Append(", ");
+						}
+
+						sb.Append(formatAttributeName(docAttr));
+					}
+
+					sb.AppendLine(")");
+				}
+
+				sb.AppendLine("\t{");
+				sb.Append(sbAssignment.ToString());
+				sb.AppendLine("\t}");
+				sb.AppendLine();
+
+
+				// if only a single list attribute, then expand x, y, z (include IfcCartesianPoint, NOT IfcSurfaceReinforcementArea)
+				if (sbElemConstructor.Length > 0 && order == 1 && listBase.Count == 0)
+				{
+					sb.AppendLine(sbElemConstructor.ToString());
+				}
+
+				sb.Append(sbProperties.ToString());
+				sb.AppendLine();
+
+			//No way anything is included that is related to EXPRESS WHERE rules, EXPRESS Procedures, and modelviews. Use more modern tooling to do the same.
+
+
+				sb.AppendLine("}");
+			//}
+
 			return sb.ToString();
+
+
+			//DocSchema entitySchema = m_project.GetSchemaOfDefinition(docEntity);
+			//StringBuilder sb = new StringBuilder();
+
+			//string basedef = docEntity.BaseDefinition;
+			//if (String.IsNullOrEmpty(basedef))
+			//	sb.AppendLine("public class " + docEntity.Name);
+			//else
+			//{
+			//	basedef = FindBase(basedef);
+
+			//	sb.AppendLine("public class " + docEntity.Name + " extends " + basedef);
+
+
+
+			//}
+
+			//sb.AppendLine("{");
+
+			//// fields
+			//foreach (DocAttribute docAttribute in docEntity.Attributes)
+			//{
+			//	DocSchema docSchema = null;
+			//	string deftype = docAttribute.DefinedType;
+
+			//	// if defined type, use raw type (avoiding extra memory allocation)
+			//	DocObject docDef = null;
+			//	if (deftype != null)
+			//	{
+			//		map.TryGetValue(deftype, out docDef);
+			//	}
+
+			//	if (docDef is DocDefined)
+			//	{
+			//		deftype = ((DocDefined)docDef).DefinedType;
+
+			//		switch (deftype)
+			//		{
+			//			case "STRING":
+			//				deftype = "String";
+			//				break;
+
+			//			case "INTEGER":
+			//				deftype = "int";
+			//				break;
+
+			//			case "REAL":
+			//				deftype = "double";
+			//				break;
+
+			//			case "BOOLEAN":
+			//				deftype = "boolean";
+			//				break;
+
+			//			case "LOGICAL":
+			//				deftype = "int";
+			//				break;
+
+			//			case "BINARY":
+			//				deftype = "byte[]";
+			//				break;
+			//		}
+			//	}
+			//	else
+			//	{
+			//		if (docDef is DocEnumeration)
+			//			docSchema = this.m_project.GetSchemaOfDefinition((DocEnumeration)docDef);
+			//		if (docDef is DocSelect)
+			//			docSchema = this.m_project.GetSchemaOfDefinition((DocSelect)docDef);
+			//		if (docDef is DocDefined)
+			//			docSchema = this.m_project.GetSchemaOfDefinition((DocDefined)docDef);
+			//		if (docDef is DocEntity)
+			//			docSchema = this.m_project.GetSchemaOfDefinition((DocEntity)docDef);
+
+			//		if (docSchema != null && docSchema != entitySchema)
+			//			deftype = "com.buildingsmart.tech.ifc." + docSchema.Name + "." + deftype;
+			//	}
+
+			//	switch (docAttribute.GetAggregation())
+			//	{
+			//		case DocAggregationEnum.SET:
+			//			sb.AppendLine("\tprivate " + deftype + "[] " + docAttribute.Name + ";");
+			//			break;
+
+			//		case DocAggregationEnum.LIST:
+			//			sb.AppendLine("\tprivate " + deftype + "[] " + docAttribute.Name + ";");
+			//			break;
+
+			//		default:
+			//			sb.AppendLine("\tprivate " + deftype + " " + docAttribute.Name + ";");
+			//			break;
+			//	}
+			//}
+
+			//sb.AppendLine("}");
+			//return sb.ToString();
 		}
 
 		public string FormatEnumeration(DocEnumeration docEnumeration, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included)
@@ -486,6 +839,143 @@ namespace IfcDoc.Format.JAV
 			return "/* " + docDefined.Name + " : " + docDefined.DefinedType + " (Java does not support structures, so usage of defined types are inline for efficiency.) */\r\n";
 		}
 
+		private string formatAttributeName(DocAttribute docAttribute)
+		{
+			if (string.Compare(docAttribute.Name, "Operator", true) == 0)
+				return "_operator";
+			return Char.ToLowerInvariant(docAttribute.Name[0]) + docAttribute.Name.Substring(1);
+		}
+
+		//CALLED BY THE MAIN FORMAT METHODS:
+
+		/// <summary>
+		/// Converts any native types into .NET types
+		/// TODO: need to change this so that it matches for JAVA
+		/// </summary>
+		/// <param name="identifier"></param>
+		/// <returns></returns>
+		private static string FormatIdentifier(string identifier)
+		{
+			Type typeNative = GetNativeType(identifier);
+			if (typeNative != null)
+			{
+				if (typeNative.IsGenericType && typeNative.GetGenericTypeDefinition() == typeof(Nullable<>))
+				{
+					return typeNative.GetGenericArguments()[0].Name + "?";
+				}
+
+				return typeNative.Name;
+			}
+
+			return identifier;
+		}
+
+		private static void BuildAttributeList(DocEntity docEntity, Dictionary<string, DocObject> map, List<DocAttribute> listAttr)
+		{
+			// recurse upwards -- base first
+			DocObject docBase = null;
+			if (docEntity.BaseDefinition != null && map.TryGetValue(docEntity.BaseDefinition, out docBase) && docBase is DocEntity)
+			{
+				DocEntity docBaseEntity = (DocEntity)docBase;
+				BuildAttributeList(docBaseEntity, map, listAttr);
+			}
+
+			foreach (DocAttribute docAttr in docEntity.Attributes)
+			{
+				if (docAttr.Inverse == null && docAttr.Derived == null && !docAttr.IsOptional)
+				{
+					listAttr.Add(docAttr);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Returns the native .NET type to use for a given EXPRESS type.
+		/// </summary>
+		/// <param name="expresstype"></param>
+		/// <returns></returns>
+		public static Type GetNativeType(string expresstype)
+		{
+			switch (expresstype)
+			{
+				case "STRING":
+					return typeof(string);
+
+				case "INTEGER":
+					return typeof(long);
+
+				case "REAL":
+					return typeof(double);
+
+				case "NUMBER":
+					return typeof(decimal);
+
+				case "LOGICAL":
+					return typeof(bool?);
+
+				case "BOOLEAN":
+					return typeof(bool);
+
+				case "BINARY":
+				case "BINARY (32)":
+					return typeof(byte[]);
+
+			}
+
+			return null;
+		}
+
+		/// <summary>
+		/// Makes sure that inheritance of interfaces is collected and serialised into the generated code
+		/// </summary>
+		/// <param name="sb"></param>
+		/// <param name="docEntity"></param>
+		/// <param name="map"></param>
+		/// <param name="included"></param>
+		/// <param name="hasentry">Whether entries already listed; if not, then colon is added</param>
+		private void FindSelectInheritance(StringBuilder sb, DocDefinition docEntity, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included, bool hasentry)
+		{
+			SortedList<string, DocSelect> listSelects = new SortedList<string, DocSelect>();
+			foreach (DocObject obj in map.Values)
+			{
+				if (obj is DocSelect)
+				{
+					DocSelect docSelect = (DocSelect)obj;
+					foreach (DocSelectItem docItem in docSelect.Selects)
+					{
+						if (docItem.Name != null && docItem.Name.Equals(docEntity.Name) && !listSelects.ContainsKey(docSelect.Name))
+						{
+							// found it; add it
+							listSelects.Add(docSelect.Name, docSelect);
+						}
+					}
+				}
+			}
+			DocSchema entitySchema = m_project.GetSchemaOfDefinition(docEntity);
+
+			foreach (DocSelect docSelect in listSelects.Values)
+			{
+				if (docSelect == listSelects.Values[0] && !hasentry)
+				{
+					sb.Append(" extends");
+				}
+				else
+				{
+					sb.Append(",");
+				}
+
+				// fully qualify reference inline (rather than in usings) to differentiate C# select implementation from explicit schema references in data model
+				DocSchema docSchema = this.m_project.GetSchemaOfDefinition(docSelect);
+				sb.Append(" ");
+				if (docSchema != entitySchema)
+				{
+					sb.Append("com.buildingsmart.tech.ifc.");
+					sb.Append(docSchema.Name);
+					sb.Append(".");
+				}
+				sb.Append(docSelect.Name);
+			}
+		}
 
 		//UNSURE WHAT THESE ARE FOR:
 		public string FormatDefinitions(DocProject docProject, DocPublication docPublication, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included)
@@ -590,59 +1080,7 @@ namespace IfcDoc.Format.JAV
 		}
 
 
-		//CALLED BY THE MAIN FORMAT METHODS:
-		/// <summary>
-		/// Makes sure that inheritance of interfaces is collected and serialised into the generated code
-		/// </summary>
-		/// <param name="sb"></param>
-		/// <param name="docEntity"></param>
-		/// <param name="map"></param>
-		/// <param name="included"></param>
-		/// <param name="hasentry">Whether entries already listed; if not, then colon is added</param>
-		private void FindSelectInheritance(StringBuilder sb, DocDefinition docEntity, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included, bool hasentry)
-		{
-			SortedList<string, DocSelect> listSelects = new SortedList<string, DocSelect>();
-			foreach (DocObject obj in map.Values)
-			{
-				if (obj is DocSelect)
-				{
-					DocSelect docSelect = (DocSelect)obj;
-					foreach (DocSelectItem docItem in docSelect.Selects)
-					{
-						if (docItem.Name != null && docItem.Name.Equals(docEntity.Name) && !listSelects.ContainsKey(docSelect.Name))
-						{
-							// found it; add it
-							listSelects.Add(docSelect.Name, docSelect);
-						}
-					}
-				}
-			}
-			DocSchema entitySchema = m_project.GetSchemaOfDefinition(docEntity);
-
-			foreach (DocSelect docSelect in listSelects.Values)
-			{
-				if (docSelect == listSelects.Values[0] && !hasentry)
-				{
-					sb.Append(" extends");
-				}
-				else
-				{
-					sb.Append(",");
-				}
-
-				// fully qualify reference inline (rather than in usings) to differentiate C# select implementation from explicit schema references in data model
-				DocSchema docSchema = this.m_project.GetSchemaOfDefinition(docSelect);
-				sb.Append(" ");
-				if (docSchema != entitySchema)
-				{
-					sb.Append("com.buildingsmart.tech.ifc.");
-					sb.Append(docSchema.Name);
-					sb.Append(".");
-				}
-				sb.Append(docSelect.Name);
-			}
-		}
-
+		
 		
 
 		//+++++++++++++++

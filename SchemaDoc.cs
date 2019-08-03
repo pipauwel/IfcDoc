@@ -545,7 +545,6 @@ namespace IfcDoc.Schema.DOC
 
 		// unserialized
 		private List<string> m_errorlog; // list of filenames missing for images
-		[IgnoreDataMember] public override string id { get { return Name; } }
 
 		public DocPublication()
 		{
@@ -611,7 +610,7 @@ namespace IfcDoc.Schema.DOC
 	public class DocProject : SEntity
 	{ 
 		[DataMember(Order = 0)] [XmlElement(Order = 5)] public List<DocSection> Sections { get; protected set; }
-		[DataMember(Order = 1)] [XmlElement(Order = 6)] public List<DocAnnex> Annexes { get; protected set; } // inserted in 1.2
+		[DataMember(Order = 1)] [XmlArray(Order = 6)] public List<DocAnnex> Annexes { get; protected set; } // inserted in 1.2
 		[DataMember(Order = 2)] [XmlElement(Order = 7)] public List<DocTemplateDefinition> Templates { get; protected set; }
 		[DataMember(Order = 3)] [XmlElement(Order = 8)] public List<DocModelView> ModelViews { get; protected set; } // new in 2.7
 		[DataMember(Order = 4)] [XmlElement(Order = 9)] public List<DocChangeSet> ChangeSets { get; protected set; } // new in 2.7
@@ -2207,6 +2206,8 @@ namespace IfcDoc.Schema.DOC
 			List<DocAnnex> notSorted = new List<DocAnnex>();
 			foreach (DocAnnex docAnnex in this.Annexes)
 			{
+				if (docAnnex == null)
+					continue;
 				if (string.Compare(docAnnex.Name, "Computer interpretable listings", true) == 0)
 					computer = docAnnex;
 				else if (string.Compare(docAnnex.Name, "Alphabetical listings", true) == 0)
@@ -2825,7 +2826,6 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 9)] [XmlElement] public List<DocModelView> ModelViews { get; protected set; } // new in V11.6 -- organize sub-views
 
 		private Dictionary<DocObject, bool> m_filtercache; // for performance, remember items within scope of model view; built on demand, cleared whenever there's a change that could impact
-		[IgnoreDataMember] public override string id { get { return Name; } }
 
 		public DocModelView()
 		{
@@ -2972,7 +2972,7 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 4), Obsolete] public int CardinalityMin { get; set; } // -1 means undefined // added in IfcDoc 3.3 ; DEPRECATED
 		[DataMember(Order = 5), Obsolete] public int CardinalityMax { get; set; } // -1 means unbounded // added in IfcDoc 3.3 ; DEPRECATED
 
-		[InverseProperty("Rules")] public DocModelRule ParentRule { get; set; }
+		[IgnoreDataMember] [XmlIgnore] [InverseProperty("Rules")] public DocModelRule ParentRule { get; set; }
 
 		public DocModelRule()
 		{
@@ -5751,8 +5751,6 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 0)] [XmlElement] public List<DocAnnotation> Annotations { get; protected set; } // v1.8 inserted  TBD - use MVD-XML concept instead
 		[DataMember(Order = 1)] [XmlElement] public List<DocSchema> Schemas { get; protected set; }
 
-		[IgnoreDataMember] public override string id { get { return Name; } }
-
 		public DocSection() : this(null)
 		{
 		}
@@ -5997,9 +5995,6 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 12)] [XmlAttribute] public int DiagramPagesHorz { get; set; } // inserted in 5.8
 		[DataMember(Order = 13)] [XmlAttribute] public int DiagramPagesVert { get; set; } // inserted in 5.8
 		
-
-		[IgnoreDataMember] public override string id { get { return Name; } }
-
 		public DocSchema()
 		{
 			this.Annotations = new List<DocAnnotation>();
@@ -6597,8 +6592,6 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 8), Obsolete] private List<DocPoint> _DiagramLine { get; set; } // 3.5 -- line to tree of subtypes - removed in V5.8
 		[DataMember(Order = 9)] [XmlArray] public List<DocLine> Tree { get; protected set; } // 5.8 -- tree of lines and subtypes for diagram rendering
 
-		[IgnoreDataMember] public override string id { get { return Name; } }
-
 		internal bool _InheritanceDiagramFlag;
 
 		public DocEntity()
@@ -7100,7 +7093,7 @@ namespace IfcDoc.Schema.DOC
 	/// </summary>
 	public class DocConstant : DocObject
 	{
-		[IgnoreDataMember] [InverseProperty("Constants")] public HashSet<DocEnumeration> PartOfEnumeration { get; protected set; }
+		[IgnoreDataMember] [XmlIgnore] [InverseProperty("Constants")] public HashSet<DocEnumeration> PartOfEnumeration { get; protected set; }
 	}
 
 	public abstract class DocConstraint : DocObject
@@ -7142,8 +7135,6 @@ namespace IfcDoc.Schema.DOC
 	public abstract class DocVariableSet : DocObject
 	{
 		[DataMember(Order = 0)] [XmlAttribute] public string ApplicableType { get; set; } // e.g. IfcSensor/TEMPERATURESENSOR
-
-		[IgnoreDataMember] public override string id { get { return Name; } }
 
 		public DocEntity[] GetApplicableTypeDefinitions(DocProject docProject)
 		{
@@ -7267,8 +7258,8 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 4)] [XmlAttribute] public DocStateEnum AccessState { get; set; } // V10.5
 		[DataMember(Order = 5)] [XmlAttribute] public DocPropertyEnumeration Enumeration { get; set; } // 12.1
 
-		[IgnoreDataMember] [InverseProperty("Properties")] public HashSet<DocPropertySet> PartOfPset { get; protected set; }
-		[IgnoreDataMember] [InverseProperty("Elements")] public HashSet<DocProperty> PartOfComplex { get; protected set; }
+		[IgnoreDataMember] [XmlIgnore] [InverseProperty("Properties")] public HashSet<DocPropertySet> PartOfPset { get; protected set; }
+		[IgnoreDataMember] [XmlIgnore] [InverseProperty("Elements")] public HashSet<DocProperty> PartOfComplex { get; protected set; }
 
 
 		public DocProperty()
@@ -7426,12 +7417,36 @@ namespace IfcDoc.Schema.DOC
 
 			return docAttr;
 		}
-		public override string id
+		public override string id { get { return (PropertyType == DocPropertyTemplateTypeEnum.COMPLEX ? "zz" : "") + base.id; } }
+
+		internal DocChangeAction DetectChanges(DocProperty baseProperty)
 		{
-			get
+			DocChangeAction changeAction = new DocChangeAction() { Name = Name };
+			if (PropertyType != baseProperty.PropertyType)
 			{
-				return (PropertyType == DocPropertyTemplateTypeEnum.COMPLEX ? "zz" : "") + base.id;
+				DocChangeAspect docAspect = new DocChangeAspect(DocChangeAspectEnum.INSTANTIATION, baseProperty.PropertyType.ToString(), PropertyType.ToString());
+				changeAction.Aspects.Add(docAspect);
+				changeAction.Action = DocChangeActionEnum.MODIFIED;
 			}
+
+			if (PrimaryDataType != null && baseProperty.PrimaryDataType != null &&
+				!PrimaryDataType.Trim().Equals(baseProperty.PrimaryDataType.Trim()))
+			{
+				DocChangeAspect docAspect = new DocChangeAspect(DocChangeAspectEnum.TYPE, baseProperty.PrimaryDataType, PrimaryDataType);
+				changeAction.Aspects.Add(docAspect);
+			}
+
+			if (changeAction.Aspects.Count > 0)
+				changeAction.Action = DocChangeActionEnum.MODIFIED;
+			if (changeAction.Action != DocChangeActionEnum.NOCHANGE)
+				return changeAction;
+
+			foreach (DocProperty element in Elements)
+			{
+				//	docpropert
+				//	DocChangeAction elementChange = elemen
+			}
+			return null;
 		}
 	}
 
@@ -7487,7 +7502,7 @@ namespace IfcDoc.Schema.DOC
 	// new in IFCDOC 5.8
 	public class DocPropertyConstant : DocObject
 	{
-		[IgnoreDataMember] [InverseProperty("Constants")] public HashSet<DocPropertyEnumeration> PartOfEnumeration { get; protected set; }
+		[IgnoreDataMember] [XmlIgnore] [InverseProperty("Constants")] public HashSet<DocPropertyEnumeration> PartOfEnumeration { get; protected set; }
 	}
 
 	/// <summary>
@@ -7561,7 +7576,7 @@ namespace IfcDoc.Schema.DOC
 		[DataMember(Order = 0)] [XmlAttribute] public DocQuantityTemplateTypeEnum QuantityType { get; set; } // IfcQuantityWeight, IfcQuantityLength, etc.
 		[DataMember(Order = 1)] [XmlAttribute] public DocStateEnum AccessState { get; set; } // V10.5
 
-		[IgnoreDataMember] [InverseProperty("Quantities")] public HashSet<DocQuantitySet> PartOfQset { get; protected set; }
+		[IgnoreDataMember] [XmlIgnore] [InverseProperty("Quantities")] public HashSet<DocQuantitySet> PartOfQset { get; protected set; }
 
 		public string GetEntityName()
 		{

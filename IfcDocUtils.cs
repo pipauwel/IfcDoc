@@ -257,7 +257,7 @@ namespace IfcDoc
 		
 		private static bool isUnchanged(DocChangeAction docChangeAction)
 		{
-			docChangeAction.Changes.RemoveAll(x => !isUnchanged(x));
+			docChangeAction.Changes.RemoveAll(x => isUnchanged(x));
 			if (docChangeAction.Changes.Count == 0 && docChangeAction.Action == DocChangeActionEnum.NOCHANGE && !docChangeAction.ImpactXML && !docChangeAction.ImpactSPF)
 				return true;
 			return false;
@@ -277,17 +277,18 @@ namespace IfcDoc
 						project.PropertyConstants.Add(constant);
 				}
 			}
-			//foreach (DocType t in schema.Types)
-			//{
-			//	if (t is DocEnumeration enumeration)
-			//	{
-			//		foreach (DocConstant constant in enumeration.Constants)
-			//		{
-			//			if (!project.Constants.Contains(constant)) 
-			//				project.Constants.Add(constant);
-			//		}
-			//	}
-			//}
+			foreach (DocType t in schema.Types)
+			{
+				DocEnumeration enumeration = t as DocEnumeration;
+				if (enumeration != null)
+				{
+					foreach (DocConstant constant in enumeration.Constants)
+					{
+						if (!project.Constants.Contains(constant)) 
+							project.Constants.Add(constant);
+					}
+				}
+			}
 			foreach (DocProperty property in schema.PropertySets.SelectMany(x=>x.Properties))
 				extractListings(project, property, encounteredPropertyEnumerations); //listings
 		

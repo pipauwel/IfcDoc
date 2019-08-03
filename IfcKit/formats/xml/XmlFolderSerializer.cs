@@ -48,10 +48,6 @@ namespace BuildingSmart.Serialization.Xml
 			_ObjectStore.UseUniqueIdReferences = true;
 			InvalidFileNameChars = Path.GetInvalidFileNameChars();
 		}
-		public XmlFolderSerializer(Type type, XmlFolderSerializer parent) : this(type)
-		{
-			_ObjectStore = parent._ObjectStore;
-		}
 		public void AddFilePrefix(Type type, string prefix)
 		{
 			m_NominatedTypeFilePrefix[type] = prefix;
@@ -132,7 +128,7 @@ namespace BuildingSmart.Serialization.Xml
 			string folderPath = Path.GetDirectoryName(dataObject.FilePath);
 			HashSet<string> nestedProperties = new HashSet<string>();
 
-			IList<PropertyInfo> fields = this.GetFieldsAll(objectType);
+			IList<PropertyInfo> fields = this.GetFieldsOrdered(objectType);
 			foreach (PropertyInfo propertyInfo in fields)
 			{
 				if (propertyInfo == null)
@@ -156,6 +152,8 @@ namespace BuildingSmart.Serialization.Xml
 								int count = 0;
 								foreach (object nested in enumerable)
 								{
+									if (nested == null)
+										continue;
 									count++;
 									if (string.IsNullOrEmpty(_ObjectStore.EncounteredId(nested)))
 										allSaved = false;
@@ -201,6 +199,8 @@ namespace BuildingSmart.Serialization.Xml
 									//}
 									foreach (object nested in enumerable)
 									{
+										if (nested == null)
+											continue;
 										_ObjectStore.MarkEncountered(nested, ref nextID);
 										string nestedObjectPath = Path.Combine(nestedPath, removeInvalidFile(uniqueIdProperty.GetValue(nested).ToString()));
 										Directory.CreateDirectory(nestedObjectPath);
@@ -283,8 +283,7 @@ namespace BuildingSmart.Serialization.Xml
 				_ObjectStore.RemoveEncountered(obj);
 				using (FileStream fileStream = new FileStream(dataObject.FilePath, FileMode.Create, FileAccess.Write))
 				{
-					XmlFolderSerializer serializer = new XmlFolderSerializer(objectType, this);
-					serializer.writeObject(fileStream, obj, nestedProperties, ref nextID);
+					writeObject(fileStream, obj, nestedProperties, ref nextID);
 				}
 			}
 		}

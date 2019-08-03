@@ -795,20 +795,39 @@ namespace IfcDoc
 						{
 							try
 							{
-								DocModelRuleConstraint docRuleIndexCon = (DocModelRuleConstraint)docRuleAtt.Rules[0].Rules[0].Rules[0].Rules[1].Rules[0].Rules[0];
-
-								if (docRuleIndexCon != null)
+								DocModelRule rule0 = docRuleAtt.Rules[0];
+								if (rule0.Rules.Count > 0)
 								{
-									if (docRuleIndexCon.Expression is DocOpStatement)
+									DocModelRule rule1 = rule0.Rules[0];
+									if (rule1.Rules.Count > 0)
 									{
-										DocOpStatement docOpStatement = (DocOpStatement)docRuleIndexCon.Expression;
-										if (docOpStatement.Value != null)
+										DocModelRule rule2 = rule1.Rules[0];
+										if(rule2.Rules.Count > 1)
 										{
-											identifier = docOpStatement.Value.ToString();
-											if (identifier.StartsWith("'") && identifier.EndsWith("'"))
+											DocModelRule rule3 = rule2.Rules[1];
+											if(rule3.Rules.Count > 0)
 											{
-												identifier = identifier.Substring(1, identifier.Length - 2);
-											}
+												DocModelRule rule4 = rule3.Rules[0];
+												if (rule4.Rules.Count > 0)
+												{
+													DocModelRuleConstraint docRuleIndexCon = rule4.Rules[0] as DocModelRuleConstraint;
+													if (docRuleIndexCon != null)
+													{
+														if (docRuleIndexCon.Expression is DocOpStatement)
+														{
+															DocOpStatement docOpStatement = (DocOpStatement)docRuleIndexCon.Expression;
+															if (docOpStatement.Value != null)
+															{
+																identifier = docOpStatement.Value.ToString();
+																if (identifier.StartsWith("'") && identifier.EndsWith("'"))
+																{
+																	identifier = identifier.Substring(1, identifier.Length - 2);
+																}
+															}
+														}
+													}
+												}
+											}	
 										}
 									}
 								}

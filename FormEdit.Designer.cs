@@ -108,6 +108,7 @@
             this.toolStripMenuItemImportDatabase = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemFileUpdate = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemFileExport = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemJava = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemCSharp = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem5 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripMenuItemDownload = new System.Windows.Forms.ToolStripMenuItem();
@@ -289,7 +290,6 @@
             this.saveFileDialogModule = new System.Windows.Forms.SaveFileDialog();
             this.openFileDialogExpress = new System.Windows.Forms.OpenFileDialog();
             this.openFileDialogExamples = new System.Windows.Forms.OpenFileDialog();
-            this.toolStripMenuItemJAVA = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainerRoot)).BeginInit();
             this.splitContainerRoot.Panel1.SuspendLayout();
             this.splitContainerRoot.Panel2.SuspendLayout();
@@ -887,7 +887,7 @@
             this.toolStripMenuItemImportDatabase,
             this.toolStripMenuItemFileUpdate,
             this.toolStripMenuItemFileExport,
-            this.toolStripMenuItemJAVA,
+            this.toolStripMenuItemJava,
             this.toolStripMenuItemCSharp,
             this.toolStripMenuItem5,
             this.toolStripMenuItemDownload,
@@ -977,6 +977,12 @@
             resources.ApplyResources(this.toolStripMenuItemFileExport, "toolStripMenuItemFileExport");
             this.toolStripMenuItemFileExport.Name = "toolStripMenuItemFileExport";
             this.toolStripMenuItemFileExport.Click += new System.EventHandler(this.toolStripMenuItemFileExport_Click);
+            // 
+            // toolStripMenuItemJava
+            // 
+            this.toolStripMenuItemJava.Name = "toolStripMenuItemJava";
+            resources.ApplyResources(this.toolStripMenuItemJava, "toolStripMenuItemJava");
+            this.toolStripMenuItemJava.Click += new System.EventHandler(this.toolStripMenuItemJava_Click);
             // 
             // toolStripMenuItemCSharp
             // 
@@ -2223,12 +2229,6 @@
             resources.ApplyResources(this.openFileDialogExamples, "openFileDialogExamples");
             this.openFileDialogExamples.Multiselect = true;
             // 
-            // toolStripMenuItemJAVA
-            // 
-            this.toolStripMenuItemJAVA.Name = "toolStripMenuItemJAVA";
-            resources.ApplyResources(this.toolStripMenuItemJAVA, "toolStripMenuItemJAVA");
-            this.toolStripMenuItemJAVA.Click += new System.EventHandler(this.toolStripMenuItemJAVA_Click);
-            // 
             // FormEdit
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
@@ -2531,6 +2531,6 @@
 		private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemContextIncludePropertyConstant;
 		private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemContextIncludeQuantity;
 		private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemCSharp;
-        private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemJAVA;
-    }
+		private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemJava;
+	}
 }

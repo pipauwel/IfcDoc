@@ -110,7 +110,9 @@ namespace IfcDoc.Format.CSC
 					return typeof(bool);
 
 				case "BINARY":
+				case "BINARY (32)":
 					return typeof(byte[]);
+
 			}
 
 			return null;
@@ -953,7 +955,10 @@ namespace IfcDoc.Format.CSC
 								}
 								else
 								{
-									sbProperties.AppendLine("\tpublic new " + type + " " + docAttribute.Name + " { get { return null; } }");
+									if (string.Compare(type, "Int64") == 0 || string.Compare(type, "Double") == 0)
+										sbProperties.AppendLine("\tpublic new " + type + " " + docAttribute.Name + " { get { return 0; } }");
+									else
+										sbProperties.AppendLine("\tpublic new " + type + " " + docAttribute.Name + " { get { return null; } }");
 								}
 								break;
 						}

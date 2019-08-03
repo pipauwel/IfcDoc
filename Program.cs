@@ -1039,11 +1039,149 @@ namespace IfcDoc
 			}
 		}
 
+		internal static void SetObject(DocObject obj, IfcRoot root)
+		{
+			obj.UniqueId = GlobalId.Parse(root.GlobalId).ToString();
+			obj.Name = root.Name;
+		 	obj.Documentation = root.Description;
+
+			//foreach (DocLocalization docLoc in docObject.Localization)
+			//{
+			//	IfcLibraryReference ifcLib = new IfcLibraryReference(new IfcURIReference(docLoc.URL), null, new IfcLabel(docLoc.Name), new IfcText(docLoc.Documentation), new IfcLanguageId(docLoc.Locale), null);
+			//	IfcRelAssociatesLibrary ifcRal = new IfcRelAssociatesLibrary(NewGuid(), null, null, null, new IfcDefinitionSelect[] { ifcDefinition }, ifcLib);
+			//	ifcDefinition.HasAssociations.Add(ifcRal);
+			//}
+		}
+
 		internal static IfcGloballyUniqueId NewGuid()
 		{
 			return new IfcGloballyUniqueId(GlobalId.Format(Guid.NewGuid()));
 		}
 
+		internal static void ImportIFC(string filePath, DocProject project, DocSchema schema)
+		{
+			IfcContext context = null;
+			if (System.IO.Path.GetExtension(filePath) == ".ifcxml")
+			{
+				BuildingSmart.Serialization.Xml.XmlSerializer xmlSerializer = new BuildingSmart.Serialization.Xml.XmlSerializer(typeof(IfcContext));
+				using (System.IO.FileStream streamSource = new System.IO.FileStream(filePath, System.IO.FileMode.Open))
+				{
+					context = xmlSerializer.ReadObject(streamSource) as IfcContext;
+				}
+			}
+			if (context != null)
+			{
+				Dictionary<string, DocProperty> propertyTemplates = new Dictionary<string, DocProperty>();
+				Dictionary<string, DocQuantity> quantityTemplates = new Dictionary<string, DocQuantity>();
+				Dictionary<string, IfcPropertyEnumeration> propertyEnumerations = new Dictionary<string, IfcPropertyEnumeration>();
+				Dictionary<string, IfcPropertySetTemplate> propertySetTemplates = new Dictionary<string, IfcPropertySetTemplate>();
+
+				foreach (IfcDefinitionSelect definition in context.Declares.SelectMany(x => x.RelatedDefinitions))
+				{
+					DocProperty docProperty = null;
+					IfcPropertySetTemplate propertySetTemplate = definition as IfcPropertySetTemplate;
+					if (propertySetTemplate != null)
+					{
+						DocPropertySet propertySet = new DocPropertySet();
+						SetObject(propertySet, propertySetTemplate);
+						foreach(IfcPropertyTemplate template in propertySetTemplate.HasPropertyTemplates)
+						{
+							DocProperty property = convert(template, project) as DocProperty;
+							propertySet.Properties.Add(property);
+						}
+
+						schema.PropertySets.Add(propertySet);
+					}
+					else
+					{ 
+						IfcPropertyTemplate propertyTemplate = definition as IfcPropertyTemplate;
+						if (propertyTemplate != null)
+						{
+							if (propertyTemplates.TryGetValue(propertyTemplate.GlobalId, out docProperty))
+								convert(propertyTemplate, project);
+						}
+						else
+						{
+							IfcComplexPropertyTemplate complexPropertyTemplate = definition as IfcComplexPropertyTemplate;
+							//if (complexPropertyTemplate != null)
+							//	complexProperties[complexPropertyTemplate.GlobalId] = complexPropertyTemplate;
+							//else
+							//{
+							//	IfcPropertySetTemplate propertySetTemplate = definition as IfcPropertySetTemplate;
+							//	if (propertySetTemplate != null)
+							//		propertySetTemplates[propertySetTemplate.GlobalId] = propertySetTemplate;
+							//}
+						}
+					}
+				}
+			}
+		}
+		internal static DocObject convert(IfcPropertyTemplate template, DocProject project)
+		{
+			DocProperty property = new DocProperty();
+			DocQuantity quantity = new DocQuantity();
+			IfcSimplePropertyTemplate simplePropertyTemplate = template as IfcSimplePropertyTemplate;
+			if(simplePropertyTemplate != null)
+			{
+				switch (simplePropertyTemplate.TemplateType)
+				{
+					case IfcSimplePropertyTemplateTypeEnum.Q_AREA:
+					case IfcSimplePropertyTemplateTypeEnum.Q_COUNT:
+					case IfcSimplePropertyTemplateTypeEnum.Q_LENGTH:
+					case IfcSimplePropertyTemplateTypeEnum.Q_TIME:
+					case IfcSimplePropertyTemplateTypeEnum.Q_VOLUME:
+					case IfcSimplePropertyTemplateTypeEnum.Q_WEIGHT:
+						quantity.QuantityType = (DocQuantityTemplateTypeEnum)Enum.Parse(typeof(DocQuantityTemplateTypeEnum), simplePropertyTemplate.TemplateType.ToString());
+						if(simplePropertyTemplate.AccessState != null)
+							quantity.AccessState = (DocStateEnum)Enum.Parse(typeof(DocStateEnum), simplePropertyTemplate.AccessState.ToString());
+						property = null;
+						break;
+					default:
+						property.PropertyType = (DocPropertyTemplateTypeEnum)Enum.Parse(typeof(DocPropertyTemplateTypeEnum), simplePropertyTemplate.TemplateType.ToString());
+						if(simplePropertyTemplate.AccessState != null)
+							property.AccessState = (DocStateEnum)Enum.Parse(typeof(DocStateEnum), simplePropertyTemplate.AccessState.ToString());
+						break;
+
+				}
+
+				if(property == null)
+				{
+					SetObject(quantity, simplePropertyTemplate);
+					project.Quantities.Add(quantity);
+					return quantity;
+				}
+				SetObject(property, simplePropertyTemplate);
+				if(!string.IsNullOrEmpty(simplePropertyTemplate.PrimaryMeasureType))
+					property.PrimaryDataType = simplePropertyTemplate.PrimaryMeasureType;
+				if (!string.IsNullOrEmpty(simplePropertyTemplate.SecondaryMeasureType))
+					property.SecondaryDataType = simplePropertyTemplate.SecondaryMeasureType;
+
+				IfcPropertyEnumeration enumeration = simplePropertyTemplate.Enumerators;
+				if (enumeration != null)
+				{
+					DocPropertyEnumeration propertyEnumeration = new DocPropertyEnumeration();
+					propertyEnumeration.Name = enumeration.Name;
+					foreach (IfcValue value in enumeration.EnumerationValues)
+					{
+						propertyEnumeration.Constants.Add(new DocPropertyConstant() { Name = value.ToString() });
+					}
+				}
+				project.Properties.Add(property);
+
+				return property;
+			}
+			IfcComplexPropertyTemplate complexPropertyTemplate = template as IfcComplexPropertyTemplate;
+			if(complexPropertyTemplate != null)
+			{
+				property.PropertyType = DocPropertyTemplateTypeEnum.COMPLEX; 
+				foreach(IfcPropertyTemplate propertyTemplate in complexPropertyTemplate.HasPropertyTemplates)
+				{
+					property.Elements.Add(convert(propertyTemplate, project) as DocProperty);
+				}
+				project.Properties.Add(property);
+			}
+			return null;
+		}
 		internal static void ExportIfc(IfcProjectLibrary ifcProjectLibrary, DocProject docProject, Dictionary<DocObject, bool> included)
 		{
 			//List<IfcDefinitionSelect> propertyEnumerations = new List<IfcDefinitionSelect>();  IfcPropertyEnumeration doesn't inherit from IfcDefinitionSelect
