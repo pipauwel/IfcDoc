@@ -68,20 +68,49 @@ namespace IfcDoc.Format.JAV
 
 					foreach (DocType docType in docSchema.Types)
 					{
-						string file = docSchema.Name + @"\" + docType.Name + ".java";
-						using (FormatJAV format = new FormatJAV(path + @"\" + file))
-						{
-							format.Instance = project;
-							format.Schema = docSchema;
-							format.Definition = docType;
-							format.Map = map;
-							format.Save();
-						}
+                        if (docType is DocDefined)
+                        {
+                            DocDefined docDefined = (DocDefined)docType;
+                            string type = FormatIdentifier(docDefined.DefinedType);
+                            string typedom = FormatIdentifierWithDomain(type, project);
+                            if (string.Compare(type, "String") == 0 || string.Compare(type, "Int64") == 0 || string.Compare(type, "Decimal") == 0 ||
+                    string.Compare(type, "Byte[]") == 0 || string.Compare(type, "Double") == 0 || string.Compare(type, "double") == 0 ||
+                    string.Compare(type, "long") == 0 || string.Compare(type, "Boolean") == 0 || string.Compare(type, "byte[]") == 0)
+                            {
+                                // this defined type is actually equal to a basic data type, so we'll use that basic data type instead. KISS.
+                                // do not generate any new file
+                            }
+                            else
+                            {
+                                string file = docSchema.Name + @"\" + docType.Name + ".java";
+                                using (FormatJAV format = new FormatJAV(path + @"\" + file))
+                                {
+                                    format.Instance = project;
+                                    format.Schema = docSchema;
+                                    format.Definition = docType;
+                                    format.Map = map;
+                                    format.Save();
+                                }
+                            }
+                        }
+                        else
+                        {
+                            string file = docSchema.Name + @"\" + docType.Name + ".java";
+                            using (FormatJAV format = new FormatJAV(path + @"\" + file))
+                            {
+                                format.Instance = project;
+                                format.Schema = docSchema;
+                                format.Definition = docType;
+                                format.Map = map;
+                                format.Save();
+                            }
+                        }						
 					}
 
 					foreach (DocEntity docEntity in docSchema.Entities)
-					{
-						string file = docSchema.Name + @"\" + docEntity.Name + ".java";
+                    {
+                        //System.Console.Out.WriteLine("ENTITY : " + docEntity.Name);
+                        string file = docSchema.Name + @"\" + docEntity.Name + ".java";
 						using (FormatJAV format = new FormatJAV(path + @"\" + file))
 						{
 							format.Instance = project;
@@ -111,8 +140,9 @@ namespace IfcDoc.Format.JAV
 			using (System.IO.StreamWriter writer = new System.IO.StreamWriter(this.m_filename))
 			{
 				writer.WriteLine("// This file was automatically generated from IFCDOC at https://technical.buildingsmart.org/.");
-				writer.WriteLine("// IFC content is copyright (C) 1996-2013 BuildingSMART International Ltd.");
-				writer.WriteLine("// Author: Pieter Pauwels, Eindhoven University of Technology");
+                writer.WriteLine("// Very slight modifications were made to made content align with ifcXML reference examples.");
+                writer.WriteLine("// Use this class library to create IFC-compliant (web) applications with XML and JSON data.");
+                writer.WriteLine("// Author: Pieter Pauwels, Eindhoven University of Technology");
 				writer.WriteLine();
 				
 				if (this.m_definition != null)
@@ -136,10 +166,10 @@ namespace IfcDoc.Format.JAV
 
 					//CONTENT
 					if (this.m_definition is DocDefined)
-					{						
-						DocDefined docDefined = (DocDefined)this.m_definition;
-						string text = this.FormatDefined(docDefined, this.m_map, null);
-						writer.WriteLine(text);
+                    {
+                        DocDefined docDefined = (DocDefined)this.m_definition;
+                        string text = this.FormatDefined(docDefined, this.m_map, null);
+                        writer.WriteLine(text);
 					}
 					else if (this.m_definition is DocSelect)
 					{
@@ -176,9 +206,10 @@ namespace IfcDoc.Format.JAV
 			writer.WriteLine("import java.util.HashSet;");
 			writer.WriteLine("import java.util.LinkedList;");
 			writer.WriteLine("import java.util.List;");
-			writer.WriteLine("import java.util.Set;");
+	     	writer.WriteLine("import java.util.Set;");
 
             writer.WriteLine("import com.fasterxml.jackson.annotation.JsonIgnore;");
+            writer.WriteLine("import com.fasterxml.jackson.annotation.JsonIgnoreProperties;");
             writer.WriteLine("import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;"); 
 
              writer.WriteLine("import com.buildingsmart.tech.annotations.*;");
@@ -236,24 +267,35 @@ namespace IfcDoc.Format.JAV
 			{
                 // find domain of type so it can be imported
 				string type = FormatIdentifier(docAttribute.DefinedType);
-                DocSchema docSchema = this.m_project.GetSchemaOfDefinition(this.m_project.GetDefinition(type) as DocType);
-                string domain = "";
-                if (docSchema != null)
+                string typedom = FormatIdentifierWithDomain(type, this.m_project);
+
+                if (docAttribute.GetAggregation() != DocAggregationEnum.NONE)
                 {
-                    domain = ifcPath + "." + docSchema.Name + ".";
-                }
-                else
-                {
-                    docSchema = this.m_project.GetSchemaOfDefinition(this.m_project.GetDefinition(type) as DocEntity);
-                    if (docSchema != null)
-                    {
-                        domain = ifcPath + "." + docSchema.Name + ".";
-                    }
+                    if (typedom == "int")
+                        typedom = "Integer";
+                    else if ( typedom == "double")
+                        typedom = "Double";
                 }
 
+                //Console.Out.WriteLine("TypeDOM : " + docEntity.Name + " - " + type + " - " + typedom);
+                //DocSchema docSchema = this.m_project.GetSchemaOfDefinition(this.m_project.GetDefinition(type) as DocType);
+                //string domain = "";
+                //if (docSchema != null)
+                //{
+                //    domain = ifcPath + "." + docSchema.Name + ".";
+                //}
+                //else
+                //{
+                //    docSchema = this.m_project.GetSchemaOfDefinition(this.m_project.GetDefinition(type) as DocEntity);
+                //    if (docSchema != null)
+                //    {
+                //        domain = ifcPath + "." + docSchema.Name + ".";
+                //    }
+                //}
+
                 //replace Int64 with java long type
-                if (string.Compare(type, "Int64") == 0)
-                    type = "long";
+                //if (string.Compare(type, "Int64") == 0)
+                //    type = "long";
 
                 DocObject docRef = null;
 				if (docAttribute.DefinedType != null)
@@ -268,14 +310,14 @@ namespace IfcDoc.Format.JAV
 					{
 						case DocAggregationEnum.SET:
                             //Used to be ISet in C#
-                            sbAccessors.AppendLine("\tpublic Set<" + domain + type + "> get" + docAttribute.Name + "() {");
+                            sbAccessors.AppendLine("\tpublic Set<" + typedom + "> get" + docAttribute.Name + "() {");
 							sbAccessors.AppendLine("\t\treturn null;");
 							sbAccessors.AppendLine("\t}");
 							break;
 
 						case DocAggregationEnum.LIST:
                             //Used to be IList in C#
-                            sbAccessors.AppendLine("\tpublic List<" + domain + type + "> get" + docAttribute.Name + "() {");
+                            sbAccessors.AppendLine("\tpublic List<" + typedom + "> get" + docAttribute.Name + "() {");
 							sbAccessors.AppendLine("\t\treturn null;");
 							sbAccessors.AppendLine("\t}");
 							break;
@@ -283,21 +325,48 @@ namespace IfcDoc.Format.JAV
 						default:
 							if (docRef is DocDefined)
 							{
-								sbAccessors.AppendLine("\tpublic " + domain + type + " get" + docAttribute.Name + "() {");
-								sbAccessors.AppendLine("\t\treturn new " + domain + type + "();");
-								sbAccessors.AppendLine("}");
-							}
+								if (string.Compare(typedom, "string") == 0)
+                                {
+                                    sbAccessors.AppendLine("\tpublic " + typedom + " get" + docAttribute.Name + "() {");
+                                    sbAccessors.AppendLine("\t\treturn \"\";");
+                                    sbAccessors.AppendLine("\t}");
+                                }
+                                else if (string.Compare(typedom, "int") == 0)
+                                {
+                                    sbAccessors.AppendLine("\tpublic " + typedom + " get" + docAttribute.Name + "() {");
+                                    sbAccessors.AppendLine("\t\treturn 0;");
+                                    sbAccessors.AppendLine("\t}");
+                                }
+                                else if (string.Compare(typedom, "double") == 0 || string.Compare(typedom, "Double") == 0)
+                                {
+                                    sbAccessors.AppendLine("\tpublic " + typedom + " get" + docAttribute.Name + "() {");
+                                    sbAccessors.AppendLine("\t\treturn 0.0;");
+                                    sbAccessors.AppendLine("\t}");
+                                }
+                                else if (string.Compare(typedom, "Boolean") == 0)
+                                {
+                                    sbAccessors.AppendLine("\tpublic " + typedom + " get" + docAttribute.Name + "() {");
+                                    sbAccessors.AppendLine("\t\treturn null;");
+                                    sbAccessors.AppendLine("\t}");
+                                }
+                                else
+                                {
+                                    sbAccessors.AppendLine("\tpublic " + typedom + " get" + docAttribute.Name + "() {");
+                                    sbAccessors.AppendLine("\t\treturn new " + typedom + "();");
+                                    sbAccessors.AppendLine("\t}");
+                                }
+                            }
 							else
 							{
 								if (string.Compare(type, "long") == 0 || string.Compare(type, "Int64") == 0 || string.Compare(type, "Double") == 0)
 								{
-									sbAccessors.AppendLine("\tpublic " + domain + type + " get" + docAttribute.Name + "() {");
+									sbAccessors.AppendLine("\tpublic " + typedom + " get" + docAttribute.Name + "() {");
 									sbAccessors.AppendLine("\t\treturn 0;");
-									sbAccessors.AppendLine("}");
+									sbAccessors.AppendLine("\t}");
 								}
 								else
 								{
-									sbAccessors.AppendLine("\tpublic " + domain + type + " get" + docAttribute.Name + "() {");
+									sbAccessors.AppendLine("\tpublic " + typedom + " get" + docAttribute.Name + "() {");
 									sbAccessors.AppendLine("\t\treturn null;");
 									sbAccessors.AppendLine("\t}");
 								}
@@ -334,19 +403,22 @@ namespace IfcDoc.Format.JAV
 					// xml configuration
 					if (docAttribute.AggregationAttribute == null && (docRef is DocDefined || docRef is DocEnumeration))
 					{
-						sbFields.AppendLine("\t@JacksonXmlProperty(isAttribute=true)");
-					}
+						sbFields.AppendLine("\t@JacksonXmlProperty(isAttribute=true, localName = \"" + docAttribute.Name + "\")");
+                    }
 					else
 					{
 						switch (docAttribute.XsdFormat)
 						{
 							case DocXsdFormatEnum.Attribute: // e.g. IfcRoot.OwnerHistory -- only attribute has tag; element data type does not
-															 //sbFields.AppendLine("\t[XmlElement]");
-								break;
+                                                             //sbFields.AppendLine("\t[XmlElement]");
+
+                                sbFields.AppendLine("\t@JacksonXmlProperty(isAttribute=false, localName = \"" + docAttribute.Name + "\")");
+                                break;
 
 							case DocXsdFormatEnum.Element: // attribute has tag and referenced object instance(s) have tags
-														   //sbFields.AppendLine("\t[XmlElement(\"" + docAttribute.DefinedType + "\")]"); // same as .Element, but skip attribute name (NOT XmlAttribute)
-								break;
+                                                           //sbFields.AppendLine("\t[XmlElement(\"" + docAttribute.DefinedType + "\")]"); // same as .Element, but skip attribute name (NOT XmlAttribute)
+                                sbFields.AppendLine("\t@JacksonXmlProperty(isAttribute=false, localName = \"" + docAttribute.Name + "\")");
+                                break;
 
 							case DocXsdFormatEnum.Hidden:
 								sbFields.AppendLine("\t@JsonIgnore");
@@ -397,8 +469,8 @@ namespace IfcDoc.Format.JAV
 								{
                                     sbAssignment.AppendLine("\t\tthis." + toLowerCamelCase(docAttribute.Name) + " = new HashSet<>(Arrays.asList(" + formatAttributeName(docAttribute) + "));");
                                 }
-                                sbFields.AppendLine("\tprivate Set<" + domain + type + "> " + toLowerCamelCase(docAttribute.Name) + " = new HashSet<" + domain + type + ">();");
-								sbAccessors.AppendLine("\tpublic Set<" + domain + type + "> get" + docAttribute.Name + "() {");
+                                sbFields.AppendLine("\tprivate Set<" + typedom + "> " + toLowerCamelCase(docAttribute.Name) + " = new HashSet<" + typedom + ">();");
+								sbAccessors.AppendLine("\tpublic Set<" + typedom + "> get" + docAttribute.Name + "() {");
 								sbAccessors.AppendLine("\t\treturn this." + toLowerCamelCase(docAttribute.Name) + ";");
 								sbAccessors.AppendLine("\t}");
 								break;
@@ -408,8 +480,8 @@ namespace IfcDoc.Format.JAV
                                 {
                                     sbAssignment.AppendLine("\t\tthis." + toLowerCamelCase(docAttribute.Name) + " = new ArrayList<>(Arrays.asList(" + formatAttributeName(docAttribute) + "));");
 								}
-								sbFields.AppendLine("\tprivate List<" + domain + type + "> " + toLowerCamelCase(docAttribute.Name) + " = new ArrayList<" + domain + type + ">();");
-                                sbAccessors.AppendLine("\tpublic List<" + domain + type + "> get" + docAttribute.Name + "() {");
+								sbFields.AppendLine("\tprivate List<" + typedom + "> " + toLowerCamelCase(docAttribute.Name) + " = new ArrayList<" + typedom + ">();");
+                                sbAccessors.AppendLine("\tpublic List<" + typedom + "> get" + docAttribute.Name + "() {");
 								sbAccessors.AppendLine("\t\treturn this." + toLowerCamelCase(docAttribute.Name) + ";");
 								sbAccessors.AppendLine("\t}");
 								break;
@@ -419,8 +491,8 @@ namespace IfcDoc.Format.JAV
 								{
 									sbAssignment.AppendLine("\t\tthis." + toLowerCamelCase(docAttribute.Name) + " = " + formatAttributeName(docAttribute) + ";");
 								}
-								sbFields.AppendLine("\tprivate " + domain + type + "[] " + toLowerCamelCase(docAttribute.Name) + ";");
-								sbAccessors.AppendLine("\tpublic " + domain + type + "[] get" + docAttribute.Name + "() {");
+								sbFields.AppendLine("\tprivate " + typedom + "[] " + toLowerCamelCase(docAttribute.Name) + ";");
+								sbAccessors.AppendLine("\tpublic " + typedom + "[] get" + docAttribute.Name + "() {");
 								sbAccessors.AppendLine("\t\treturn this." + toLowerCamelCase(docAttribute.Name) + ";");
 								sbAccessors.AppendLine("\t}");
 								break;
@@ -430,12 +502,12 @@ namespace IfcDoc.Format.JAV
 								{
 									sbAssignment.AppendLine("\t\tthis." + toLowerCamelCase(docAttribute.Name) + " = " + formatAttributeName(docAttribute) + ";");
 								}
-								sbFields.AppendLine("\tprivate " + domain + type + " " + toLowerCamelCase(docAttribute.Name) + ";");
-								sbAccessors.AppendLine("\tpublic " + domain + type + " get" + docAttribute.Name + "() {");
+								sbFields.AppendLine("\tprivate " + typedom + " " + toLowerCamelCase(docAttribute.Name) + ";");
+								sbAccessors.AppendLine("\tpublic " + typedom + " get" + docAttribute.Name + "() {");
 								sbAccessors.AppendLine("\t\treturn this." + toLowerCamelCase(docAttribute.Name) + ";");
 								sbAccessors.AppendLine("\t}");
 								sbAccessors.AppendLine();
-								sbAccessors.AppendLine("\tpublic void set" + docAttribute.Name + "(" + domain + type + " " + toLowerCamelCase(docAttribute.Name) + ") {");
+								sbAccessors.AppendLine("\tpublic void set" + docAttribute.Name + "(" + typedom + " " + toLowerCamelCase(docAttribute.Name) + ") {");
 								sbAccessors.AppendLine("\t\tthis." + toLowerCamelCase(docAttribute.Name) + " = " + toLowerCamelCase(docAttribute.Name) + ";");
 								sbAccessors.AppendLine("\t}");
 								break;
@@ -484,26 +556,21 @@ namespace IfcDoc.Format.JAV
                 
                 // find domain of type so it can be imported
                 string type = FormatIdentifier(docAttr.DefinedType);
-                DocSchema docSchema = this.m_project.GetSchemaOfDefinition(this.m_project.GetDefinition(type) as DocType);
-                string domain = "";
-                if (docSchema != null)
-                {
-                    domain = ifcPath + "." + docSchema.Name + ".";
-                }
-                else
-                {
-                    docSchema = this.m_project.GetSchemaOfDefinition(this.m_project.GetDefinition(type) as DocEntity);
-                    if (docSchema != null)
-                    {
-                        domain = ifcPath + "." + docSchema.Name + ".";
-                    }
-                }
-
+                string typedom = FormatIdentifierWithDomain(type, this.m_project);
+                
                 //replace Int64 with java long type
                 if (string.Compare(type, "Int64") == 0)
                     type = "long";
 
-                sb.Append(domain + type);
+                if (docAttr.GetAggregation() != DocAggregationEnum.NONE)
+                {
+                    if (typedom == "int")
+                        typedom = "Integer";
+                    else if (typedom == "double")
+                        typedom = "Double";
+                }
+
+                sb.Append(typedom);
 
 				DocObject docRef = null;
 				if (docAttr.DefinedType != null)
@@ -517,7 +584,6 @@ namespace IfcDoc.Format.JAV
 				}
 
 				sb.Append(" " + formatAttributeName(docAttr));
-
 			}
 			sb.AppendLine(sbConstructor.ToString() + ")");
 			sb.AppendLine("\t{");
@@ -588,35 +654,39 @@ namespace IfcDoc.Format.JAV
 
 		public string FormatDefined(DocDefined docDefined, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included)
 		{
-            // find domain of type so it can be imported
+            //// find domain of type so it can be imported
             string type = FormatIdentifier(docDefined.DefinedType);
-            DocSchema docSchema = this.m_project.GetSchemaOfDefinition(this.m_project.GetDefinition(type) as DocType);
-            string domain = "";
-            if (docSchema != null)
-            {
-                domain = ifcPath + "." + docSchema.Name + ".";
-            }
-            else
-            {
-                //The defined type is a base type: Double, String, Int64, Byte[], Boolean, Decimal
+            string typedom = FormatIdentifierWithDomain(type,this.m_project);
+            //DocSchema docSchema = this.m_project.GetSchemaOfDefinition(this.m_project.GetDefinition(type) as DocType);
+            //string domain = "";
 
-                //replace datatypes with corresponding datatypes
-                if (string.Compare(type, "Int64") == 0)
-                {
-                    domain = "";
-                    type = "long";
-                }
-                if (string.Compare(type, "Decimal") == 0)
-                {
-                    domain = "";
-                    type = "double";
-                }
-                if (string.Compare(type, "Byte[]") == 0)
-                {
-                    domain = "";
-                    type = "byte[]";
-                }
-            }            
+            ////System.Console.Out.WriteLine("Defined Type : " + docDefined.Name + " - " + type);
+
+            //if (docSchema != null)
+            //{
+            //    domain = ifcPath + "." + docSchema.Name + ".";
+            //}
+            //else
+            //{
+            //    //The defined type is a base type: Double, String, Int64, Byte[], Boolean, Decimal
+
+            //    //replace datatypes with corresponding datatypes
+            //    if (string.Compare(type, "Int64") == 0)
+            //    {
+            //        domain = "";
+            //        type = "long";
+            //    }
+            //    if (string.Compare(type, "Decimal") == 0)
+            //    {
+            //        domain = "";
+            //        type = "double";
+            //    }
+            //    if (string.Compare(type, "Byte[]") == 0)
+            //    {
+            //        domain = "";
+            //        type = "byte[]";
+            //    }
+            //}
 
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("@Guid(\"" + docDefined.Uuid.ToString() + "\")");
@@ -627,35 +697,38 @@ namespace IfcDoc.Format.JAV
 
             sb.AppendLine(" {");
 
-            if (docDefined.Length != 0)
-            {
-                sb.AppendLine("\t@MaxLength(" + docDefined.Length + ")");
-            }
-            sb.AppendLine("\tpublic " + domain + type + " value;");
-            sb.AppendLine();
+                if (docDefined.Length != 0)
+                {
+                    sb.AppendLine("\t@MaxLength(" + docDefined.Length + ")");
+                }
+                sb.AppendLine("\tpublic " + typedom + " value;");
+                sb.AppendLine();
 
-            // empty constructor
-            sb.AppendLine("\tpublic " + docDefined.Name + "() {");
-            sb.AppendLine("\t}");
-            sb.AppendLine();
+                // empty constructor
+                sb.AppendLine("\tpublic " + docDefined.Name + "() {");
+                sb.AppendLine("\t}");
+                sb.AppendLine();
 
-            // direct constructor for all types
-            sb.AppendLine("\tpublic " + docDefined.Name + "(" + domain + type + " value) {");
-            sb.AppendLine("\t\tthis();");
-            sb.AppendLine("\t\tthis.value = value;");
-            sb.AppendLine("\t}");
-            sb.AppendLine();
+                // direct constructor for all types
+                sb.AppendLine("\tpublic " + docDefined.Name + "(" + typedom + " value) {");
+                sb.AppendLine("\t\tthis();");
+                sb.AppendLine("\t\tthis.value = value;");
+                sb.AppendLine("\t}");
+                sb.AppendLine();
 
-            //Accessors
-            sb.AppendLine("\tpublic " + domain + type + " getValue() {");
-            sb.AppendLine("\t\treturn this.value;");
-            sb.AppendLine("\t}");
-            sb.AppendLine();
-            sb.AppendLine("\tpublic void setValue(" + domain + type + " value) {");
-            sb.AppendLine("\t\tthis.value = value;");
-            sb.AppendLine("\t}");
+                //Accessors
+                sb.AppendLine("\tpublic " + typedom + " getValue() {");
+                sb.AppendLine("\t\treturn this.value;");
+                sb.AppendLine("\t}");
+                sb.AppendLine();
+                sb.AppendLine("\tpublic void setValue(" + typedom + " value) {");
+                sb.AppendLine("\t\tthis.value = value;");
+                sb.AppendLine("\t}");
 
-            sb.AppendLine("}");
+                sb.AppendLine("}");
+            //}
+
+            
             return sb.ToString();
         }
 
@@ -674,8 +747,7 @@ namespace IfcDoc.Format.JAV
 		//CALLED BY THE MAIN FORMAT METHODS:
 
 		/// <summary>
-		/// Converts any native types into .NET types
-		/// TODO: need to change this so that it matches for JAVA
+		/// Converts any EXPRESS types into corresponding Java class names and base types (string, etc.)
 		/// </summary>
 		/// <param name="identifier"></param>
 		/// <returns></returns>
@@ -695,7 +767,143 @@ namespace IfcDoc.Format.JAV
 			return identifier;
 		}
 
-		private static void BuildAttributeList(DocEntity docEntity, Dictionary<string, DocObject> map, List<DocAttribute> listAttr)
+        /// <summary>
+		/// Converts any type name into its corresponding domain + type name; including a check for the EXPRESS types. 
+        /// If they are wrappers for base types, the base types are returned and the wrapper EXPRESS TYPES are ignored.
+		/// </summary>
+		/// <param name="identifier"></param>
+		/// <param name="project"></param>
+		/// <returns></returns>
+		private static string FormatIdentifierWithDomain(string type, DocProject project)
+        {
+            DocSchema docSchema = project.GetSchemaOfDefinition(project.GetDefinition(type) as DocType);
+            DocDefinition def = project.GetDefinition(type);
+            string domain = "";
+            if (docSchema != null)
+            {
+                //we have a type!
+                //check whether the type itself is not a base type
+                if (string.Compare(type, "String") == 0)
+                {
+                    return "String";
+                }
+                if (string.Compare(type, "Int64") == 0)
+                {
+                    return "long";
+                }
+                if (string.Compare(type, "Decimal") == 0)
+                {
+                    return "long";
+                }
+                if (string.Compare(type, "Byte[]") == 0 || string.Compare(type, "byte[]") == 0)
+                {
+                    return "byte[]";
+                }
+                if (string.Compare(type, "Double") == 0 || string.Compare(type, "double") == 0)
+                {
+                    return "Double";
+                }
+                if (string.Compare(type, "long") == 0)
+                {
+                    return "long";
+                }
+                if (string.Compare(type, "Boolean") == 0)
+                {
+                    return "Boolean";
+                }
+
+                //check whether the type does not point towards a base type
+                DocType theType = project.GetDefinition(type) as DocType;
+                if (theType is DocDefined)
+                {
+                    DocDefined docDefined = (DocDefined)theType;
+                    string targetType = docDefined.DefinedType;
+                    //System.Console.Out.WriteLine("target : " + type + " - " + targetType);
+                    if (string.Compare(targetType, "STRING") == 0)
+                    {
+                        return "String";
+                    }
+                    else if (string.Compare(targetType, "BOOLEAN") == 0 || string.Compare(targetType, "LOGICAL") == 0)
+                    {
+                        return "Boolean";
+                    }
+                    else if (string.Compare(targetType, "INTEGER") == 0)
+                    {
+                        return "int";
+                    }
+                    else if (string.Compare(targetType, "REAL") == 0)
+                    {
+                        return "double";
+                    }
+                    else if (string.Compare(targetType, "NUMBER") == 0)
+                    {
+                        return "int";
+                    }
+                    else if (string.Compare(targetType, "BINARY") == 0 || string.Compare(targetType, "BINARY (32)") == 0)
+                    {
+                        return "Byte[]";
+                    }
+                    else
+                    {
+                        //Console.Out.WriteLine("Found: " + targetType);
+                        return ifcPath + "." + docSchema.Name + "." + type;
+                    }
+                }
+                else
+                {
+                    //these are enumerations and such
+                    return ifcPath + "." + docSchema.Name + "." + type;
+                }
+            }
+            else
+            {
+                docSchema = project.GetSchemaOfDefinition(project.GetDefinition(type) as DocEntity);
+                if (docSchema != null)
+                {
+                    //we have an entity!
+                    return ifcPath + "." + docSchema.Name + "." + type;
+                }
+                else
+                {
+                    if (string.Compare(type, "String") == 0)
+                    {
+                        return "String";
+                    }
+                    if (string.Compare(type, "Int64") == 0)
+                    {
+                        return "long";
+                    }
+                    if (string.Compare(type, "Decimal") == 0)
+                    {
+                        return "long";
+                    }
+                    if (string.Compare(type, "Byte[]") == 0 || string.Compare(type, "byte[]") == 0)
+                    {
+                        return "byte[]";
+                    }
+                    if (string.Compare(type, "Double") == 0 || string.Compare(type, "double") == 0)
+                    {
+                        return "Double";
+                    }
+                    if (string.Compare(type, "long") == 0)
+                    {
+                        return "long";
+                    }
+                    if (string.Compare(type, "Boolean") == 0)
+                    {
+                        return "Boolean";
+                    }
+                    else { 
+                        Console.Out.WriteLine("Found: ALIEN - " + type);
+                        //we have an alien! we should panic and run!
+                        return null;
+                    }
+                }
+            }
+        }
+        
+
+    private static void BuildAttributeList(DocEntity docEntity, Dictionary<string, DocObject> map, List<DocAttribute> listAttr)
 		{
 			// recurse upwards -- base first
 			DocObject docBase = null;
