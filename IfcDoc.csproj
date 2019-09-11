@@ -157,6 +157,7 @@
     <Compile Include="DocumentationISO.cs" />
     <Compile Include="DifferenceEngine.cs" />
     <Compile Include="FolderStorage.cs" />
+    <Compile Include="FormatPYT.cs" />
     <Compile Include="FormatOWL.cs" />
     <Compile Include="FormatSQL.cs" />
     <Compile Include="FormatZIP.cs" />

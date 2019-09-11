@@ -290,6 +290,7 @@
             this.saveFileDialogModule = new System.Windows.Forms.SaveFileDialog();
             this.openFileDialogExpress = new System.Windows.Forms.OpenFileDialog();
             this.openFileDialogExamples = new System.Windows.Forms.OpenFileDialog();
+            this.publishPythonToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainerRoot)).BeginInit();
             this.splitContainerRoot.Panel1.SuspendLayout();
             this.splitContainerRoot.Panel2.SuspendLayout();
@@ -888,6 +889,7 @@
             this.toolStripMenuItemFileUpdate,
             this.toolStripMenuItemFileExport,
             this.toolStripMenuItemJava,
+            this.publishPythonToolStripMenuItem,
             this.toolStripMenuItemCSharp,
             this.toolStripMenuItem5,
             this.toolStripMenuItemDownload,
@@ -2229,6 +2231,12 @@
             resources.ApplyResources(this.openFileDialogExamples, "openFileDialogExamples");
             this.openFileDialogExamples.Multiselect = true;
             // 
+            // publishPythonToolStripMenuItem
+            // 
+            this.publishPythonToolStripMenuItem.Name = "publishPythonToolStripMenuItem";
+            resources.ApplyResources(this.publishPythonToolStripMenuItem, "publishPythonToolStripMenuItem");
+            this.publishPythonToolStripMenuItem.Click += new System.EventHandler(this.toolStripMenuItemPython_Click);
+            // 
             // FormEdit
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
@@ -2532,5 +2540,6 @@
 		private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemContextIncludeQuantity;
 		private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemCSharp;
 		private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemJava;
-	}
+        private System.Windows.Forms.ToolStripMenuItem publishPythonToolStripMenuItem;
+    }
 }

@@ -35,6 +35,7 @@ using BuildingSmart.Serialization.Json;
 using BuildingSmart.Serialization.Step;
 using BuildingSmart.Serialization.Turtle;
 using BuildingSmart.Serialization.Xml;
+using IfcDoc.Format.PYT;
 
 #if MDB
     using IfcDoc.Format.MDB;
@@ -4962,7 +4963,20 @@ namespace IfcDoc
 			FormatJAV.GenerateCode(this.m_project, folderBrowserDialog.SelectedPath, mapEntity, DocCodeEnum.All);
 		}
 
-		private void toolStripMenuItemCSharp_Click(object sender, EventArgs e)
+        private void toolStripMenuItemPython_Click(object sender, EventArgs e)
+        {
+            DialogResult res = folderBrowserDialog.ShowDialog();
+            if (res != System.Windows.Forms.DialogResult.OK)
+                return;
+            System.IO.Directory.CreateDirectory(folderBrowserDialog.SelectedPath);
+
+            Dictionary<string, DocObject> mapEntity = new Dictionary<string, DocObject>();
+            Dictionary<string, string> mapSchema = new Dictionary<string, string>();
+            BuildMaps(mapEntity, mapSchema);
+            FormatPyt.GenerateCode(this.m_project, folderBrowserDialog.SelectedPath, mapEntity, DocCodeEnum.All);
+        }
+
+        private void toolStripMenuItemCSharp_Click(object sender, EventArgs e)
 		{
 			DialogResult res = folderBrowserDialog.ShowDialog();
 			if (res != System.Windows.Forms.DialogResult.OK)
@@ -10198,5 +10212,6 @@ namespace IfcDoc
 			}
 			this.LoadTree();
 		}
-	}
+
+    }
 }

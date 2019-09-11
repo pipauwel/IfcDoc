@@ -1,4 +1,4 @@
-﻿// Name:        FormatJAV.cs
+﻿// Name:        FormatPYT.cs
 // Description: Java Code Generator
 // Author:      Pieter Pauwels, Tim Chipman
 // Origination: Work performed for BuildingSmart by Constructivity.com LLC.
@@ -15,9 +15,9 @@ using IfcDoc.Schema.DOC;
 using System.Runtime.Serialization.Json;
 using System.IO;
 
-namespace IfcDoc.Format.JAV
+namespace IfcDoc.Format.PYT
 {
-	internal class FormatJAV : IDisposable,
+	internal class FormatPyt : IDisposable,
 		IFormatExtension
 	{
 		//+++++++++++++++
@@ -34,12 +34,12 @@ namespace IfcDoc.Format.JAV
 		//CONSTRUCTORS
 		//+++++++++++++++
 
-		public FormatJAV()
+		public FormatPyt()
 		{
 			this.m_filename = null;
 		}
 
-		public FormatJAV(string filename)
+		public FormatPyt(string filename)
 		{
 			this.m_filename = filename;
 		}
@@ -83,7 +83,7 @@ namespace IfcDoc.Format.JAV
                             else
                             {
                                 string file = docSchema.Name + @"\" + docType.Name + ".java";
-                                using (FormatJAV format = new FormatJAV(path + @"\" + file))
+                                using (FormatPyt format = new FormatPyt(path + @"\" + file))
                                 {
                                     format.Instance = project;
                                     format.Schema = docSchema;
@@ -96,7 +96,7 @@ namespace IfcDoc.Format.JAV
                         else
                         {
                             string file = docSchema.Name + @"\" + docType.Name + ".java";
-                            using (FormatJAV format = new FormatJAV(path + @"\" + file))
+                            using (FormatPyt format = new FormatPyt(path + @"\" + file))
                             {
                                 format.Instance = project;
                                 format.Schema = docSchema;
@@ -111,7 +111,7 @@ namespace IfcDoc.Format.JAV
                     {
                         //System.Console.Out.WriteLine("ENTITY : " + docEntity.Name);
                         string file = docSchema.Name + @"\" + docEntity.Name + ".java";
-						using (FormatJAV format = new FormatJAV(path + @"\" + file))
+						using (FormatPyt format = new FormatPyt(path + @"\" + file))
 						{
 							format.Instance = project;
 							format.Schema = docSchema;
