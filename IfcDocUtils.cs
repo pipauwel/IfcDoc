@@ -59,9 +59,8 @@ namespace IfcDoc
 				case ".ifcdoc":
 					using (FileStream streamDoc = new FileStream(filePath, FileMode.Open, FileAccess.Read))
 					{
-						Dictionary<long, object> dictionaryInstances = null;
 						StepSerializer formatDoc = new StepSerializer(typeof(DocProject), SchemaDOC.Types);
-						project = (DocProject)formatDoc.ReadObject(streamDoc, out dictionaryInstances);
+						project = (DocProject)formatDoc.ReadObject(streamDoc, out Dictionary<long, object> dictionaryInstances);
 						instances.AddRange(dictionaryInstances.Values);
 						schema = formatDoc.Schema;
 					}
@@ -69,9 +68,8 @@ namespace IfcDoc
 				case ".ifcdocxml":
 					using (FileStream streamDoc = new FileStream(filePath, FileMode.Open, FileAccess.Read))
 					{
-						Dictionary<string, object> dictionaryInstances = null;
 						XmlSerializer formatDoc = new XmlSerializer(typeof(DocProject));
-						project = (DocProject)formatDoc.ReadObject(streamDoc, out dictionaryInstances);
+						project = (DocProject)formatDoc.ReadObject(streamDoc, out Dictionary<string, object> dictionaryInstances);
 						instances.AddRange(dictionaryInstances.Values);
 					}
 					break;

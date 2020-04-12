@@ -3291,11 +3291,13 @@ namespace IfcDoc
 			if (docView != null)
 			{
 				// configure specific model view
-				DocXsdFormat docFormat = new DocXsdFormat();
-				docFormat.Entity = docEntity.Name;
-				docFormat.Attribute = docAttribute.Name;
-				docFormat.XsdFormat = xsdformat;
-				docFormat.XsdTagless = booltagless;
+				DocXsdFormat docFormat = new DocXsdFormat
+				{
+					Entity = docEntity.Name,
+					Attribute = docAttribute.Name,
+					XsdFormat = xsdformat,
+					XsdTagless = booltagless
+				};
 				docView.XsdFormats.Add(docFormat);
 			}
 			else

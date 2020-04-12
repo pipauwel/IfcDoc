@@ -199,20 +199,21 @@ namespace IfcDoc.Format.PYT
         
 		private void WriteImports(StreamWriter writer)
 		{
-			writer.WriteLine("import java.util.ArrayList;");
-            writer.WriteLine("import java.util.Arrays;");
-            writer.WriteLine("import java.util.HashMap;");
-			writer.WriteLine("import java.util.Map;");
-			writer.WriteLine("import java.util.HashSet;");
-			writer.WriteLine("import java.util.LinkedList;");
-			writer.WriteLine("import java.util.List;");
-	     	writer.WriteLine("import java.util.Set;");
+			writer.WriteLine("import array");
+			//writer.WriteLine("import java.util.Arrays;");
+			//writer.WriteLine("import java.util.HashMap;"); Built in function dict()
+			//writer.WriteLine("import java.util.Map;"); Built in function map()
+			//writer.WriteLine("import java.util.HashSet;"); Built in function set()
+			writer.WriteLine("from collections import deque");
+			//writer.WriteLine("import java.util.LinkedList;");
+			//writer.WriteLine("import java.util.List;");
+			//writer.WriteLine("import java.util.Set;");
 
-            writer.WriteLine("import com.fasterxml.jackson.annotation.JsonIgnore;");
-            writer.WriteLine("import com.fasterxml.jackson.annotation.JsonIgnoreProperties;");
-            writer.WriteLine("import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;"); 
-
-             writer.WriteLine("import com.buildingsmart.tech.annotations.*;");
+			writer.WriteLine("import JsonIgnore");//writer.WriteLine("import com.fasterxml.jackson.annotation.JsonIgnore;");
+			writer.WriteLine("import JsonIgnoreProperties");//writer.WriteLine("import com.fasterxml.jackson.annotation.JsonIgnoreProperties;");
+			writer.WriteLine("import JsonXmlProperties");//writer.WriteLine("import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;"); 
+			writer.WriteLine("from enum import Enum");
+			writer.WriteLine("from annotations import *");//writer.WriteLine("import com.buildingsmart.tech.annotations.*;");
 		}
 
 		public string FormatEntity(DocEntity docEntity, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included)
@@ -603,31 +604,49 @@ namespace IfcDoc.Format.PYT
 
 		public string FormatEnumeration(DocEnumeration docEnumeration, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included)
 		{
+
 			StringBuilder sb = new StringBuilder();
-			sb.AppendLine("public enum " + docEnumeration.Name);
-			sb.AppendLine("{");
+			sb.AppendLine("class " + docEnumeration.Name + "(Enum):");//sb.AppendLine("public enum " + docEnumeration.Name);
+																	  //sb.AppendLine("{");
+			int counter = 0;
 			foreach (DocConstant docConstant in docEnumeration.Constants)
 			{
-				sb.AppendLine("\t" + docConstant.Name + ",");
+				int val;
+
+				if (docConstant.Name.Equals("NOTDEFINED"))
+				{
+					val = 0;
+				}
+				else if (docConstant.Name.Equals("USERDEFINED"))
+				{
+					val = -1;
+				}
+				else
+				{
+					counter++;
+					val = counter;
+				}
+
+				sb.AppendLine("\t" + docConstant.Name + " = " + val + ",");
+				sb.AppendLine();
 			}
-			sb.AppendLine("}");
 			return sb.ToString();
 		}
 
 		public string FormatSelect(DocSelect docSelect, Dictionary<string, DocObject> map, Dictionary<DocObject, bool> included)
 		{
 			StringBuilder sb = new StringBuilder();
-            sb.AppendLine("import com.buildingsmart.tech.annotations.Guid;");
-            sb.AppendLine();
+            //sb.AppendLine("import com.buildingsmart.tech.annotations.Guid;");
+            //sb.AppendLine();
 
-            sb.AppendLine("@Guid(\"" + docSelect.Uuid.ToString() + "\")");
-            sb.Append("public interface "+ docSelect.Name);
+            //sb.AppendLine("@Guid(\"" + docSelect.Uuid.ToString() + "\")");
+            //sb.Append("public interface "+ docSelect.Name);
 
-            FindExtends(sb, docSelect, map, included);
+            //FindExtends(sb, docSelect, map, included);
 
-			sb.AppendLine(" {");
-			sb.AppendLine();
-			sb.AppendLine("}");
+			//sb.AppendLine(" {");
+			//sb.AppendLine();
+			//sb.AppendLine("}");
 			return sb.ToString();
 		}
 

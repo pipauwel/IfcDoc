@@ -648,8 +648,7 @@ namespace IfcDoc.Format.XSD
 				{
 					if (docAttr.XsdFormat != DocXsdFormatEnum.Hidden && !(docAttr.XsdTagless == true) && docAttr.DefinedType != null)
 					{
-						DocObject mapDef = null;
-						map.TryGetValue(docAttr.DefinedType, out mapDef);
+						map.TryGetValue(docAttr.DefinedType, out DocObject mapDef);
 
 						if ((docAttr.Inverse == null || docAttr.XsdFormat == DocXsdFormatEnum.Element || docAttr.XsdFormat == DocXsdFormatEnum.Attribute) &&
 							docAttr.Derived == null)

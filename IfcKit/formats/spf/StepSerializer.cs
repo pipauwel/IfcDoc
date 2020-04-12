@@ -86,8 +86,7 @@ namespace BuildingSmart.Serialization.Step
 			// third pass: read fields
 			ReadContent(stream, instances, ParseScope.DataFields);
 
-			object root = null;
-			instances.TryGetValue(0, out root);
+			instances.TryGetValue(0, out object root);
 			return root;
 		}
 
